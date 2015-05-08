@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
 	than windows style flags ('/')
 	*/
 	if(!cmdOptionExists(argv, argv+argc, "--python")) {
-		std::cout << "Please launch this tool from the python script main.py" << std::endl;
+		std::cout << "Please launch this tool from the Python script (ntfs-linker.py)" << std::endl;
 		exit(0);
 	}
 	if(cmdOptionExists(argv, argv+argc, "-h")) {
