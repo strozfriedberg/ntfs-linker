@@ -1,4 +1,4 @@
-import os.path
+import os
 import sys
 import subprocess
 import argparse
@@ -7,20 +7,38 @@ def checkFolder(path):
     if os.path.isdir(path):
         return True
     else:
-        print("Folder was not found at the location specified: %s" % path)
+        print "Folder was not found at the location specified: %s" % path
         return False
+
+def checkCreateFolder(path):
+    if os.path.exists(path):
+        return True
+    else:
+        try:
+            os.makedirs(path)
+            return True
+        except IOError, e:
+            print 'Could not to create output directory at: %s' % path
+            return False
+        except WindowsError, e:
+            print 'Could not to create output directory at: %s' % path
+            return False
 
 def checkFile(path):
     if os.path.isfile(path):
         return True
     else:
-        print("File was not found at the location specified: %s" % path)
+        print "File was not found at the location specified: %s" % path
         return False
 
 def getOptions(argv, desc):
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('-i', '--input', required=True,
         help='Path to directory containing $MFT, $LogFile, and $UsnJrnl (or $J)')
+    parser.add_argument('-o', '--output', required=True,
+        help='Path to output directory')
+    parser.add_argument('--append', action='store_true',
+        help='Append output instead of overwriting')
     parser.add_argument('-v', '--version', action='store_true',
         help='Print version information and exit')
 
@@ -31,6 +49,9 @@ def getOptions(argv, desc):
 
     if not checkFolder(args.input):
         parser.error('Input folder cannot be accessed (%s)' % args.input)
+
+    if not checkCreateFolder(args.output):
+        parser.error('Output folder cannot be accessed (%s)' % args.output)
 
     return args
 
@@ -65,7 +86,9 @@ def main(argv):
         out.write(f.read())
         out.close()
         f.close()
-        subargs = ['ntfs-linker-v4.3.exe', '--python', '-i', args.input]
+        subargs = ['ntfs-linker-v4.3.exe', '--python', '-i', args.input, '-o', args.output]
+        if not args.append:
+            subargs.append('--overwrite')
         print 'NTFS Linker running with arguments: %s' % subargs
         subprocess.call(subargs, stdout=sys.stdout)
     else:
