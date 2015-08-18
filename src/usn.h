@@ -18,22 +18,22 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream&
 
 class USN_Record {
 public:
-	unsigned long long file_ref_no, mft_record_no, par_file_ref_no, par_record, prev_par_record, usn, timestamp;
-	unsigned int reason, file_len, name_offset;
-	std::string file_name, prev_file_name;
+  unsigned long long file_ref_no, mft_record_no, par_file_ref_no, par_record, prev_par_record, usn, timestamp;
+  unsigned int reason, file_len, name_offset;
+  std::string file_name, prev_file_name;
 
-	USN_Record(char* buffer, std::map<unsigned int, file*>& records);
-	USN_Record();
-	//USN_Record& operator=(const USN_Record& rhs);
-	void clearFields();
-	std::string toString(std::map<unsigned int, file*>& records);
-	std::string toCreateString(std::map<unsigned int, file*>& records);
-	std::string toDeleteString(std::map<unsigned int, file*>& records);
-	std::string toRenameString(std::map<unsigned int, file*>& records);
-	std::string toMoveString(std::map<unsigned int, file*>& records);
+  USN_Record(char* buffer, std::map<unsigned int, file*>& records);
+  USN_Record();
+  //USN_Record& operator=(const USN_Record& rhs);
+  void clearFields();
+  std::string toString(std::map<unsigned int, file*>& records);
+  std::string toCreateString(std::map<unsigned int, file*>& records);
+  std::string toDeleteString(std::map<unsigned int, file*>& records);
+  std::string toRenameString(std::map<unsigned int, file*>& records);
+  std::string toMoveString(std::map<unsigned int, file*>& records);
 
-	void insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
-	void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
+  void insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
+  void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
 };
 
 #endif

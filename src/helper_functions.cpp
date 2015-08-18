@@ -20,14 +20,14 @@
 Returns the first SIZE characters as a hex string.
 */
 std::string byte_to_str(char* bytes, int size) {
-	char const hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-	std::string str;
-	for(int i = 0; i < size; i++) {
-		const char ch = bytes[i];
-		str.append(&hex[(ch & 0xF0) >> 4], 1);
-		str.append(&hex[ch & 0x0F], 1);
-	}
-	return str;
+  char const hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+  std::string str;
+  for(int i = 0; i < size; i++) {
+    const char ch = bytes[i];
+    str.append(&hex[(ch & 0xF0) >> 4], 1);
+    str.append(&hex[ch & 0x0F], 1);
+  }
+  return str;
 }
 
 /*
@@ -36,16 +36,16 @@ If the result is too large to fit into a long long then overflow will occur
 Reads the bytes as Little Endian
 */
 unsigned long long hex_to_long(char* arr, int size) {
-	unsigned long long result = 0;
-	for(int i = size - 1; i >= 0; i--) {
-		result <<= 8;
-		result +=  (unsigned char) arr[i];
-	}
-	if(result < 0) {
-		std::cerr << "Error" << std::endl;
-		exit(EXIT_FAILURE);
-	}
-	return result;
+  unsigned long long result = 0;
+  for(int i = size - 1; i >= 0; i--) {
+    result <<= 8;
+    result +=  (unsigned char) arr[i];
+  }
+  if(result < 0) {
+    std::cerr << "Error" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  return result;
 }
 
 /*
@@ -54,16 +54,16 @@ The filetime format is the number of 100 nanoseconds since 1601-01-01 (Assumed t
 Unixtime is the number of seconds since 1970-01-01
 */
 long long filetime_to_unixtime(long long t) {
-	t -= 11644473600000ULL * 10000; //the number of 100 nano-seconds between 1601-01-01 and 1970-01-01
-	t /= 10000000; //convert 100 nanoseconds to seconds
-	t -= getEpochDifference();
-	return t;
-}	
+  t -= 11644473600000ULL * 10000; //the number of 100 nano-seconds between 1601-01-01 and 1970-01-01
+  t /= 10000000; //convert 100 nanoseconds to seconds
+  t -= getEpochDifference();
+  return t;
+}
 
 std::wstring string_to_wstring(const std::string &str) {
-	std::wstring temp(str.length(), L' ');
-	copy(str.begin(), str.end(), temp.begin());
-	return temp;
+  std::wstring temp(str.length(), L' ');
+  copy(str.begin(), str.end(), temp.begin());
+  return temp;
 }
 
 /*
@@ -72,21 +72,21 @@ The filetime format is the number of 100 nanoseconds since 1601-01-01 (Assumed t
 Returned string format is YYYY-MM-DD HH:MM:SS 0000000 (nanoseconds)
 */
 std::string filetime_to_iso_8601(unsigned long long t) {
-	long long unixtime = filetime_to_unixtime(t);
-	time_t* time = (time_t*) &unixtime;
-	struct tm* date = gmtime(time);
-	
-	char* str = new char[21];
+  long long unixtime = filetime_to_unixtime(t);
+  time_t* time = (time_t*) &unixtime;
+  struct tm* date = gmtime(time);
 
-	std::string rtn = "";
-	std::stringstream ss;
-	if(strftime(str, 20, "%Y-%m-%d %H:%M:%S", date)) {
-		rtn = str;
-	}
-	ss << rtn << " ";
-	ss << std::setw(7) << std::setfill('0') << (t % 10000000);
-	delete[] str;
-	return ss.str();
+  char* str = new char[21];
+
+  std::string rtn = "";
+  std::stringstream ss;
+  if(strftime(str, 20, "%Y-%m-%d %H:%M:%S", date)) {
+    rtn = str;
+  }
+  ss << rtn << " ";
+  ss << std::setw(7) << std::setfill('0') << (t % 10000000);
+  delete[] str;
+  return ss.str();
 }
 
 /*
@@ -95,21 +95,21 @@ Reads each 2 bytes of the charater array as a wide character and converts the UT
 Length of output string is len, reads len*2 bytes
 */
 std::string mbcatos(char* arr, unsigned long long len) {
-	std::vector<unsigned short> utf16;
-	for(unsigned int i = 0; i < len; i++) {
-		utf16.push_back(arr[2*i] + (arr[2*i+1]<<8));
-	}
-	std::string utf8;
-	try {
-		utf8::utf16to8(utf16.begin(), utf16.end(), std::back_inserter(utf8));
-	} catch(utf8::invalid_utf16& e) {
-		return "ERROR";
-	}
-	//delete any \t \r \n from utf8 string
-	char chars[] = "\t\r\n";
-	for(int i = 0; i < 3; i++)
-		utf8.erase(std::remove(utf8.begin(), utf8.end(), chars[i]), utf8.end());
-	return utf8;
+  std::vector<unsigned short> utf16;
+  for(unsigned int i = 0; i < len; i++) {
+    utf16.push_back(arr[2*i] + (arr[2*i+1]<<8));
+  }
+  std::string utf8;
+  try {
+    utf8::utf16to8(utf16.begin(), utf16.end(), std::back_inserter(utf8));
+  } catch(utf8::invalid_utf16& e) {
+    return "ERROR";
+  }
+  //delete any \t \r \n from utf8 string
+  char chars[] = "\t\r\n";
+  for(int i = 0; i < 3; i++)
+    utf8.erase(std::remove(utf8.begin(), utf8.end(), chars[i]), utf8.end());
+  return utf8;
 }
 
 /*
@@ -119,12 +119,12 @@ In order returned, flag meaning is:
 Read only, Hidden, System, Archive, Device, Normal, Temporary, Sparse File, Reparse Point, Compressed, Offline, Not Indexed, Encrypted
 */
 std::string getFlagMeaning(int flags) {
-	std::stringstream ss;
-	ss << (flags & 0x1) << ","<< (flags & 0x2) << "," <<(flags & 0x4) << "," << (flags & 0x20) << ","
-		<< (flags & 0x40) << "," << (flags & 0x80) << "," << (flags & 0x100) << "," << (flags & 0x200) << ","
-		<< (flags & 0x400) << "," << (flags & 0x800) << "," << (flags & 0x1000) << "," << (flags & 0x2000)
-		<< (flags & 0x4000);
-	return ss.str();
+  std::stringstream ss;
+  ss << (flags & 0x1) << ","<< (flags & 0x2) << "," <<(flags & 0x4) << "," << (flags & 0x20) << ","
+    << (flags & 0x40) << "," << (flags & 0x80) << "," << (flags & 0x100) << "," << (flags & 0x200) << ","
+    << (flags & 0x400) << "," << (flags & 0x800) << "," << (flags & 0x1000) << "," << (flags & 0x2000)
+    << (flags & 0x4000);
+  return ss.str();
 }
 
 /*
@@ -135,32 +135,32 @@ However, on some systems this will be locale-dependent an be off by the time zon
 Currently unused
 */
 time_t getEpochDifference() {
-	return 0;
-	struct tm* unix_epoch = new tm;
-	unix_epoch->tm_sec = 0;
-	unix_epoch->tm_min = 0;
-	unix_epoch->tm_hour = 0;
-	unix_epoch->tm_mday = 1;
-	unix_epoch->tm_mon = 0;
-	unix_epoch->tm_year = 70;
-	unix_epoch->tm_wday = 4;
-	unix_epoch->tm_yday = 0;
-	unix_epoch->tm_isdst = 0;
-	time_t epoch_difference = mktime(unix_epoch);
-	delete unix_epoch;
-	return epoch_difference;
+  return 0;
+  struct tm* unix_epoch = new tm;
+  unix_epoch->tm_sec = 0;
+  unix_epoch->tm_min = 0;
+  unix_epoch->tm_hour = 0;
+  unix_epoch->tm_mday = 1;
+  unix_epoch->tm_mon = 0;
+  unix_epoch->tm_year = 70;
+  unix_epoch->tm_wday = 4;
+  unix_epoch->tm_yday = 0;
+  unix_epoch->tm_isdst = 0;
+  time_t epoch_difference = mktime(unix_epoch);
+  delete unix_epoch;
+  return epoch_difference;
 }
 
 int max(int a, int b) {
-	return a > b? a: b;
+  return a > b? a: b;
 }
 
 /*
 writes the buffer to the stream
 */
 void mem_dump(char* buffer, int length, std::ostream& output) {
-	for(int i = 0; i < length; i++)
-		output << buffer[i];
+  for(int i = 0; i < length; i++)
+    output << buffer[i];
 }
 
 /*
@@ -168,26 +168,26 @@ Uses the map of file records to construct the full file path.
 If a file record is not present in the map then the empty stry "" is returned
 */
 std::string getFullPath(std::map<unsigned int, file*>& records, unsigned int recordNo) {
-	std::stringstream ss;
-	if(!records[recordNo])
-		return "";
-	if(recordNo == records[recordNo]-> par_record_no)
-		return records[recordNo] -> name;
-	ss << getFullPath(records, records[recordNo]-> par_record_no);
-	ss << "\\" << records[recordNo]->name;
-	return ss.str();
+  std::stringstream ss;
+  if(!records[recordNo])
+    return "";
+  if(recordNo == records[recordNo]-> par_record_no)
+    return records[recordNo] -> name;
+  ss << getFullPath(records, records[recordNo]-> par_record_no);
+  ss << "\\" << records[recordNo]->name;
+  return ss.str();
 }
 
 
 char* getCmdOption(char** begin, char** end, const std::string& option) {
-	char** itr = find(begin, end, option);
-	if(itr != end && ++itr != end)
-		return *itr;
-	return 0;
+  char** itr = find(begin, end, option);
+  if(itr != end && ++itr != end)
+    return *itr;
+  return 0;
 }
 
 bool cmdOptionExists(char**begin, char** end, const std::string& option) {
-	return std::find(begin, end, option) != end;
+  return std::find(begin, end, option) != end;
 }
 
 
@@ -196,9 +196,9 @@ Returns the directory separator for the current OS.
 e.g., '/' on unix and '\' on windows
 */
 char getPathSeparator() {
-	if(isUnix())
-		return '/';
-	return '\\';
+  if(isUnix())
+    return '/';
+  return '\\';
 }
 
 /*
@@ -206,9 +206,9 @@ char getPathSeparator() {
 */
 bool isUnix() {
 #ifdef _WIN32
-	return false;
+  return false;
 #else
-	return true;
+  return true;
 #endif
 }
 
@@ -217,18 +217,18 @@ prepares the ofstream for writing
 opens the stream with whatever necessary flags, and writes any necessary start bits
 */
 void prep_ofstream(std::ofstream& out, const char* name, bool overwrite) {
-	std::ios_base::openmode mode = std::ios::out | std::ios::binary;
-	if (overwrite)
-		mode |= std::ios::trunc;
-	else
-		mode |= std::ios::app;
+  std::ios_base::openmode mode = std::ios::out | std::ios::binary;
+  if (overwrite)
+    mode |= std::ios::trunc;
+  else
+    mode |= std::ios::app;
 
-	out.open(name, mode);
-//	unsigned char smarker[3];
-//	smarker[0] = 0xEF;
-//	smarker[1] = 0xBB;
-//	smarker[2] = 0xBF;
-//	out << smarker;
+  out.open(name, mode);
+//  unsigned char smarker[3];
+//  smarker[0] = 0xEF;
+//  smarker[1] = 0xBB;
+//  smarker[2] = 0xBF;
+//  out << smarker;
 }
 
 
