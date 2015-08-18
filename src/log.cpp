@@ -47,8 +47,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& create, std::ostream& del, std::ostream& rename, std::ostream& move, std::istream& input, std::ostream& output) {
-//void parseLog(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input) {
+void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::istream& input, std::ostream& output) {
 	unsigned int buffer_size = 4096;
 	char* buffer = new char[buffer_size];
 	bool split_record = false;
@@ -57,10 +56,6 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 	int records_processed = 3;
 	int adjust = 0;
 	int rc = 0;
-	//print the column headers
-//	output << "CurrentLSN\tPrevLSN\tUndoLSN\tClientID\tRecordType\tRedoOP\tUndoOP\tTargetAttribute\tMFTClusterIndex\t"
-//		<< "TargetVCN\tTargetLCN";
-//	output << std::endl;
 
 	/*Skip past the junk at the beginning of the file
 	The first two pages (0x0000 - 0x2000) are restart pages
@@ -78,27 +73,10 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 	//transactions.clearFields();
 	Log_Data::initTransactionVectors();
 	std::string log_sql = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string create_sql = "insert into create_events values (?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string delete_sql  = "insert into delete_events values (?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string rename_sql  = "insert into rename_events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string move_sql  = "insert into move_events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-	sqlite3_stmt* log_stmt;
-	sqlite3_stmt* create_stmt;
-	sqlite3_stmt* delete_stmt;
-	sqlite3_stmt* rename_stmt;
-	sqlite3_stmt* move_stmt;
+	std::string events_sql  = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+	sqlite3_stmt *log_stmt, *events_stmt;
 	rc &= sqlite3_prepare_v2(db, log_sql.c_str(), log_sql.length() + 1, &log_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, create_sql.c_str(), create_sql.length() + 1, &create_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, delete_sql.c_str(), delete_sql.length() + 1, &delete_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, rename_sql.c_str(), rename_sql.length() + 1, &rename_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, move_sql.c_str(), move_sql.length() + 1, &move_stmt, NULL);
-//	rc &= sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
-//	if (rc) {
-//		std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-//		std::cerr << sqlite3_errmsg(db) << std::endl;
-//		sqlite3_close(db);
-//		exit(2);
-//	}
+	rc &= sqlite3_prepare_v2(db, events_sql.c_str(), events_sql.length() + 1, &events_stmt, NULL);
 
 	//scan through the $LogFile one  page at a time. Each record is 4096 bytes.
 	while(!input.eof() && !done) {
@@ -109,7 +87,7 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 			input.read(buffer, 4096);
 			buffer_size = 4096;
 			adjust = 0;
-			continue;	
+			continue;
 		}
 		records_processed++;
 		unsigned int update_seq_offset, update_seq_count, offset, next_record_offset;
@@ -123,7 +101,7 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 			parseError = false;
 			transactions.clearFields();
 		}
-		
+
 		//parse log record
 		while(offset + 0x30 <= buffer_size) {
 			Log_Record rec;
@@ -141,33 +119,29 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 			} else {
 				length = rtnVal;
 			}
-			
-			output << rec.toString(records);	
+
+			output << rec.toString(records);
 			rec.insert(db, log_stmt, records);
 
 			transactions.processLogRecord(rec, records);
 			if(transactions.isTransactionOver()) {
 				if(transactions.isCreateEvent()) {
-					create << transactions.toCreateString(records);
-					transactions.insertCreateDelete(db, create_stmt, records);
+					transactions.insertEvent(event_types::CREATE, db, events_stmt, records);
 				}
 				if(transactions.isDeleteEvent()) {
-					del << transactions.toDeleteString(records);
-					transactions.insertCreateDelete(db, delete_stmt, records);
+					transactions.insertEvent(event_types::DELETE, db, events_stmt, records);
 				}
 				if(transactions.isRenameEvent()) {
-					rename << transactions.toRenameString(records);
-					transactions.insertRename(db, rename_stmt, records);
+					transactions.insertEvent(event_types::RENAME, db, events_stmt, records);
 				}
 				if(transactions.isMoveEvent()) {
-					move << transactions.toMoveString(records);
-					transactions.insertMove(db, move_stmt, records);
+					transactions.insertEvent(event_types::MOVE, db, events_stmt, records);
 				}
 				transactions.clearFields();
 			}
-			offset += length; 
+			offset += length;
 
-		}		
+		}
 
 		/*
 		If a record is left dangling across a page boundary, we can still parse the record
@@ -202,7 +176,7 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 
 			/*
 			In some cases, it's not that easy. Sometimes a single record spans multiple pages.
-			We perform a more involved switcheroo. 
+			We perform a more involved switcheroo.
 			Notice that we are implicitly assuming
 			that the page header is always 0x40 bytes, whereas before we perform some calculation involving
 			the update sequence offset and update sequence count
@@ -227,7 +201,7 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 			buffer_size = new_size;
 			split_record = false;
 
-		} 
+		}
 		else {
 			/*
 			If the preceding record wasn't flagged for being split across the page,
@@ -247,61 +221,16 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& 
 //	rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, 0);
 	status.finish();
 	sqlite3_finalize(log_stmt);
-	sqlite3_finalize(create_stmt);
-	sqlite3_finalize(delete_stmt);
-	sqlite3_finalize(rename_stmt);
-	sqlite3_finalize(move_stmt);
+	sqlite3_finalize(events_stmt);
 	delete [] buffer;
 }
 
 std::string Log_Record::toString(std::map<unsigned int, file*>& records) {
 	std::stringstream ss;
-	ss << cur_lsn << "\t" << prev_lsn << "\t" << undo_lsn << "\t" << client_id << "\t" 
-		<< record_type << "\t" << decodeLogFileOpCode(redo_op) << "\t" 
-		<< decodeLogFileOpCode(undo_op)	<< "\t" << target_attr << "\t" 
+	ss << cur_lsn << "\t" << prev_lsn << "\t" << undo_lsn << "\t" << client_id << "\t"
+		<< record_type << "\t" << decodeLogFileOpCode(redo_op) << "\t"
+		<< decodeLogFileOpCode(undo_op)	<< "\t" << target_attr << "\t"
 		<< mft_cluster_index << "\t" << target_vcn << "\t" << target_lcn;
-	ss << std::endl;
-	return ss.str();
-}
-
-std::string Log_Data::toCreateString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	//std::cout << par_mft_record_no1 << std::endl;
-	//std::cout << getFullPath(records, par_mft_record_no1) << std::endl;
-	ss << mft_record_no << "\t" << par_mft_record_no1 << "\t" << "\t" << filetime_to_iso_8601(timestamp) << "\t"
-		<< "$LogFile create" << "\t" << name1 << "\t" << getFullPath(records, mft_record_no) << "\t"
-		<< getFullPath(records, par_mft_record_no1);
-	ss << std::endl;
-	return ss.str();
-}
-
-std::string Log_Data::toDeleteString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no1 << "\t" << "\t"
-		<< filetime_to_iso_8601(timestamp) << "\t"
-		<< "$LogFile delete" << "\t" << name1 << "\t" << getFullPath(records, mft_record_no)
-		<< "\t" << getFullPath(records, par_mft_record_no1);
-	ss << std::endl;
-	return ss.str();
-}
-
-std::string Log_Data::toRenameString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no1 << "\t" << "\t"
-		<< filetime_to_iso_8601(timestamp) << "\t"
-		<< "$LogFile rename" << "\t" << name1 << "\t" << name2 << "\t" 
-		<< getFullPath(records, mft_record_no) << "\t" << getFullPath(records, par_mft_record_no1);
-	ss << std::endl;
-	return ss.str();
-}
-
-std::string Log_Data::toMoveString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no1 << "\t" << par_mft_record_no2 << "\t" << "\t"
-		<< filetime_to_iso_8601(timestamp) << "\t"
-		<< "$LogFile move" << "\t" << name1 << "\t" 
-		<< getFullPath(records, mft_record_no) << "\t" << getFullPath(records, par_mft_record_no1)
-		<< getFullPath(records, par_mft_record_no2);
 	ss << std::endl;
 	return ss.str();
 }
@@ -315,11 +244,11 @@ bool Log_Data::isDeleteEvent() {
 }
 
 bool Log_Data::isRenameEvent() {
-	return transactionRunMatch(redo_ops, undo_ops, Log_Data::rename_redo, Log_Data::rename_undo) && name1 != name2;
+	return transactionRunMatch(redo_ops, undo_ops, Log_Data::rename_redo, Log_Data::rename_undo) && name != prev_name;
 }
 
 bool Log_Data::isMoveEvent() {
-	return transactionRunMatch(redo_ops, undo_ops, Log_Data::rename_redo, Log_Data::rename_undo) && par_mft_record_no1 != par_mft_record_no2;
+	return transactionRunMatch(redo_ops, undo_ops, Log_Data::rename_redo, Log_Data::rename_undo) && par_mft_record != prev_par_mft_record;
 }
 
 bool Log_Data::isTransactionOver() {
@@ -330,7 +259,7 @@ void Log_Data::initTransactionVectors() {
 	/*
 	Used to determine whether a particular transaction run has occurred
 	The source for these runs is "NTFS Log Tracker" : forensicinsight.org
-	My reading of that presentation is that the transactions should be consecutive, 
+	My reading of that presentation is that the transactions should be consecutive,
 	however, I found very few (if any) transaction runs that match the below exactly.
 	Instead I check that the below sequences are merely a subsequence of the given run.
 	*/
@@ -413,11 +342,11 @@ int Log_Record::init(char* buffer) {
 	target_vcn = hex_to_long(buffer + 0x48, 4);
 
 	target_lcn = hex_to_long(buffer + 0x50, 4);
-	
+
 	/*
 	The length given by client_data_length is actually 0x30 less than the length of the record.
 	*/
-	
+
 	return 0x30 + client_data_length;
 
 }
@@ -458,16 +387,15 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, file*>& 
 						break;
 					case 0x30:
 						if(hex_to_long(start + mft_offset+content_offset+0x40, 1) > name_len) {
-							par_mft_record_no1 = hex_to_long(start + mft_offset + content_offset, 6);
-							//std::cout << par_mft_record_no1 << std::endl;
+							par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
 							name_len = hex_to_long(start + mft_offset + content_offset+0x40, 1);
-							name1 = mbcatos(start + mft_offset + content_offset+0x42, name_len);
-						}	
+							name = mbcatos(start + mft_offset + content_offset+0x42, name_len);
+						}
 						break;
 				}
 
 				//check for valid attribute length value
-				if(attribute_length > 0 && attribute_length < 1024)	
+				if(attribute_length > 0 && attribute_length < 1024)
 					mft_offset += attribute_length;
 				else
 					break;
@@ -477,20 +405,19 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, file*>& 
 	else if(rec.redo_op == 0x6 && rec.undo_op == 0x5) {
 		//get the name before
 		//from file attribute with header, undo op
-		//name1 = 
 		unsigned long long type_id = hex_to_long(rec.data + 0x30 + rec.undo_offset, 4);
 		//unsigned long long form_code = hex_to_long(rec.data + 0x30 + rec.undo_offset + 8 + 8, 1);
 		unsigned long long content_offset = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x14, 2);
 		switch(type_id) {
 			case 0x30:
-				par_mft_record_no1 = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset, 6);
+				prev_par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset, 6);
 				//std::cout << par_mft_record_no1 << std::endl;
-					if(records[par_mft_record_no1])
-						timestamp = records[par_mft_record_no1]->timestamp;
+					if(records[prev_par_mft_record])
+						timestamp = records[prev_par_mft_record]->timestamp;
 					else
 						timestamp = 0;
 					name_len = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset+0x40, 1);
-					name1 = mbcatos(rec.data + 0x30 + rec.undo_offset + content_offset+0x42, name_len);
+					prev_name = mbcatos(rec.data + 0x30 + rec.undo_offset + content_offset+0x42, name_len);
 				break;
 			}
 
@@ -498,36 +425,36 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, file*>& 
 	else if(rec.redo_op == 0x5 && rec.undo_op == 0x6) {
 		//get the name after
 		//from file attribute with header, redo op
-		//name2 = 
+		//prev_name =
 
 		unsigned long long type_id = hex_to_long(rec.data + 0x30 + rec.redo_offset, 4);
 		//unsigned long long form_code = hex_to_long(rec.data + 0x30 + rec.redo_offset + 8 + 8, 1);
 		unsigned long long content_offset = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x14, 2);
 		switch(type_id) {
 			case 0x30:
-				par_mft_record_no2 = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset, 6);
+				par_mft_record = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset, 6);
 
-				if(records[par_mft_record_no2])
-					timestamp = records[par_mft_record_no2]->timestamp;
+				if(records[par_mft_record])
+					timestamp = records[par_mft_record]->timestamp;
 				else
 					timestamp = 0;
 
 				name_len = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset+0x40, 1);
-				name2 = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
+				name = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
 				break;
 		}
 	}
 	else if((rec.redo_op == 0xf && rec.undo_op == 0xe) || (rec.redo_op == 0xd && rec.undo_op == 0xc)) {
 		if(rec.undo_length > 0x42) {
-			par_mft_record_no1 = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
-			if(records[par_mft_record_no1])
-				timestamp = records[par_mft_record_no1]->timestamp;
+			prev_par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
+			if(records[prev_par_mft_record])
+				timestamp = records[prev_par_mft_record]->timestamp;
 			else
 				timestamp = 0;
 			unsigned int len = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x40, 1);
 			if(len > name_len) {
 				name_len = len;
-				name1 = mbcatos(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, name_len);
+				prev_name = mbcatos(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, name_len);
 			}
 		}
 
@@ -538,13 +465,13 @@ void Log_Data::clearFields() {
 	redo_ops.clear();
 	undo_ops.clear();
 	mft_record_no = 0;
-	par_mft_record_no1 = 0;
-	par_mft_record_no2 = 0;
+	par_mft_record = 0;
+	prev_par_mft_record = 0;
 	timestamp = 0;
 	name_len = 0;
 	lsn = 0;
-	name1 = "";
-	name2 = "";
+	name = "";
+	prev_name = "";
 }
 
 std::vector<int> Log_Data::create_redo, Log_Data::create_undo;
@@ -582,44 +509,19 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
 	return true;
 }
 
-void Log_Data::insertCreateDelete(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
+void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
 	sqlite3_bind_int64(stmt, 1, mft_record_no);
-	sqlite3_bind_int64(stmt, 2, par_mft_record_no1);
-	sqlite3_bind_int64(stmt, 3, lsn);
-	sqlite3_bind_text(stmt, 4, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 5, "$LogFile", -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 6, name1.c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 7, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 8, getFullPath(records, par_mft_record_no1).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_step(stmt);
-	sqlite3_reset(stmt);
-}
-
-void Log_Data::insertRename(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
-	sqlite3_bind_int64(stmt, 1, mft_record_no);
-	sqlite3_bind_int64(stmt, 2, par_mft_record_no1);
-	sqlite3_bind_int64(stmt, 3, lsn);
-	sqlite3_bind_text(stmt, 4, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 5, "$LogFile", -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 6, name1.c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 7, name2.c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 8, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 9, getFullPath(records, par_mft_record_no1).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_step(stmt);
-	sqlite3_reset(stmt);
-}
-
-void Log_Data::insertMove(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
-	sqlite3_bind_int64(stmt, 1, mft_record_no);
-	sqlite3_bind_int64(stmt, 2, par_mft_record_no1);
-	sqlite3_bind_int64(stmt, 3, par_mft_record_no2);
+	sqlite3_bind_int64(stmt, 2, par_mft_record);
+	sqlite3_bind_int64(stmt, 3, prev_par_mft_record);
 	sqlite3_bind_int64(stmt, 4, lsn);
 	sqlite3_bind_text(stmt, 5, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 6, "$LogFile", -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 7, name1.c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 6, name.c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 7, prev_name.c_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_text(stmt, 8, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 9, getFullPath(records, par_mft_record_no1).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 10, getFullPath(records, par_mft_record_no2).c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 9, getFullPath(records, par_mft_record).c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 10, getFullPath(records, prev_par_mft_record).c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int64(stmt, 11, type);
+	sqlite3_bind_int64(stmt, 12, event_sources::LOG);
 	sqlite3_step(stmt);
 	sqlite3_reset(stmt);
 }

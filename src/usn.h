@@ -1,5 +1,7 @@
 #include "file.h"
+extern "C" {
 #include "sqlite3.h"
+}
 #include <map>
 #include <iostream>
 
@@ -12,14 +14,13 @@ std::string decodeUSNReason(int reason);
 
 std::string parseUSNJrnlRecord(char* buffer, std::map<unsigned int, file*>& records);
 
-void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream& create, std::ostream& del, std::ostream& rename, std::ostream& move, std::istream& input = std::cin, std::ostream& output = std::cout);
-//void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input);
+void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
 
 class USN_Record {
 public:
-	unsigned long long file_ref_no, mft_record_no, par_file_ref_no, par_mft_record_no, par_record_after, usn, timestamp;
+	unsigned long long file_ref_no, mft_record_no, par_file_ref_no, par_record, prev_par_record, usn, timestamp;
 	unsigned int reason, file_len, name_offset;
-	std::string file_name, file_name_after;
+	std::string file_name, prev_file_name;
 
 	USN_Record(char* buffer, std::map<unsigned int, file*>& records);
 	USN_Record();
@@ -32,8 +33,7 @@ public:
 	std::string toMoveString(std::map<unsigned int, file*>& records);
 
 	void insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
-	void insertRename(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
-	void insertMove(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
+	void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
 };
 
 #endif

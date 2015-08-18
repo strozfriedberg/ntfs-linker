@@ -1,5 +1,7 @@
 #include "helper_functions.h"
+extern "C" {
 #include "sqlite3.h"
+}
 #include "file.h"
 #include <iostream>
 #include <vector>
@@ -16,7 +18,7 @@ std::string decodeLogFileOpCode(int op);
 Parses the $LogFile stream input
 Writes output to designated streams
 */
-void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::ostream& create, std::ostream& del, std::ostream& rename, std::ostream& move, std::istream& input = std::cin, std::ostream& output = std::cout);
+void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
 //void parseLog(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input);
 
 /*
@@ -34,7 +36,7 @@ public:
 	unsigned int target_attr, lcns_to_follow, record_offset, attribute_offset, mft_cluster_index, target_vcn, target_lcn;
 	unsigned int client_data_length;
 	char* data;
-	
+
 	int init(char* buffer);
 	void clearFields();
 	void insert(sqlite3*db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
@@ -44,10 +46,10 @@ public:
 
 class Log_Data {
 public:
-	unsigned long long mft_record_no, par_mft_record_no1, par_mft_record_no2, timestamp;
+	unsigned long long mft_record_no, par_mft_record, prev_par_mft_record, timestamp;
 	unsigned long long lsn;
 	unsigned int name_len;
-	std::string name1, name2;
+	std::string name, prev_name;
 	std::vector<int> redo_ops, undo_ops;
 
 	void clearFields();
@@ -56,13 +58,11 @@ public:
 	std::string toDeleteString(std::map<unsigned int, file*>& records);
 	std::string toRenameString(std::map<unsigned int, file*>& records);
 	std::string toMoveString(std::map<unsigned int, file*>& records);
-	void insertCreateDelete(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
-	void insertRename(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
-	void insertMove(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
+	void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
 	bool isCreateEvent();
 	bool isDeleteEvent();
 	bool isRenameEvent();
-	bool isMoveEvent();	
+	bool isMoveEvent();
 	bool isTransactionOver();
 
 

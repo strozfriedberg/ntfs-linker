@@ -3,7 +3,9 @@
 #include "log.h"
 #include "mft.h"
 #include "usn.h"
+extern "C" {
 #include "sqlite3.h"
+}
 #include <locale>
 
 int busyHandler(void* foo, int num) {
@@ -45,15 +47,12 @@ sqlite3* initDBTables(std::string dbName, bool overwrite) {
 		std::cerr << sqlite3_errmsg(db) << std::endl;
 		exit(1);
 	}
-	
+
 	if(overwrite) {
 		rc &= sqlite3_exec(db, "drop table if exists mft;", 0, 0, 0);
 		rc &= sqlite3_exec(db, "drop table if exists logfile;", 0, 0, 0);
 		rc &= sqlite3_exec(db, "drop table if exists usnjrnl;", 0, 0, 0);
-		rc &= sqlite3_exec(db, "drop table if exists create;", 0, 0, 0);
-		rc &= sqlite3_exec(db, "drop table if exists delete;", 0, 0, 0);
-		rc &= sqlite3_exec(db, "drop table if exists rename;", 0, 0, 0);
-		rc &= sqlite3_exec(db, "drop table if exists move;", 0, 0, 0);
+		rc &= sqlite3_exec(db, "drop table if exists events;", 0, 0, 0);
 	}
 	rc &= sqlite3_exec(db, "create table if not exists mft (LSN int, MFTRecNo int, ParMFTRecNo int, USN int, FileName text, isDir int, isAllocated int" \
 		", sia_created text, sia_modified text, sia_mft_modified text, sia_accessed text, fna_created text, fna_modified text" \
@@ -62,18 +61,9 @@ sqlite3* initDBTables(std::string dbName, bool overwrite) {
 		", UndoOP text, TargetAttribute int, MFTClusterIndex int);", 0, 0, 0);
 	rc &= sqlite3_exec(db, "create table if not exists usn (MFTRecNo int, ParRecNo int, USN int, Timestamp text, Reason text, FileName text, PossiblePath text" \
 		", PossibleParPath text);", 0, 0, 0);
-	rc &= sqlite3_exec(db, "create table if not exists create_events" \
-			"(MFTRecNo int, ParRecNo int, USN_LSN int, Timestamp text, Reason text, FileName text, PossiblePath text" \
-			", PossibleParPath text);", 0, 0, 0);
-	rc &= sqlite3_exec(db, "create table if not exists delete_events" \
-			"(MFTRecNo int, ParRecNo int, USN_LSN int, Timestamp text, Reason text, FileName text, PossiblePath text" \
-			", PossibleParPath text);", 0, 0, 0);
-	rc &= sqlite3_exec(db, "create table if not exists rename_events" \
-			"(MFTRecNo int, ParRecNo int, USN_LSN int, Timestamp text, Reason text, FileNameBefore text, FileNameAfter text, PossiblePath text" \
-			", PossibleParPath text);", 0, 0, 0);
-	rc &= sqlite3_exec(db, "create table if not exists move_events" \
-			"(MFTRecNo int, ParRecNoBefore int, ParRecNoAfter int, USN_LSN int, Timestamp text, Reason text, FileName text, PossiblePath text" \
-			", PossibleParPathBefore text, PossibleParPathAfter text);", 0, 0, 0);
+	rc &= sqlite3_exec(db, "create table if not exists events" \
+			"(MFTRecNo int, ParRecNo int, PreviousParRecNo int, USN_LSN int, Timestamp text, FileName text, PreviousFileName text, Path text" \
+			", ParPath text, PreviousParPath text, EventType int, EventSource int);", 0, 0, 0);
 	return db;
 
 }
@@ -133,7 +123,7 @@ int main(int argc, char** argv) {
 	}
 
 	std::ifstream i_mft, i_usnjrnl, i_logfile;
-	std::ofstream o_mft, o_usnjrnl, o_logfile, o_create, o_delete, o_rename, o_move;
+	std::ofstream o_mft, o_usnjrnl, o_logfile, o_events;
 	std::string dbName;
 
 	if(cmdOptionExists(argv, argv + argc, "-i")) {
@@ -141,18 +131,18 @@ int main(int argc, char** argv) {
 		std::stringstream ss_mft, ss_usn, ss_log;
 		char sep = getPathSeparator();
 		ss_mft << dir << sep << "$MFT";
-		ss_usn << dir << sep << "$USN";
+		ss_usn << dir << sep << "$J";
 		ss_log << dir << sep << "$LogFile";
 		i_mft.open(ss_mft.str().c_str(), std::ios::binary);
 		i_usnjrnl.open(ss_usn.str().c_str(), std::ios::binary);
 		i_logfile.open(ss_log.str().c_str(), std::ios::binary);
-		
+
 //		if(!i_usnjrnl) {
 //			ss_usn.str("");
 //			ss_usn << dir << sep << "$USNJR~1";
 //			i_usnjrnl.open(ss_usn.str().c_str(), std::ios::binary);
 //		}
-				
+
 
 	} else if(cmdOptionExists(argv, argv+argc, "-m")) {
 		i_mft.open(getCmdOption(argv, argv+argc, "-m"), std::ios::binary);
@@ -160,24 +150,24 @@ int main(int argc, char** argv) {
 		i_logfile.open(getCmdOption(argv, argv+argc, "-l"), std::ios::binary);
 	} else {
 		i_mft.open("$MFT", std::ios::binary);
-		i_usnjrnl.open("$USN", std::ios::binary);
+		i_usnjrnl.open("$USNJR~1", std::ios::binary);
 		i_logfile.open("$LogFile", std::ios::binary);
-		
+
 //		if(!i_usnjrnl) {
 //			i_usnjrnl.open("$USNJR~1", std::ios::binary);
 //		}
 	}
 
 	if(!i_mft) {
-		std::cerr << "MFT File not found." << std::endl;
+		std::cerr << "$MFT File not found." << std::endl;
 		exit(0);
 	}
 	if(!i_usnjrnl) {
-		std::cerr << "USNJrnl File not found." << std::endl;
+		std::cerr << "$J File not found." << std::endl;
 		exit(0);
 	}
 	if(!i_logfile) {
-		std::cerr << "LogFile File not found: " << std::endl;
+		std::cerr << "$LogFile File not found: " << std::endl;
 		exit(0);
 	}
 	bool overwrite = false;
@@ -187,9 +177,9 @@ int main(int argc, char** argv) {
 
 	if(cmdOptionExists(argv, argv+argc, "-o")) {
 		char* out = getCmdOption(argv, argv+argc, "-o");
-		std::stringstream ss_mft, ss_usn, ss_log, ss_create, ss_delete, ss_rename, ss_move;
+		std::stringstream ss_mft, ss_usn, ss_log, ss_events;
 		std::stringstream cmd, ss_db;
-		
+
 		if(isUnix())
 			cmd << "mkdir " << out << " 2> /dev/null";
 		else
@@ -198,31 +188,22 @@ int main(int argc, char** argv) {
 		ss_mft << out << getPathSeparator() << "mft.txt";
 		ss_usn << out << getPathSeparator() << "usnjrnl.txt";
 		ss_log << out << getPathSeparator() << "logfile.txt";
-		ss_create << out << getPathSeparator() << "create.txt";
-		ss_delete << out << getPathSeparator() << "delete.txt";
-		ss_rename << out << getPathSeparator() << "rename.txt";
-		ss_move << out << getPathSeparator() << "move.txt";
+		ss_events << out << getPathSeparator() << "events.txt";
 		ss_db << out << getPathSeparator() << "ntfs.db";
-		
+
 		prep_ofstream(o_mft, ss_mft.str().c_str(), overwrite);
 		prep_ofstream(o_usnjrnl, ss_usn.str().c_str(), overwrite);
 		prep_ofstream(o_logfile, ss_log.str().c_str(), overwrite);
-		prep_ofstream(o_create, ss_create.str().c_str(), overwrite);
-		prep_ofstream(o_delete, ss_delete.str().c_str(), overwrite);
-		prep_ofstream(o_rename, ss_rename.str().c_str(), overwrite);
-		prep_ofstream(o_move, ss_move.str().c_str(), overwrite);
+		prep_ofstream(o_events, ss_events.str().c_str(), overwrite);
 		dbName = ss_db.str();
 	} else {
 		prep_ofstream(o_mft, "mft.txt", overwrite);
 		prep_ofstream(o_usnjrnl, "usn.txt", overwrite);
 		prep_ofstream(o_logfile, "logfile.txt", overwrite);
-		prep_ofstream(o_create, "create.txt", overwrite);
-		prep_ofstream(o_delete, "delete.txt", overwrite);
-		prep_ofstream(o_rename, "rename.txt", overwrite);
-		prep_ofstream(o_move, "move.txt", overwrite);
+		prep_ofstream(o_events, "events.txt", overwrite);
 		dbName = "ntfs.db";
 	}
-	
+
 
 	//Set up db connection
 	std::cout << "Setting up DB Connection..." << std::endl;
@@ -231,29 +212,34 @@ int main(int argc, char** argv) {
 
 	std::cout << "Creating MFT Map..." << std::endl;
 	initMFTMap(i_mft, records);
-	
+
 	i_mft.clear();
 	i_mft.seekg(0);
 
 	//print column headers
-	o_create << "MFTRecNo\tParRecNo\tUSN\tTimestamp\tReason\tFileName\tPossiblePath\tPossibleParPath" << std::endl;
-	o_delete << "MFTRecNo\tParRecNo\tUSN\tTimestamp\tReason\tFileName\tPossiblePath\tPossibleParPath" << std::endl;
-	o_rename << "MFTRecNo\tParRecNo\tUSN\tTimestamp\tReason\tFileNameBefore\tFileNameAfter\tPossiblePath\t"
-		<< "PossibleParPath" << std::endl;
-	o_move << "MFTRecNo\tParRecNoBefore\tParRecNoAfter\tUSN\tTimestamp\tReason\tFileName\tPossiblePath\tPossibleParPathBefore\tPossibleParPathAfter" << std::endl;
+	o_events << "MFTRecNo\t"
+                 << "ParRecNo\t"
+                 << "PreviousParRecNo\t"
+                 << "USN_LSN\t"
+                 << "Timestamp\t"
+                 << "FileName\t"
+                 << "PreviousFileName\t"
+                 << "Path\t"
+                 << "ParPath\t"
+                 << "PreviousParPath"
+                 << "EventType\t"
+                 << "EventSource\t"
+                 << std::endl;
 
 	std::cout << "Parsing MFT..." << std::endl;
 	parseMFT(records, db, i_mft, o_mft);
-//	parseMFT(records, db, i_mft);
-	std::cout << "Parsing USNJrnl..." << std::endl;	
-	parseUSN(records, db, o_create, o_delete, o_rename, o_move, i_usnjrnl, o_usnjrnl);
-//	parseUSN(records, db, i_usnjrnl);
+	std::cout << "Parsing USNJrnl..." << std::endl;
+	parseUSN(records, db, i_usnjrnl, o_usnjrnl);
 	std::cout << "Parsing LogFile..." << std::endl;
-	parseLog(records, db, o_create, o_delete, o_rename, o_move, i_logfile, o_logfile);
-//	parseLog(records, db, i_logfile);
-	
+	parseLog(records, db, i_logfile, o_logfile);
+
 	freeMFTMap(records);
 	commit(db);
 	sqlite3_close(db);
 	std::cout << "Process complete." << std::endl;
-} 
+}

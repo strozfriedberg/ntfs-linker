@@ -48,4 +48,16 @@ bool isUnix();
 
 void prep_ofstream(std::ofstream& out, const char* name, bool overwrite);
 
+enum event_sources: unsigned int {
+  USN = 0,
+  LOG = 1
+};
+
+enum event_types: unsigned int {
+  CREATE = 0,
+  DELETE = 1,
+  RENAME = 2,
+  MOVE = 3
+};
+
 #endif

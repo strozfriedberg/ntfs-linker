@@ -49,10 +49,10 @@ std::string decodeUSNReason(int reason) {
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream& create, std::ostream& del, std::ostream& rename, std::ostream& move, std::istream& input, std::ostream& output) {
+void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input, std::ostream& output) {
 //void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input) {
 	if(sizeof(long long) < 8) {
-		std::cerr << "64-bit arithmetic not available. This won't work." << std::endl;
+		std::cerr << "64-bit arithmetic not available. This won't work. Exiting." << std::endl;
 		exit(1);
 	}
 
@@ -77,7 +77,7 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream&
 	}
 	//print the column headers
 //	output << getUSNColumnHeaders() << std::endl;
-	
+
 	//This section of code to be left commented out.
 	//Originally intended to skip past the leading 0's in the USNJrnl file
 	//However, due to issues with large file support in C++,
@@ -114,21 +114,11 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream&
 	USN_Record temp_rec;
 	int rc;
 	std::string usn_sql = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string create_sql = "insert into create_events values (?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string delete_sql  = "insert into delete_events values (?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string rename_sql  = "insert into rename_events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
-	std::string move_sql  = "insert into move_events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-	sqlite3_stmt* usn_stmt;
-	sqlite3_stmt* create_stmt;
-	sqlite3_stmt* delete_stmt;
-	sqlite3_stmt* rename_stmt;
-	sqlite3_stmt* move_stmt;
+	std::string events_sql = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+	sqlite3_stmt *usn_stmt, *events_stmt;
 	rc = 0;
 	rc &= sqlite3_prepare_v2(db, usn_sql.c_str(), usn_sql.length() + 1, &usn_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, create_sql.c_str(), create_sql.length() + 1, &create_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, delete_sql.c_str(), delete_sql.length() + 1, &delete_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, rename_sql.c_str(), rename_sql.length() + 1, &rename_stmt, NULL);
-	rc &= sqlite3_prepare_v2(db, move_sql.c_str(), move_sql.length() + 1, &move_stmt, NULL);
+	rc &= sqlite3_prepare_v2(db, events_sql.c_str(), events_sql.length() + 1, &events_stmt, NULL);
 	if (rc) {
 		std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
 		std::cerr << sqlite3_errmsg(db) << std::endl;
@@ -144,7 +134,7 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream&
 
 	//scan through the $USNJrnl one record at a time. Each record is variable length.
 	while(!input.eof() && !done) {
-		status.setDone((unsigned long long) input.tellg() - start);	
+		status.setDone((unsigned long long) input.tellg() - start);
 
 		if(offset + 4 > bufferSize || hex_to_long(buffer + offset, 4) + offset > bufferSize) {
 			char* temp = new char[4096 + bufferSize - offset];
@@ -169,7 +159,7 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream&
 			std::cerr << "\r";
 			std::cerr.flush();
 			std::cerr << std::hex << record_length << " is an awfully large record_length!" << std::endl;
-			std::cerr << "Cannot continue. Check that we're not missing much at " 
+			std::cerr << "Cannot continue. Check that we're not missing much at "
 				<< std::hex << input.tellg()<< std::endl;
 			break;
 		}
@@ -186,18 +176,16 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream&
 		}
 		//input.read(buffer + 8, record_length - 8);
 		USN_Record rec(buffer + offset, records);
-		
+
 		output << rec.toString(records);
 
-		rec.insert(db, usn_stmt, records);		
+		rec.insert(db, usn_stmt, records);
 		//determine which, if any, secondary streams should be written to.
 		if(rec.reason & 0x100) { //CREATE
-			create << rec.toCreateString(records);
-			rec.insert(db, create_stmt, records);
+			rec.insertEvent(event_types::CREATE, db, events_stmt, records);
 		}
 		if(rec.reason & 0x200) { //DELETE
-			del << rec.toDeleteString(records);
-			rec.insert(db, delete_stmt, records);
+			rec.insertEvent(event_types::DELETE, db, events_stmt, records);
 		}
 		if(rec.reason & 0x1000 || rec.reason & 0x2000) { //RENAME
 
@@ -210,28 +198,26 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream&
 				temp_rec = rec;
 			}
 			if(rec.reason & 0x1000) { //OLD
-				temp_rec.file_name = rec.file_name;
-				temp_rec.par_mft_record_no = rec.par_mft_record_no;
+				temp_rec.prev_file_name = rec.file_name;
+				temp_rec.prev_par_record = rec.par_record;
 			}
 			if(rec.reason & 0x2000) { //NEW
-				temp_rec.file_name_after = rec.file_name;
-				temp_rec.par_record_after = rec.par_mft_record_no;
+				temp_rec.file_name = rec.file_name;
+				temp_rec.par_record = rec.par_record;
 			}
 			temp_rec.reason |= rec.reason;
 		}
 		if(temp_rec.mft_record_no != rec.mft_record_no || rec.reason & 0x80000000) { //CLOSE
-			if (temp_rec.file_name_after != "") { //if(temp_rec.reason & 0x1000 || temp_rec.reason & 0x2000) {
+			if (temp_rec.file_name != "") { //if(temp_rec.reason & 0x1000 || temp_rec.reason & 0x2000) {
 				//RENAME
-				if(temp_rec.file_name != temp_rec.file_name_after) {
-					rename << temp_rec.toRenameString(records);
-					temp_rec.insertRename(db, rename_stmt, records);
+				if(temp_rec.prev_file_name != temp_rec.file_name) {
+					temp_rec.insertEvent(event_types::RENAME, db, events_stmt, records);
 				}
-				if(temp_rec.par_mft_record_no != temp_rec.par_record_after) {
-					move << temp_rec.toMoveString(records);
-					temp_rec.insertMove(db, move_stmt, records);
+				if(temp_rec.par_record != temp_rec.prev_par_record) {
+					temp_rec.insertEvent(event_types::MOVE, db, events_stmt, records);
 				}
 			}
-			temp_rec.clearFields();	
+			temp_rec.clearFields();
 		}
 //		memset(buffer, 0, record_length);
 		offset += record_length;
@@ -240,20 +226,17 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::ostream&
 //	rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, 0);
 	status.finish();
 	sqlite3_finalize(usn_stmt);
-	sqlite3_finalize(create_stmt);
-	sqlite3_finalize(delete_stmt);
-	sqlite3_finalize(rename_stmt);
-	sqlite3_finalize(move_stmt);
+	sqlite3_finalize(events_stmt);
 	delete[] buffer;
 }
 
 USN_Record::USN_Record(char* buffer, std::map<unsigned int, file*>& records) {
-	
+
 	file_ref_no = hex_to_long(buffer + 0x8, 8);
 	mft_record_no = hex_to_long(buffer + 0x8, 6);
 
 	par_file_ref_no = hex_to_long(buffer + 0x10, 8);
-	par_mft_record_no = hex_to_long(buffer + 0x10, 6);
+	par_record = hex_to_long(buffer + 0x10, 6);
 
 	usn = hex_to_long(buffer + 0x18, 8);
 	timestamp = hex_to_long(buffer + 0x20, 8);
@@ -264,21 +247,21 @@ USN_Record::USN_Record(char* buffer, std::map<unsigned int, file*>& records) {
 }
 
 void USN_Record::clearFields() {
-	
+
 	file_ref_no = 0;
 	mft_record_no = 0;
 
 	par_file_ref_no = 0;
-	par_mft_record_no = 0;
+	prev_par_record = 0;
 
 	usn = 0;
 	timestamp = 0;
 	reason = 0;
 	file_len = 0;
 	name_offset = 0;
+	prev_file_name = "";
 	file_name = "";
-	file_name_after = "";
-	par_record_after = 0;
+	par_record = 0;
 }
 
 USN_Record::USN_Record() {
@@ -287,108 +270,42 @@ USN_Record::USN_Record() {
 
 std::string USN_Record::toString(std::map<unsigned int, file*>& records) {
 	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no << "\t" << usn << "\t" << filetime_to_iso_8601(timestamp)
+	ss << mft_record_no << "\t" << par_record << "\t" << usn << "\t" << filetime_to_iso_8601(timestamp)
 		<< "\t" << decodeUSNReason(reason) << "\t" << file_name << "\t" << getFullPath(records, mft_record_no)
-		<< "\t" << getFullPath(records, par_mft_record_no);
+		<< "\t" << getFullPath(records, par_record);
 	ss << std::endl;
 	return ss.str();
 }
 
-std::string USN_Record::toCreateString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no << "\t" << usn << "\t" << filetime_to_iso_8601(timestamp)
-		<< "\t" << decodeUSNReason(reason) << "\t" << file_name << "\t" << getFullPath(records, mft_record_no)
-		<< "\t" << getFullPath(records, par_mft_record_no);
-	ss << std::endl;
-	return ss.str();
-}
+void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
+	sqlite3_bind_int64(stmt, 1, mft_record_no);
+	sqlite3_bind_int64(stmt, 2, par_record);
+	sqlite3_bind_int64(stmt, 3, prev_par_record);
+	sqlite3_bind_int64(stmt, 4, usn);
+	sqlite3_bind_text(stmt, 5, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 6, file_name.c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 7, prev_file_name.c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 8, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 9, getFullPath(records, par_record).c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 10, getFullPath(records, prev_par_record).c_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int64(stmt, 11, type);
+	sqlite3_bind_int64(stmt, 12, event_sources::USN);
 
-std::string USN_Record::toDeleteString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no << "\t" << usn << "\t" << filetime_to_iso_8601(timestamp)
-		<< "\t" << decodeUSNReason(reason) << "\t" << file_name << "\t" << getFullPath(records, mft_record_no)
-		<< "\t" << getFullPath(records, par_mft_record_no);
-	ss << std::endl;
-	return ss.str();
-}
-
-std::string USN_Record::toRenameString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no << "\t" << usn << "\t"
-		<< filetime_to_iso_8601(timestamp) << "\t" << decodeUSNReason(reason) << "\t" 
-		<< file_name
-		<< "\t" << file_name_after << "\t" << getFullPath(records, mft_record_no) << "\t"
-		<< getFullPath(records, par_mft_record_no);
-	ss << std::endl;
-	return ss.str();
-}
-
-std::string USN_Record::toMoveString(std::map<unsigned int, file*>& records) {
-	std::stringstream ss;
-	ss << mft_record_no << "\t" << par_mft_record_no << "\t" << par_record_after << "\t" 
-		<< usn << "\t"
-		<< filetime_to_iso_8601(timestamp) << "\t" << decodeUSNReason(reason) << "\t" 
-		<< file_name << "\t"
-		<< getFullPath(records, mft_record_no) << "\t" << getFullPath(records, par_mft_record_no)
-		<< "\t" << getFullPath(records, par_record_after);
-	ss << std::endl;
-	return ss.str();
+	sqlite3_step(stmt);
+	sqlite3_reset(stmt);
 }
 
 void USN_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
 	sqlite3_bind_int64(stmt, 1, mft_record_no);
-	sqlite3_bind_int64(stmt, 2, par_mft_record_no);
+	sqlite3_bind_int64(stmt, 2, par_record);
 	sqlite3_bind_int64(stmt, 3, usn);
 	sqlite3_bind_text(stmt, 4, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_text(stmt, 5, decodeUSNReason(reason).c_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_text(stmt, 6, file_name.c_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_text(stmt, 7, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 8, getFullPath(records, par_mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	
+	sqlite3_bind_text(stmt, 8, getFullPath(records, par_record).c_str(), -1, SQLITE_TRANSIENT);
+
 	sqlite3_step(stmt);
 	sqlite3_reset(stmt);
 }
 
-void USN_Record::insertRename(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
-	sqlite3_bind_int64(stmt, 1, mft_record_no);
-	sqlite3_bind_int64(stmt, 2, par_mft_record_no);
-	sqlite3_bind_int64(stmt, 3, usn);
-	sqlite3_bind_text(stmt, 4, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 5, decodeUSNReason(reason).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 6, file_name.c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 7, file_name_after.c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 8, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 9, getFullPath(records, par_mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	
-	sqlite3_step(stmt);
-	sqlite3_reset(stmt);
-}
-
-void USN_Record::insertMove(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
-	sqlite3_bind_int64(stmt, 1, mft_record_no);
-	sqlite3_bind_int64(stmt, 2, par_mft_record_no);
-	sqlite3_bind_int64(stmt, 3, par_record_after);
-	sqlite3_bind_int64(stmt, 4, usn);
-	sqlite3_bind_text(stmt, 5, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 6, decodeUSNReason(reason).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 7, file_name.c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 8, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 9, getFullPath(records, par_mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 10, getFullPath(records, par_record_after).c_str(), -1, SQLITE_TRANSIENT);
-	
-	sqlite3_step(stmt);
-	sqlite3_reset(stmt);
-}
-
-//USN_Record& USN_Record::operator=(const USN_Record& rhs) {
-//	file_ref_no = rhs.file_ref_no;
-//	mft_record_no = rhs.mft_record_no;
-//	par_file_ref_no = rhs.par_file_ref_no;
-//	par_mft_record_no = rhs.par_mft_record_no;
-//	usn = rhs.usn;
-//	timestamp = rhs.timestamp;
-//	file_len = rhs.file_len;
-//	name_offset = rhs.name_offset;
-//	file_name = rhs.file_name;
-//	return *this;
-//}
