@@ -64,16 +64,6 @@ void parseUSN(std::map<unsigned int, File*>& records, sqlite3* db, std::istream&
 
   bool done = false;
   int records_processed = -1;
-  std::stringstream columns(getUSNColumnHeaders());
-  std::string field;
-  int reasonColumn;
-  int count = 0;
-  while(columns.good()) {
-    std::getline(columns, field, ',');
-    if(field == "Reason")
-      reasonColumn = count;
-    count++;
-  }
   //print the column headers
 //  output << getUSNColumnHeaders() << std::endl;
 
