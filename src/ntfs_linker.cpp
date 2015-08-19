@@ -3,6 +3,8 @@
 #include "log.h"
 #include "mft.h"
 #include "usn.h"
+#include "aggregate.h"
+
 extern "C" {
 #include "sqlite3.h"
 }
@@ -79,7 +81,7 @@ void commit(sqlite3* db) {
 }
 
 int main(int argc, char** argv) {
-  std::map<unsigned int, file*> records;
+  std::map<unsigned int, File*> records;
   /*
   Parse cmd options, or display help
   Notice that unix style cmd option flags are used ('-') rather
@@ -237,6 +239,8 @@ int main(int argc, char** argv) {
   parseUSN(records, db, i_usnjrnl, o_usnjrnl);
   std::cout << "Parsing LogFile..." << std::endl;
   parseLog(records, db, i_logfile, o_logfile);
+
+  outputEvents(records, db, o_events);
 
   freeMFTMap(records);
   commit(db);

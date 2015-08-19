@@ -18,8 +18,8 @@ std::string decodeLogFileOpCode(int op);
 Parses the $LogFile stream input
 Writes output to designated streams
 */
-void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
-//void parseLog(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input);
+void parseLog(std::map<unsigned int, File*> records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
+//void parseLog(std::map<unsigned int, File*>& records, sqlite3* db, std::istream& input);
 
 /*
 Used for $LogFile event analysis
@@ -39,8 +39,8 @@ public:
 
   int init(char* buffer);
   void clearFields();
-  void insert(sqlite3*db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
-  std::string toString(std::map<unsigned int, file*>& records);
+  void insert(sqlite3*db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records);
+  std::string toString(std::map<unsigned int, File*>& records);
 
 };
 
@@ -53,12 +53,12 @@ public:
   std::vector<int> redo_ops, undo_ops;
 
   void clearFields();
-  void processLogRecord(Log_Record& rec, std::map<unsigned int, file*>& records);
-  std::string toCreateString(std::map<unsigned int, file*>& records);
-  std::string toDeleteString(std::map<unsigned int, file*>& records);
-  std::string toRenameString(std::map<unsigned int, file*>& records);
-  std::string toMoveString(std::map<unsigned int, file*>& records);
-  void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records);
+  void processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& records);
+  std::string toCreateString(std::map<unsigned int, File*>& records);
+  std::string toDeleteString(std::map<unsigned int, File*>& records);
+  std::string toRenameString(std::map<unsigned int, File*>& records);
+  std::string toMoveString(std::map<unsigned int, File*>& records);
+  void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records);
   bool isCreateEvent();
   bool isDeleteEvent();
   bool isRenameEvent();

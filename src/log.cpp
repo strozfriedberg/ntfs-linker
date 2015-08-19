@@ -47,7 +47,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::istream& input, std::ostream& output) {
+void parseLog(std::map<unsigned int, File*> records, sqlite3* db, std::istream& input, std::ostream& output) {
   unsigned int buffer_size = 4096;
   char* buffer = new char[buffer_size];
   bool split_record = false;
@@ -225,7 +225,7 @@ void parseLog(std::map<unsigned int, file*> records, sqlite3* db, std::istream& 
   delete [] buffer;
 }
 
-std::string Log_Record::toString(std::map<unsigned int, file*>& records) {
+std::string Log_Record::toString(std::map<unsigned int, File*>& records) {
   std::stringstream ss;
   ss << cur_lsn << "\t" << prev_lsn << "\t" << undo_lsn << "\t" << client_id << "\t"
     << record_type << "\t" << decodeLogFileOpCode(redo_op) << "\t"
@@ -351,7 +351,7 @@ int Log_Record::init(char* buffer) {
 
 }
 
-void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, file*>& records) {
+void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& records) {
   if(lsn == 0) {
     lsn = rec.cur_lsn;
   }
@@ -509,7 +509,7 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
   return true;
 }
 
-void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
+void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_mft_record);
   sqlite3_bind_int64(stmt, 3, prev_par_mft_record);
@@ -526,7 +526,7 @@ void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, s
   sqlite3_reset(stmt);
 }
 
-void Log_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
+void Log_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records) {
   sqlite3_bind_int64(stmt, 1, cur_lsn);
   sqlite3_bind_int64(stmt, 2, prev_lsn);
   sqlite3_bind_int64(stmt, 3, undo_lsn);

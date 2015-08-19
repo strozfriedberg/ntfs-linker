@@ -49,8 +49,7 @@ std::string decodeUSNReason(int reason) {
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input, std::ostream& output) {
-//void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream& input) {
+void parseUSN(std::map<unsigned int, File*>& records, sqlite3* db, std::istream& input, std::ostream& output) {
   if(sizeof(long long) < 8) {
     std::cerr << "64-bit arithmetic not available. This won't work. Exiting." << std::endl;
     exit(1);
@@ -230,7 +229,7 @@ void parseUSN(std::map<unsigned int, file*>& records, sqlite3* db, std::istream&
   delete[] buffer;
 }
 
-USN_Record::USN_Record(char* buffer, std::map<unsigned int, file*>& records) {
+USN_Record::USN_Record(char* buffer, std::map<unsigned int, File*>& records) {
 
   file_ref_no = hex_to_long(buffer + 0x8, 8);
   mft_record_no = hex_to_long(buffer + 0x8, 6);
@@ -268,7 +267,7 @@ USN_Record::USN_Record() {
   clearFields();
 }
 
-std::string USN_Record::toString(std::map<unsigned int, file*>& records) {
+std::string USN_Record::toString(std::map<unsigned int, File*>& records) {
   std::stringstream ss;
   ss << mft_record_no << "\t" << par_record << "\t" << usn << "\t" << filetime_to_iso_8601(timestamp)
     << "\t" << decodeUSNReason(reason) << "\t" << file_name << "\t" << getFullPath(records, mft_record_no)
@@ -277,7 +276,7 @@ std::string USN_Record::toString(std::map<unsigned int, file*>& records) {
   return ss.str();
 }
 
-void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
+void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_record);
   sqlite3_bind_int64(stmt, 3, prev_par_record);
@@ -295,7 +294,7 @@ void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt,
   sqlite3_reset(stmt);
 }
 
-void USN_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, file*>& records) {
+void USN_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_record);
   sqlite3_bind_int64(stmt, 3, usn);
