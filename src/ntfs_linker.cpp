@@ -64,8 +64,8 @@ sqlite3* initDBTables(std::string dbName, bool overwrite) {
   rc &= sqlite3_exec(db, "create table if not exists usn (MFTRecNo int, ParRecNo int, USN int, Timestamp text, Reason text, FileName text, PossiblePath text" \
     ", PossibleParPath text);", 0, 0, 0);
   rc &= sqlite3_exec(db, "create table if not exists events" \
-      "(MFTRecNo int, ParRecNo int, PreviousParRecNo int, USN_LSN int, Timestamp text, FileName text, PreviousFileName text, Path text" \
-      ", ParPath text, PreviousParPath text, EventType int, EventSource int);", 0, 0, 0);
+      "(MFTRecNo int, ParRecNo int, PreviousParRecNo int, USN_LSN int, Timestamp text, FileName text, PreviousFileName text" \
+      ", EventType int, EventSource int);", 0, 0, 0);
   return db;
 
 }

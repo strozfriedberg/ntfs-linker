@@ -61,7 +61,7 @@ void initMFTMap(std::istream& input, std::map<unsigned int, File*>& records) {
       }
     }
     if(!records[mft_record_no]) {
-      File* f = new File(file_name, mft_record_no, par_rec_no, mft_modified);
+      File* f = new File(file_name, mft_record_no, par_rec_no, filetime_to_iso_8601(mft_modified));
       records[mft_record_no] = f;
     }
 

@@ -274,11 +274,8 @@ void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt,
   sqlite3_bind_text(stmt, 5, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt, 6, file_name.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt, 7, prev_file_name.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 8, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 9, getFullPath(records, par_record).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 10, getFullPath(records, prev_par_record).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, 11, type);
-  sqlite3_bind_int64(stmt, 12, event_sources::USN);
+  sqlite3_bind_int64(stmt, 8, type);
+  sqlite3_bind_int64(stmt, 9, event_sources::USN);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

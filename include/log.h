@@ -46,10 +46,10 @@ public:
 
 class Log_Data {
 public:
-  unsigned long long mft_record_no, par_mft_record, prev_par_mft_record, timestamp;
+  unsigned long long mft_record_no, par_mft_record, prev_par_mft_record;
   unsigned long long lsn;
   unsigned int name_len;
-  std::string name, prev_name;
+  std::string name, prev_name, timestamp;
   std::vector<int> redo_ops, undo_ops;
 
   void clearFields();

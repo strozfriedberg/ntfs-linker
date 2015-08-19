@@ -7,9 +7,13 @@ Represents a file. A map of record numbers to these file objects can be used to 
 */
 class File {
   public:
-    File(std::string name, unsigned int record_no, unsigned int par_record_no, unsigned long long time);
+    File(std::string Name, unsigned int RecordNo, unsigned int ParRecordNo, std::string Timestamp) :
+      name(Name),
+      record_no(RecordNo),
+      par_record_no(ParRecordNo),
+      timestamp(Timestamp) {}
     std::string name;
     unsigned int record_no, par_record_no;
-    unsigned long long timestamp;
+    std::string timestamp;
 };
 #endif

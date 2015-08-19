@@ -31,7 +31,7 @@ $(BIN): $(CPP_OBJ) $(C_OBJ)
 	$(CXX) $(LD_FLAGS) -o build/$@ $^ -ldl
 
 build/%.o: src/%.cpp
-	$(CXX) $(CXX_FLAGS) -c -o $@ $<
+	$(CXX) $(CXX_FLAGS) -c -MMD -MP -o $@ $<
 build/%.o: src/%.c
 	$(CC) $(CC_FLAGS) -c -MMD -MP -o $@ $<
 

@@ -383,7 +383,7 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& 
 
         switch(type_id) {
           case 0x10:
-            timestamp = hex_to_long(start + mft_offset + content_offset + 0x0, 8);
+            timestamp = filetime_to_iso_8601(hex_to_long(start + mft_offset + content_offset + 0x0, 8));
             break;
           case 0x30:
             if(hex_to_long(start + mft_offset+content_offset+0x40, 1) > name_len) {
@@ -415,7 +415,7 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& 
           if(records[prev_par_mft_record])
             timestamp = records[prev_par_mft_record]->timestamp;
           else
-            timestamp = 0;
+            timestamp = "";
           name_len = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset+0x40, 1);
           prev_name = mbcatos(rec.data + 0x30 + rec.undo_offset + content_offset+0x42, name_len);
         break;
@@ -437,7 +437,7 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& 
         if(records[par_mft_record])
           timestamp = records[par_mft_record]->timestamp;
         else
-          timestamp = 0;
+          timestamp = "";
 
         name_len = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset+0x40, 1);
         name = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
@@ -450,7 +450,7 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& 
       if(records[prev_par_mft_record])
         timestamp = records[prev_par_mft_record]->timestamp;
       else
-        timestamp = 0;
+        timestamp = "";
       unsigned int len = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x40, 1);
       if(len > name_len) {
         name_len = len;
@@ -467,7 +467,7 @@ void Log_Data::clearFields() {
   mft_record_no = 0;
   par_mft_record = 0;
   prev_par_mft_record = 0;
-  timestamp = 0;
+  timestamp = "";
   name_len = 0;
   lsn = 0;
   name = "";
@@ -514,14 +514,11 @@ void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, s
   sqlite3_bind_int64(stmt, 2, par_mft_record);
   sqlite3_bind_int64(stmt, 3, prev_par_mft_record);
   sqlite3_bind_int64(stmt, 4, lsn);
-  sqlite3_bind_text(stmt, 5, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 5, timestamp.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt, 6, name.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt, 7, prev_name.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 8, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 9, getFullPath(records, par_mft_record).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 10, getFullPath(records, prev_par_mft_record).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, 11, type);
-  sqlite3_bind_int64(stmt, 12, event_sources::LOG);
+  sqlite3_bind_int64(stmt, 8, type);
+  sqlite3_bind_int64(stmt, 9, event_sources::LOG);
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
 }
