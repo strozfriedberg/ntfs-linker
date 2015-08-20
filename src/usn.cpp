@@ -219,18 +219,20 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
 
 USN_Record::USN_Record(char* buffer, std::vector<File>& records) {
 
-  file_ref_no = hex_to_long(buffer + 0x8, 8);
-  mft_record_no = hex_to_long(buffer + 0x8, 6);
+  file_ref_no     = hex_to_long(buffer + 0x8, 8);
+  mft_record_no   = hex_to_long(buffer + 0x8, 6);
 
   par_file_ref_no = hex_to_long(buffer + 0x10, 8);
-  par_record = hex_to_long(buffer + 0x10, 6);
+  par_record      = hex_to_long(buffer + 0x10, 6);
+  prev_par_record = 0;
 
-  usn = hex_to_long(buffer + 0x18, 8);
-  timestamp = hex_to_long(buffer + 0x20, 8);
-  reason = hex_to_long(buffer + 0x28, 4);
-  file_len = hex_to_long(buffer + 0x38, 2);
-  name_offset = hex_to_long(buffer + 0x3A, 2);
-  file_name = mbcatos(buffer + name_offset, file_len >> 1);
+  usn             = hex_to_long(buffer + 0x18, 8);
+  timestamp       = hex_to_long(buffer + 0x20, 8);
+  reason          = hex_to_long(buffer + 0x28, 4);
+  file_len        = hex_to_long(buffer + 0x38, 2);
+  name_offset     = hex_to_long(buffer + 0x3A, 2);
+  file_name       = mbcatos(buffer + name_offset, file_len >> 1);
+  prev_file_name  = "";
 }
 
 void USN_Record::clearFields() {

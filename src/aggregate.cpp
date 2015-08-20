@@ -29,7 +29,7 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
     usn_event.init(usn_stmt);
     log_event.init(log_stmt);
 
-    if (log_event.type != EventTypes::CREATE || usn_event.timestamp > log_event.timestamp) {
+    if (usn_event.timestamp > log_event.timestamp) {
       usn_event.write(out, records);
       usn_event.update_records(records);
       u = sqlite3_step(usn_stmt);
@@ -70,10 +70,10 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
 
 void Event::init(sqlite3_stmt* stmt) {
   int i = -1;
-  record              = sqlite3_column_int(stmt, ++i);
-  par_record          = sqlite3_column_int(stmt, ++i);
-  previous_par_record = sqlite3_column_int(stmt, ++i);
-  usn_lsn             = sqlite3_column_int(stmt, ++i);
+  record              = sqlite3_column_int64(stmt, ++i);
+  par_record          = sqlite3_column_int64(stmt, ++i);
+  previous_par_record = sqlite3_column_int64(stmt, ++i);
+  usn_lsn             = sqlite3_column_int64(stmt, ++i);
   timestamp           = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
   file_name           = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
   previous_file_name  = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
@@ -97,7 +97,7 @@ void Event::write(std::ostream& out, std::vector<File>& records) {
       // TODO
       << getFullPath(records, record) << "\t"
       << getFullPath(records, par_record) << "\t"
-      << getFullPath(records, previous_par_record) << "\t"
+      << (previous_par_record == 0 ? "" : getFullPath(records, previous_par_record)) << "\t"
       << static_cast<EventTypes>(type) << "\t"
       << static_cast<EventSources>(source) << std::endl;
 }
