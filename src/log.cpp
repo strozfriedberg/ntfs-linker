@@ -446,7 +446,8 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
   }
   else if((rec.redo_op == 0xf && rec.undo_op == 0xe) || (rec.redo_op == 0xd && rec.undo_op == 0xc)) {
     if(rec.undo_length > 0x42) {
-      prev_par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
+      // This is a delete. I think.
+      par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
       if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
         timestamp = records[prev_par_mft_record].timestamp;
       else
@@ -454,7 +455,7 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
       unsigned int len = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x40, 1);
       if(len > name_len) {
         name_len = len;
-        prev_name = mbcatos(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, name_len);
+        name = mbcatos(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, name_len);
       }
     }
 

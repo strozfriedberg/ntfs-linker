@@ -83,6 +83,8 @@ std::string filetime_to_iso_8601(unsigned long long t) {
   if(strftime(str, 20, "%Y-%m-%d %H:%M:%S", date)) {
     rtn = str;
   }
+  else
+    return rtn;
   ss << rtn << " ";
   ss << std::setw(7) << std::setfill('0') << (t % 10000000);
   delete[] str;

@@ -174,11 +174,9 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       rec.insertEvent(EventTypes::CREATE, db, events_stmt, records);
     }
     if(rec.reason & 0x200) { //DELETE
-      rec.prev_file_name = rec.file_name;
-      rec.file_name = "";
       rec.insertEvent(EventTypes::DELETE, db, events_stmt, records);
     }
-    if(rec.reason & 0x1000 || rec.reason & 0x2000) { //RENAME
+    if(rec.reason & 0x1000 || rec.reason & 0x2000) { //RENAME or MOVE
 
       /*
       Both rename and move events are classified as rename for USNJrnl purposes
@@ -191,6 +189,10 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       if(rec.reason & 0x1000) { //OLD
         temp_rec.prev_file_name = rec.file_name;
         temp_rec.prev_par_record = rec.par_record;
+      }
+      if(rec.reason & 0x2000) { //OLD
+        temp_rec.file_name = rec.file_name;
+        temp_rec.par_record = rec.par_record;
       }
       temp_rec.reason |= rec.reason;
     }
@@ -206,11 +208,9 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       }
       temp_rec.clearFields();
     }
-//    memset(buffer, 0, record_length);
     offset += record_length;
 
   }
-//  rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, 0);
   status.finish();
   sqlite3_finalize(usn_stmt);
   sqlite3_finalize(events_stmt);

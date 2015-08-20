@@ -4,7 +4,8 @@
 #include "aggregate.h"
 
 #include <fstream>
-#include <map>
+#include <vector>
+#include <list>
 #include <string>
 #include <sstream>
 
@@ -20,31 +21,25 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
   prepare_statement(db, &log_stmt);
   sqlite3_bind_int64(log_stmt, 1, EventSources::LOG);
 
-  int u, l;
+  int u;
+  Event usn_event;
+
   u = sqlite3_step(usn_stmt);
-  l = sqlite3_step(log_stmt);
-  Event usn_event, log_event;
-  while (u == SQLITE_ROW && l == SQLITE_ROW) {
+
+  // Output log events until the log event is a create, so we can compare timestamps properly.
+  EventLNIS log(log_stmt, EventTypes::CREATE);
+  log.advance(records, out, false);
+
+  while (u == SQLITE_ROW && log.hasMore()) {
     // TODO selectively init based on what was updated
     usn_event.init(usn_stmt);
-    log_event.init(log_stmt);
 
-    if (usn_event.timestamp > log_event.timestamp) {
+    if (usn_event.Timestamp > log.getTimestamp()) {
       usn_event.write(out, records);
       usn_event.update_records(records);
       u = sqlite3_step(usn_stmt);
     } else {
-      log_event.write(out, records);
-      log_event.update_records(records);
-      l = sqlite3_step(log_stmt);
-      while (l == SQLITE_ROW) {
-        log_event.init(log_stmt);
-        if (log_event.type == EventTypes::CREATE)
-          break;
-        log_event.write(out, records);
-        log_event.update_records(records);
-        l = sqlite3_step(log_stmt);
-      }
+      log.advance(records, out, true);
     }
   }
 
@@ -55,13 +50,9 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
     u = sqlite3_step(usn_stmt);
   }
 
-  while (l == SQLITE_ROW) {
-    log_event.init(log_stmt);
-    log_event.write(out, records);
-    log_event.update_records(records);
-    l = sqlite3_step(log_stmt);
-  }
-  //TODO FINISH IT
+  while(log.hasMore())
+    log.advance(records, out, true);
+
 
   sqlite3_finalize(usn_stmt);
   sqlite3_finalize(log_stmt);
@@ -70,56 +61,122 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
 
 void Event::init(sqlite3_stmt* stmt) {
   int i = -1;
-  record              = sqlite3_column_int64(stmt, ++i);
-  par_record          = sqlite3_column_int64(stmt, ++i);
-  previous_par_record = sqlite3_column_int64(stmt, ++i);
-  usn_lsn             = sqlite3_column_int64(stmt, ++i);
-  timestamp           = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
-  file_name           = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
-  previous_file_name  = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
-  type                = sqlite3_column_int(stmt, ++i);
-  source              = sqlite3_column_int(stmt, ++i);
+  Record         = sqlite3_column_int64(stmt, ++i);
+  Parent         = sqlite3_column_int64(stmt, ++i);
+  PreviousParent = sqlite3_column_int64(stmt, ++i);
+  UsnLsn         = sqlite3_column_int64(stmt, ++i);
+  Timestamp      = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
+  Name           = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
+  PreviousName   = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
+  Type           = sqlite3_column_int(stmt, ++i);
+  Source         = sqlite3_column_int(stmt, ++i);
+
+  if (PreviousParent == Parent)
+    PreviousParent = 0;
+  if (PreviousName == Name)
+    PreviousName = "";
 }
 
 Event::Event() {
-  record = par_record = previous_par_record = usn_lsn = type = source = -1;
-  timestamp = file_name = previous_file_name = "";
+  Record = Parent = PreviousParent = UsnLsn = Type = Source = -1;
+  Timestamp = Name = PreviousName = "";
 }
 
 void Event::write(std::ostream& out, std::vector<File>& records) {
-  out << record << "\t"
-      << par_record << "\t"
-      << previous_par_record << "\t"
-      << usn_lsn << "\t"
-      << timestamp << "\t"
-      << file_name << "\t"
-      << previous_file_name << "\t"
-      // TODO
-      << getFullPath(records, record) << "\t"
-      << getFullPath(records, par_record) << "\t"
-      << (previous_par_record == 0 ? "" : getFullPath(records, previous_par_record)) << "\t"
-      << static_cast<EventTypes>(type) << "\t"
-      << static_cast<EventSources>(source) << std::endl;
+  out << Record << "\t"
+      << Parent << "\t"
+      << PreviousParent << "\t"
+      << UsnLsn << "\t"
+      << Timestamp << "\t"
+      << Name << "\t"
+      << PreviousName << "\t"
+      << getFullPath(records, Record) << "\t"
+      << getFullPath(records, Parent) << "\t"
+      << (PreviousParent == 0 ? "" : getFullPath(records, PreviousParent)) << "\t"
+      << static_cast<EventTypes>(Type) << "\t"
+      << static_cast<EventSources>(Source) << std::endl;
 }
 
 void Event::update_records(std::vector<File>& records) {
   std::vector<File>::iterator it;
-  switch(type) {
+  switch(Type) {
     case EventTypes::CREATE:
       // A file was created, so to move backwards, delete it
-      records[record].valid = false;
-      records[record] = File();
+      records[Record].valid = false;
+      records[Record] = File();
       break;
     case EventTypes::DELETE:
       // A file was deleted, so to move backwards, create it
-      records[record] = File(previous_file_name, record, par_record, timestamp);
+      records[Record] = File(PreviousName, Record, Parent, Timestamp);
       break;
     case EventTypes::MOVE:
-      records[record].par_record_no = previous_par_record;
+      records[Record].par_record_no = PreviousParent;
       break;
     case EventTypes::RENAME:
-      records[record].name = previous_file_name;
+      records[Record].name = PreviousName;
       break;
   }
   return;
+}
+
+void EventLNIS::advance(std::vector<File>& records, std::ofstream& out, bool update) {
+  int start, end;
+  if (Started) {
+    start = *cursor;
+    ++cursor;
+    if (cursor == LNIS.end()) {
+      end = Events.size();
+      Started = false;
+    }
+    else {
+      end = *cursor;
+    }
+
+  }
+  else {
+    start = 0;
+    end = *cursor;
+    Started = true;
+  }
+
+  for(int i = start; i < end; ++i) {
+    Events[i].write(out, records);
+    if (update)
+      Events[i].update_records(records);
+  }
+}
+
+EventLNIS::EventLNIS(sqlite3_stmt* stmt, EventTypes type) : Started(false) {
+  readEvents(stmt, type);
+
+  std::vector<std::string> elements;
+  elements.reserve(Events.size());
+  for(auto event: Events)
+    elements.push_back(event.Timestamp);
+  LNIS = computeLNIS<std::string>(elements, Hits);
+  cursor = LNIS.begin();
+  std::cerr << LNIS.size() << std::endl;
+}
+
+void EventLNIS::readEvents(sqlite3_stmt* stmt, EventTypes type) {
+  Event x;
+
+  int status = sqlite3_step(stmt);
+  while (status == SQLITE_ROW) {
+    x.init(stmt);
+    Events.push_back(x);
+    status = sqlite3_step(stmt);
+
+    if (x.Type == type && x.Timestamp != "") {
+      Hits.push_back(Events.size() - 1);
+    }
+  }
+}
+
+bool EventLNIS::hasMore() {
+  return Started || cursor != LNIS.end();
+}
+
+std::string EventLNIS::getTimestamp() {
+  return Events[*cursor].Timestamp;
 }
