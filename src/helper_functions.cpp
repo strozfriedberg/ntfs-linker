@@ -167,14 +167,15 @@ void mem_dump(char* buffer, int length, std::ostream& output) {
 Uses the map of file records to construct the full file path.
 If a file record is not present in the map then the empty stry "" is returned
 */
-std::string getFullPath(std::map<unsigned int, File*>& records, unsigned int recordNo) {
+std::string getFullPath(std::vector<File>& records, unsigned int recordNo) {
   std::stringstream ss;
-  if(!records[recordNo])
+  if (recordNo >= records.size() || ! records[recordNo].valid)
     return "";
-  if(recordNo == records[recordNo]-> par_record_no)
-    return records[recordNo] -> name;
-  ss << getFullPath(records, records[recordNo]-> par_record_no);
-  ss << "\\" << records[recordNo]->name;
+  File record = records[recordNo];
+  if(recordNo == record.par_record_no)
+    return record.name;
+  ss << getFullPath(records, record.par_record_no);
+  ss << "\\" << record.name;
   return ss.str();
 }
 

@@ -47,7 +47,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(std::map<unsigned int, File*> records, sqlite3* db, std::istream& input, std::ostream& output) {
+void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std::ostream& output) {
   unsigned int buffer_size = 4096;
   char* buffer = new char[buffer_size];
   bool split_record = false;
@@ -73,7 +73,7 @@ void parseLog(std::map<unsigned int, File*> records, sqlite3* db, std::istream& 
   //transactions.clearFields();
   Log_Data::initTransactionVectors();
   std::string log_sql = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string events_sql  = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string events_sql  = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
   sqlite3_stmt *log_stmt, *events_stmt;
   rc &= sqlite3_prepare_v2(db, log_sql.c_str(), log_sql.length() + 1, &log_stmt, NULL);
   rc &= sqlite3_prepare_v2(db, events_sql.c_str(), events_sql.length() + 1, &events_stmt, NULL);
@@ -225,7 +225,7 @@ void parseLog(std::map<unsigned int, File*> records, sqlite3* db, std::istream& 
   delete [] buffer;
 }
 
-std::string Log_Record::toString(std::map<unsigned int, File*>& records) {
+std::string Log_Record::toString(std::vector<File>& records) {
   std::stringstream ss;
   ss << cur_lsn << "\t" << prev_lsn << "\t" << undo_lsn << "\t" << client_id << "\t"
     << record_type << "\t" << decodeLogFileOpCode(redo_op) << "\t"
@@ -351,7 +351,7 @@ int Log_Record::init(char* buffer) {
 
 }
 
-void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& records) {
+void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
   if(lsn == 0) {
     lsn = rec.cur_lsn;
   }
@@ -412,8 +412,8 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& 
       case 0x30:
         prev_par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset, 6);
         //std::cout << par_mft_record_no1 << std::endl;
-          if(records[prev_par_mft_record])
-            timestamp = records[prev_par_mft_record]->timestamp;
+          if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+            timestamp = records[prev_par_mft_record].timestamp;
           else
             timestamp = "";
           name_len = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset+0x40, 1);
@@ -434,8 +434,8 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& 
       case 0x30:
         par_mft_record = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset, 6);
 
-        if(records[par_mft_record])
-          timestamp = records[par_mft_record]->timestamp;
+        if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+          timestamp = records[par_mft_record].timestamp;
         else
           timestamp = "";
 
@@ -447,8 +447,8 @@ void Log_Data::processLogRecord(Log_Record& rec, std::map<unsigned int, File*>& 
   else if((rec.redo_op == 0xf && rec.undo_op == 0xe) || (rec.redo_op == 0xd && rec.undo_op == 0xc)) {
     if(rec.undo_length > 0x42) {
       prev_par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
-      if(records[prev_par_mft_record])
-        timestamp = records[prev_par_mft_record]->timestamp;
+      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+        timestamp = records[prev_par_mft_record].timestamp;
       else
         timestamp = "";
       unsigned int len = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x40, 1);
@@ -509,7 +509,7 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
   return true;
 }
 
-void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records) {
+void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_mft_record);
   sqlite3_bind_int64(stmt, 3, prev_par_mft_record);
@@ -523,7 +523,7 @@ void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, s
   sqlite3_reset(stmt);
 }
 
-void Log_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records) {
+void Log_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
   sqlite3_bind_int64(stmt, 1, cur_lsn);
   sqlite3_bind_int64(stmt, 2, prev_lsn);
   sqlite3_bind_int64(stmt, 3, undo_lsn);

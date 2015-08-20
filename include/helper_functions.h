@@ -36,7 +36,7 @@ int max(int a, int b);
 
 void mem_dump(char* buffer, int length, std::ostream& output = std::cout);
 
-std::string getFullPath(std::map<unsigned int, File*>& records, unsigned int recordNo);
+std::string getFullPath(std::vector<File>& records, unsigned int recordNo);
 
 char* getCmdOption(char** begin, char** end, const std::string& option);
 

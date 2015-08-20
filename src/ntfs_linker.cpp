@@ -81,7 +81,7 @@ void commit(sqlite3* db) {
 }
 
 int main(int argc, char** argv) {
-  std::map<unsigned int, File*> records;
+  std::vector<File> records;
   /*
   Parse cmd options, or display help
   Notice that unix style cmd option flags are used ('-') rather
@@ -220,30 +220,30 @@ int main(int argc, char** argv) {
 
   //print column headers
   o_events << "MFTRecNo\t"
-                 << "ParRecNo\t"
-                 << "PreviousParRecNo\t"
-                 << "USN_LSN\t"
-                 << "Timestamp\t"
-                 << "FileName\t"
-                 << "PreviousFileName\t"
-                 << "Path\t"
-                 << "ParPath\t"
-                 << "PreviousParPath"
-                 << "EventType\t"
-                 << "EventSource\t"
-                 << std::endl;
+           << "ParRecNo\t"
+           << "PreviousParRecNo\t"
+           << "USN_LSN\t"
+           << "Timestamp\t"
+           << "FileName\t"
+           << "PreviousFileName\t"
+           << "Path\t"
+           << "ParPath\t"
+           << "PreviousParPath\t"
+           << "EventType\t"
+           << "EventSource\t"
+           << std::endl;
 
-  std::cout << "Parsing MFT..." << std::endl;
-  parseMFT(records, db, i_mft, o_mft);
+  //std::cout << "Parsing MFT..." << std::endl;
+  //parseMFT(records, db, i_mft, o_mft);
   std::cout << "Parsing USNJrnl..." << std::endl;
   parseUSN(records, db, i_usnjrnl, o_usnjrnl);
   std::cout << "Parsing LogFile..." << std::endl;
   parseLog(records, db, i_logfile, o_logfile);
+  commit(db);
 
+  std::cout << "Generating unified events output..." << std::endl;
   outputEvents(records, db, o_events);
 
-  freeMFTMap(records);
-  commit(db);
   sqlite3_close(db);
   std::cout << "Process complete." << std::endl;
 }

@@ -13,7 +13,7 @@ void prepare_statement(sqlite3 *db, sqlite3_stmt **stmt) {
   sqlite3_prepare_v2(db, sql.c_str(), sql.length() + 1, stmt, NULL);
 }
 
-void outputEvents(std::map<unsigned int, File*> records, sqlite3* db, std::ofstream& out) {
+void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
   sqlite3_stmt *usn_stmt, *log_stmt;
   prepare_statement(db, &usn_stmt);
   sqlite3_bind_int64(usn_stmt, 1, event_sources::USN);
@@ -69,7 +69,7 @@ void outputEvents(std::map<unsigned int, File*> records, sqlite3* db, std::ofstr
 }
 
 void Event::init(sqlite3_stmt* stmt) {
-  int i = 0;
+  int i = -1;
   record              = sqlite3_column_int(stmt, ++i);
   par_record          = sqlite3_column_int(stmt, ++i);
   previous_par_record = sqlite3_column_int(stmt, ++i);
@@ -86,7 +86,7 @@ Event::Event() {
   timestamp = file_name = previous_file_name = "";
 }
 
-void Event::write(std::ostream& out, std::map<unsigned int, File*> records) {
+void Event::write(std::ostream& out, std::vector<File>& records) {
   out << record << "\t"
       << par_record << "\t"
       << previous_par_record << "\t"
@@ -99,27 +99,27 @@ void Event::write(std::ostream& out, std::map<unsigned int, File*> records) {
       << getFullPath(records, par_record) << "\t"
       << getFullPath(records, previous_par_record) << "\t"
       << type << "\t"
-      << source;
+      << source
+      << std::endl;
 }
 
-void Event::update_records(std::map<unsigned int, File*> records) {
-  File* f;
+void Event::update_records(std::vector<File>& records) {
+  std::vector<File>::iterator it;
   switch(type) {
     case event_types::CREATE:
       // A file was created, so to move backwards, delete it
-      delete records[record];
-      records.erase(record);
+      records[record].valid = false;
+      records[record] = File();
       break;
     case event_types::DELETE:
       // A file was deleted, so to move backwards, create it
-      f = new File(file_name, record, par_record, timestamp);
-      records[record] = f;
+      records[record] = File(previous_file_name, record, par_record, timestamp);
       break;
     case event_types::MOVE:
-      records[record]->par_record_no = previous_par_record;
+      records[record].par_record_no = previous_par_record;
       break;
     case event_types::RENAME:
-      records[record]->name = previous_file_name;
+      records[record].name = previous_file_name;
       break;
   }
   return;

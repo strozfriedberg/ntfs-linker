@@ -9,7 +9,7 @@ std::string getMFTColumnHeaders() {
     "\tfna_mft_modified\tfna_accessed\tlogical_size\tphysical_size";
 }
 
-void initMFTMap(std::istream& input, std::map<unsigned int, File*>& records) {
+void initMFTMap(std::istream& input, std::vector<File>& records) {
   char buffer[1024];
   input.seekg(0, std::ios::end);
   std::streampos end = input.tellg();
@@ -24,7 +24,7 @@ void initMFTMap(std::istream& input, std::map<unsigned int, File*>& records) {
     }
     //parse basic information from file record segment header
     unsigned long long offset = hex_to_long(buffer+0x14, 2);
-    long long mft_record_no = hex_to_long(buffer + 0x2c, 4);
+    unsigned long long mft_record_no = hex_to_long(buffer + 0x2c, 4);
 //    cout << mft_record_no << std::endl;
     unsigned long long mft_space_allocated = hex_to_long(buffer + 0x18, 4);
     unsigned long long name_len = 0, par_rec_no = 0, mft_modified = 0;
@@ -60,9 +60,11 @@ void initMFTMap(std::istream& input, std::map<unsigned int, File*>& records) {
         break;
       }
     }
-    if(!records[mft_record_no]) {
-      File* f = new File(file_name, mft_record_no, par_rec_no, filetime_to_iso_8601(mft_modified));
-      records[mft_record_no] = f;
+
+    for(int i = mft_record_no - records.size() + 1; i >= 0; i--)
+      records.push_back(File());
+    if(!records[mft_record_no].valid) {
+      records[mft_record_no] = File(file_name, mft_record_no, par_rec_no, filetime_to_iso_8601(mft_modified));
     }
 
   }
@@ -70,13 +72,7 @@ void initMFTMap(std::istream& input, std::map<unsigned int, File*>& records) {
 
 }
 
-void freeMFTMap(std::map<unsigned int, File*>& records) {
-  for(std::map<unsigned int, File*>::iterator it = records.begin(); it != records.end(); ++it) {
-    delete it->second;
-  }
-}
-
-MFT_Record::MFT_Record(char* buffer, std::map<unsigned int, File*>& records) {
+MFT_Record::MFT_Record(char* buffer, std::vector<File>& records) {
 
 
   //check if record begins with FILE, otherwise, invalid record
@@ -147,7 +143,7 @@ MFT_Record::MFT_Record(char* buffer, std::map<unsigned int, File*>& records) {
   }
 }
 
-std::string MFT_Record::toString(std::map<unsigned int, File*>& records) {
+std::string MFT_Record::toString(std::vector<File>& records) {
   std::stringstream ss;
   ss << lsn << "\t" << mft_record_no << "\t" << update_seq_no << "\t";
   ss << getFullPath(records, mft_record_no); //file_name;
@@ -162,8 +158,7 @@ std::string MFT_Record::toString(std::map<unsigned int, File*>& records) {
   return ss.str();
 }
 
-void parseMFT(std::map<unsigned int, File*>& records, sqlite3* db, std::istream& input, std::ostream& output) {
-//void parseMFT(std::map<unsigned int, File*>& records, sqlite3* db, std::istream& input) {
+void parseMFT(std::vector<File>& records, sqlite3* db, std::istream& input, std::ostream& output) {
   if(sizeof(long long) < 8) {
     std::cerr << "64-bit arithmetic not available. This won't work." << std::endl;
     exit(1);
@@ -224,7 +219,7 @@ void parseMFT(std::map<unsigned int, File*>& records, sqlite3* db, std::istream&
 
 }
 
-void MFT_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::map<unsigned int, File*>& records) {
+void MFT_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
 
   sqlite3_bind_int64(stmt, 1, lsn);
   sqlite3_bind_int64(stmt, 2, mft_record_no);

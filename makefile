@@ -22,7 +22,7 @@ clean:
 
 rebuild: clean all
 
-debug: CXX_FLAGS := $(CXX_FLAGS) -g
+debug: CXX_FLAGS := $(CXX_FLAGS) -g -pg
 debug: CXX_FLAGS := $(CXX_FLAGS) -D__BUILD_NUMBER=0
 debug: LD_FLAGS += -g
 debug: $(BIN)
