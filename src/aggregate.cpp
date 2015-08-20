@@ -16,9 +16,9 @@ void prepare_statement(sqlite3 *db, sqlite3_stmt **stmt) {
 void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
   sqlite3_stmt *usn_stmt, *log_stmt;
   prepare_statement(db, &usn_stmt);
-  sqlite3_bind_int64(usn_stmt, 1, event_sources::USN);
+  sqlite3_bind_int64(usn_stmt, 1, EventSources::USN);
   prepare_statement(db, &log_stmt);
-  sqlite3_bind_int64(log_stmt, 1, event_sources::LOG);
+  sqlite3_bind_int64(log_stmt, 1, EventSources::LOG);
 
   int u, l;
   u = sqlite3_step(usn_stmt);
@@ -29,7 +29,7 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
     usn_event.init(usn_stmt);
     log_event.init(log_stmt);
 
-    if (log_event.type != event_types::CREATE || usn_event.timestamp > log_event.timestamp) {
+    if (log_event.type != EventTypes::CREATE || usn_event.timestamp > log_event.timestamp) {
       usn_event.write(out, records);
       usn_event.update_records(records);
       u = sqlite3_step(usn_stmt);
@@ -39,7 +39,7 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
       l = sqlite3_step(log_stmt);
       while (l == SQLITE_ROW) {
         log_event.init(log_stmt);
-        if (log_event.type == event_types::CREATE)
+        if (log_event.type == EventTypes::CREATE)
           break;
         log_event.write(out, records);
         log_event.update_records(records);
@@ -98,27 +98,26 @@ void Event::write(std::ostream& out, std::vector<File>& records) {
       << getFullPath(records, record) << "\t"
       << getFullPath(records, par_record) << "\t"
       << getFullPath(records, previous_par_record) << "\t"
-      << type << "\t"
-      << source
-      << std::endl;
+      << static_cast<EventTypes>(type) << "\t"
+      << static_cast<EventSources>(source) << std::endl;
 }
 
 void Event::update_records(std::vector<File>& records) {
   std::vector<File>::iterator it;
   switch(type) {
-    case event_types::CREATE:
+    case EventTypes::CREATE:
       // A file was created, so to move backwards, delete it
       records[record].valid = false;
       records[record] = File();
       break;
-    case event_types::DELETE:
+    case EventTypes::DELETE:
       // A file was deleted, so to move backwards, create it
       records[record] = File(previous_file_name, record, par_record, timestamp);
       break;
-    case event_types::MOVE:
+    case EventTypes::MOVE:
       records[record].par_record_no = previous_par_record;
       break;
-    case event_types::RENAME:
+    case EventTypes::RENAME:
       records[record].name = previous_file_name;
       break;
   }

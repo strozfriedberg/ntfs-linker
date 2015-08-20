@@ -171,12 +171,12 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     rec.insert(db, usn_stmt, records);
     //determine which, if any, secondary streams should be written to.
     if(rec.reason & 0x100) { //CREATE
-      rec.insertEvent(event_types::CREATE, db, events_stmt, records);
+      rec.insertEvent(EventTypes::CREATE, db, events_stmt, records);
     }
     if(rec.reason & 0x200) { //DELETE
       rec.prev_file_name = rec.file_name;
       rec.file_name = "";
-      rec.insertEvent(event_types::DELETE, db, events_stmt, records);
+      rec.insertEvent(EventTypes::DELETE, db, events_stmt, records);
     }
     if(rec.reason & 0x1000 || rec.reason & 0x2000) { //RENAME
 
@@ -198,10 +198,10 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       if (temp_rec.file_name != "") { //if(temp_rec.reason & 0x1000 || temp_rec.reason & 0x2000) {
         //RENAME
         if(temp_rec.prev_file_name != temp_rec.file_name) {
-          temp_rec.insertEvent(event_types::RENAME, db, events_stmt, records);
+          temp_rec.insertEvent(EventTypes::RENAME, db, events_stmt, records);
         }
         if(temp_rec.par_record != temp_rec.prev_par_record) {
-          temp_rec.insertEvent(event_types::MOVE, db, events_stmt, records);
+          temp_rec.insertEvent(EventTypes::MOVE, db, events_stmt, records);
         }
       }
       temp_rec.clearFields();
@@ -273,7 +273,7 @@ void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt,
   sqlite3_bind_text(stmt, 6, file_name.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt, 7, prev_file_name.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, 8, type);
-  sqlite3_bind_int64(stmt, 9, event_sources::USN);
+  sqlite3_bind_int64(stmt, 9, EventSources::USN);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

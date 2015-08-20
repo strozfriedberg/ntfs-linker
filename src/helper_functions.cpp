@@ -232,4 +232,24 @@ void prep_ofstream(std::ofstream& out, const char* name, bool overwrite) {
 //  out << smarker;
 }
 
+std::ostream& operator<<(std::ostream& out, EventTypes e) {
+  switch(e) {
+    case EventTypes::CREATE:
+      return out << "Create";
+    case EventTypes::DELETE:
+      return out << "Delete";
+    case EventTypes::MOVE:
+      return out << "Move";
+    default:
+      return out << "Rename";
+  }
+}
 
+std::ostream& operator<<(std::ostream& out, EventSources e) {
+  switch(e) {
+    case EventSources::USN:
+      return out << "$UsnJrnl/$J";
+    default:
+      return out << "$LogFile";
+  }
+}

@@ -126,16 +126,16 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       transactions.processLogRecord(rec, records);
       if(transactions.isTransactionOver()) {
         if(transactions.isCreateEvent()) {
-          transactions.insertEvent(event_types::CREATE, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::CREATE, db, events_stmt, records);
         }
         if(transactions.isDeleteEvent()) {
-          transactions.insertEvent(event_types::DELETE, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::DELETE, db, events_stmt, records);
         }
         if(transactions.isRenameEvent()) {
-          transactions.insertEvent(event_types::RENAME, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::RENAME, db, events_stmt, records);
         }
         if(transactions.isMoveEvent()) {
-          transactions.insertEvent(event_types::MOVE, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::MOVE, db, events_stmt, records);
         }
         transactions.clearFields();
       }
@@ -518,7 +518,7 @@ void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, s
   sqlite3_bind_text(stmt, 6, name.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt, 7, prev_name.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, 8, type);
-  sqlite3_bind_int64(stmt, 9, event_sources::LOG);
+  sqlite3_bind_int64(stmt, 9, EventSources::LOG);
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
 }
