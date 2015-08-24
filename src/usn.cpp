@@ -163,48 +163,43 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       input.read(buffer + bufferSize, record_length - bufferSize);
       bufferSize = record_length + bufferSize - offset;
     }
-    //input.read(buffer + 8, record_length - 8);
     USN_Record rec(buffer + offset, records);
 
     output << rec.toString(records);
 
     rec.insert(db, usn_stmt, records);
-    //determine which, if any, secondary streams should be written to.
-    if(rec.reason & 0x100) { //CREATE
-      rec.insertEvent(EventTypes::CREATE, db, events_stmt, records);
-    }
-    if(rec.reason & 0x200) { //DELETE
-      rec.insertEvent(EventTypes::DELETE, db, events_stmt, records);
-    }
-    if(rec.reason & 0x1000 || rec.reason & 0x2000) { //RENAME or MOVE
 
-      /*
-      Both rename and move events are classified as rename for USNJrnl purposes
-      Furthermore, duplicate entries are present for each (with the name/location before and after)
-      We do a little extra processing to avoid printing duplicates into create and move csv files
-      */
-      if(temp_rec.usn == 0) {
-        temp_rec = rec;
-      }
-      if(rec.reason & 0x1000) { //OLD
-        temp_rec.prev_file_name = rec.file_name;
-        temp_rec.prev_par_record = rec.par_record;
-      }
-      if(rec.reason & 0x2000) { //OLD
-        temp_rec.file_name = rec.file_name;
-        temp_rec.par_record = rec.par_record;
-      }
-      temp_rec.reason |= rec.reason;
+    if(temp_rec.usn == 0) {
+      temp_rec = rec;
+    }
+    temp_rec.reason |= rec.reason;
+
+    // Rename/Move new record
+    if(rec.reason & 0x1000) {
+      temp_rec.prev_file_name = rec.file_name;
+      temp_rec.prev_par_record = rec.par_record;
+    }
+    // Rename/move old record
+    if(rec.reason & 0x2000) {
+      temp_rec.file_name = rec.file_name;
+      temp_rec.par_record = rec.par_record;
     }
     if(temp_rec.mft_record_no != rec.mft_record_no || rec.reason & 0x80000000) { //CLOSE
-      if (temp_rec.file_name != "") { //if(temp_rec.reason & 0x1000 || temp_rec.reason & 0x2000) {
-        //RENAME
-        if(temp_rec.prev_file_name != temp_rec.file_name) {
-          temp_rec.insertEvent(EventTypes::RENAME, db, events_stmt, records);
-        }
-        if(temp_rec.par_record != temp_rec.prev_par_record) {
-          temp_rec.insertEvent(EventTypes::MOVE, db, events_stmt, records);
-        }
+      // Create event
+      if(rec.reason & 0x100) {
+        rec.insertEvent(EventTypes::CREATE, db, events_stmt, records);
+      }
+      // Delete event
+      if(rec.reason & 0x200) {
+        rec.insertEvent(EventTypes::DELETE, db, events_stmt, records);
+      }
+      // Rename event
+      if(temp_rec.prev_file_name != temp_rec.file_name && (rec.reason & 0x3000)) {
+        temp_rec.insertEvent(EventTypes::RENAME, db, events_stmt, records);
+      }
+      // Move event
+      if(temp_rec.par_record != temp_rec.prev_par_record && (rec.reason & 0x3000)) {
+        temp_rec.insertEvent(EventTypes::MOVE, db, events_stmt, records);
       }
       temp_rec.clearFields();
     }
