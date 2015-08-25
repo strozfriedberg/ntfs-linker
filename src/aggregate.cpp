@@ -31,7 +31,6 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
   log.advance(records, out, false);
 
   while (u == SQLITE_ROW && log.hasMore()) {
-    // TODO selectively init based on what was updated
     usn_event.init(usn_stmt);
 
     if (usn_event.Timestamp > log.getTimestamp()) {
@@ -160,7 +159,7 @@ EventLNIS::EventLNIS(sqlite3_stmt* stmt, EventTypes type) : Started(false) {
     elements.push_back(event.Timestamp);
   LNIS = computeLNIS<std::string>(elements, Hits);
   cursor = LNIS.begin();
-  std::cerr << LNIS.size() << std::endl;
+  std::cout << "Found " << LNIS.size() << " out of " << Hits.size() << " possible anchor points."  << std::endl;
 }
 
 void EventLNIS::readEvents(sqlite3_stmt* stmt, EventTypes type) {
