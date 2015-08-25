@@ -33,9 +33,6 @@ clean:
 
 rebuild: clean all
 
-debug: CXX_FLAGS := $(CXX_FLAGS) -D__BUILD_NUMBER=0
-debug: $(BIN)
-
 $(BIN): $(CPP_OBJ_COMMON) $(C_OBJ) build/ntfs_linker.o
 	$(CXX) $(LD_FLAGS) -o build/$@ $^ -ldl
 

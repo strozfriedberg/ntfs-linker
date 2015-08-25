@@ -231,6 +231,7 @@ int main(int argc, char** argv) {
            << "PreviousParPath\t"
            << "EventType\t"
            << "EventSource\t"
+           << "IsAnchor\t"
            << std::endl;
 
   //std::cout << "Parsing MFT..." << std::endl;

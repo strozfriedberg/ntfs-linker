@@ -35,6 +35,7 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
     usn_event.init(usn_stmt);
 
     if (usn_event.Timestamp > log.getTimestamp()) {
+      usn_event.isAnchor = true;
       usn_event.write(out, records);
       usn_event.update_records(records);
       u = sqlite3_step(usn_stmt);
@@ -45,6 +46,7 @@ void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
 
   while (u == SQLITE_ROW) {
     usn_event.init(usn_stmt);
+    usn_event.isAnchor = true;
     usn_event.write(out, records);
     usn_event.update_records(records);
     u = sqlite3_step(usn_stmt);
@@ -75,6 +77,7 @@ void Event::init(sqlite3_stmt* stmt) {
     PreviousParent = 0;
   if (PreviousName == Name)
     PreviousName = "";
+  isAnchor = false;
 }
 
 Event::Event() {
@@ -94,7 +97,8 @@ void Event::write(std::ostream& out, std::vector<File>& records) {
       << getFullPath(records, Parent) << "\t"
       << (PreviousParent == 0 ? "" : getFullPath(records, PreviousParent)) << "\t"
       << static_cast<EventTypes>(Type) << "\t"
-      << static_cast<EventSources>(Source) << std::endl;
+      << static_cast<EventSources>(Source) << "\t"
+      << isAnchor << std::endl;
 }
 
 void Event::update_records(std::vector<File>& records) {
@@ -123,6 +127,7 @@ void EventLNIS::advance(std::vector<File>& records, std::ofstream& out, bool upd
   int start, end;
   if (Started) {
     start = *cursor;
+    Events[start].isAnchor = true;
     ++cursor;
     if (cursor == LNIS.end()) {
       end = Events.size();

@@ -16,6 +16,7 @@ public:
 
   unsigned long long Record, Parent, PreviousParent, UsnLsn, Type, Source;
   std::string Timestamp, Name, PreviousName;
+  bool isAnchor;
 };
 
 class EventLNIS {

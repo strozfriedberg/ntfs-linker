@@ -151,8 +151,6 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     We perform  a little switcheroo then return to the top of the loop
     */
     if(split_record) {
-//      if(records_processed >= 0x3b6a)
-//        std::cout << std::hex << records_processed << " " << length << " " << buffer_size << " " << offset << std::endl;
       unsigned int new_size = ((length - buffer_size + offset + 4031) / 4032) * 4096 + buffer_size - offset;
       char* temp = new char[new_size];
       adjust = buffer_size - offset;
@@ -357,7 +355,6 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
   }
   redo_ops.push_back(rec.redo_op);
   undo_ops.push_back(rec.undo_op);
-  //std::cout << std::hex << rec.redo_op << " " << rec.undo_op << std::endl;
   //pull data from necessary opcodes to save for transaction runs
   if(rec.redo_op == 0x15 && rec.undo_op == 0x16) {
     if(rec.redo_length >= 4)
@@ -411,7 +408,6 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
     switch(type_id) {
       case 0x30:
         prev_par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset, 6);
-        //std::cout << par_mft_record_no1 << std::endl;
           if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
             timestamp = records[prev_par_mft_record].timestamp;
           else
