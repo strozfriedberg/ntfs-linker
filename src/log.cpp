@@ -43,6 +43,14 @@ std::string decodeLogFileOpCode(int op) {
   }
 }
 
+bool isUTF16leNonAscii(char* arr, unsigned long long len) {
+  for (unsigned int i = 0; i < len; i++) {
+    if (arr[2*i + 1] != 0)
+      return true;
+  }
+  return false;
+}
+
 /*
 Parses the $LogFile
 outputs to the various streams
@@ -70,7 +78,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   input.read(buffer, 4096);
 
   Log_Data transactions;
-  //transactions.clearFields();
+  transactions.clearFields();
   Log_Data::initTransactionVectors();
   std::string log_sql = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string events_sql  = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
@@ -94,6 +102,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     unsigned int length;
     update_seq_offset = hex_to_long(buffer + 0x4, 2);
     update_seq_count = hex_to_long(buffer + 0x6, 2);
+    // Equivalent to 8*ceil(update_seq_count/4)
     offset = update_seq_offset + ((((update_seq_count << 1) + 7) >> 3) << 3);
     next_record_offset = hex_to_long(buffer + 0x18, 2);
     if(parseError) { //initialize the offset on the "first" record processed
@@ -377,16 +386,20 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
         //unsigned long long form_code = hex_to_long(start + mft_offset + 8, 1);
         unsigned long long attribute_length = hex_to_long(start + mft_offset+4, 4);
         unsigned long long content_offset = hex_to_long(start + mft_offset + 0x14, 2);
+        unsigned int len;
 
         switch(type_id) {
           case 0x10:
             timestamp = filetime_to_iso_8601(hex_to_long(start + mft_offset + content_offset + 0x0, 8));
             break;
           case 0x30:
-            if(hex_to_long(start + mft_offset+content_offset+0x40, 1) > name_len) {
-              par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
-              name_len = hex_to_long(start + mft_offset + content_offset+0x40, 1);
+            par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
+            len = hex_to_long(start + mft_offset+content_offset+0x40, 1);
+            bool newNameDirty = isUTF16leNonAscii(start + mft_offset + content_offset + 0x42, len);
+            if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+              name_len = len;
               name = mbcatos(start + mft_offset + content_offset+0x42, name_len);
+              IsNameDirty = newNameDirty;
             }
             break;
         }
@@ -435,13 +448,19 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
         else
           timestamp = "";
 
-        name_len = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset+0x40, 1);
-        name = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
+        unsigned int len = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset+0x40, 1);
+        bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, len);
+        if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+          name_len = len;
+          name = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
+          IsNameDirty = newNameDirty;
+        }
         break;
     }
   }
   else if((rec.redo_op == 0xf && rec.undo_op == 0xe) || (rec.redo_op == 0xd && rec.undo_op == 0xc)) {
     if(rec.undo_length > 0x42) {
+      // Delete or rename
       // This is a delete. I think.
       par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
       if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
@@ -449,12 +468,32 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
       else
         timestamp = "";
       unsigned int len = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x40, 1);
-      if(len > name_len) {
+      bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, len);
+      if(((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
         name_len = len;
         name = mbcatos(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, name_len);
+        IsNameDirty = newNameDirty;
       }
     }
 
+  }
+  else if ((rec.redo_op == 0x0e && rec.undo_op == 0x0f) || (rec.redo_op == 0x0c && rec.undo_op == 0x0d)) {
+    // Add index entry root/AddIndexEntryAllocation operation
+    // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
+    // for additional info about Index Record structure ("The header part")
+    if (rec.redo_length > 0x52) {
+      mft_record_no = hex_to_long(rec.data + 0x30 + rec.redo_offset, 6);
+      par_mft_record = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x10, 6);
+      timestamp = filetime_to_iso_8601(hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x18, 8));
+
+      unsigned int len = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x50, 1);
+      bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.redo_offset + 0x52, len);
+      if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+        name_len = len;
+        name = mbcatos(rec.data + 0x30 + rec.redo_offset + 0x52, len);
+        IsNameDirty = newNameDirty;
+      }
+    }
   }
 }
 
@@ -469,6 +508,7 @@ void Log_Data::clearFields() {
   lsn = 0;
   name = "";
   prev_name = "";
+  bool IsNameDirty = true;
 }
 
 std::vector<int> Log_Data::create_redo, Log_Data::create_undo;
