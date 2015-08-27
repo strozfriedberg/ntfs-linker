@@ -47,8 +47,13 @@ ProgressBar::ProgressBar(unsigned long long x) {
 }
 
 void ProgressBar::finish() {
-  done = toDo; printProgress();
-  std::cout << std::setw(70) << std::left << std::setfill(' ') << "\r";
-  std::cout << "\r";
+  done = toDo;
+  printProgress();
+  clear();
 }
 
+void ProgressBar::clear() {
+  std::cout << std::setw(70) << std::left << std::setfill(' ') << "\r";
+  std::cout << "\r";
+  std::cout.flush();
+}

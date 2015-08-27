@@ -508,7 +508,7 @@ void LogData::clearFields() {
   lsn = 0;
   name = "";
   prev_name = "";
-  bool IsNameDirty = true;
+  IsNameDirty = true;
 }
 
 std::vector<int> LogData::create_redo, LogData::create_undo;

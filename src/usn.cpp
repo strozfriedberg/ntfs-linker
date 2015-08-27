@@ -4,45 +4,44 @@
 #include "progress.h"
 
 /*
-Returns the column names used for the USN CSV file
+Returns the column names used for the Usn CSV file
 */
 std::string getUSNColumnHeaders() {
   return "MFTRecordNumber\tParentMFTRecordNumber\tUsn\tTimestamp\tReason\tFileName\tPossiblePath\tPossibleParentPath";
 }
 
+const unsigned int USN_BUFFER_SIZE = 2097152;
+
 /*
-Decodes the USN reason code
-USN uses a bit packing scheme to store reason codes.
+Decodes the Usn reason code
+Usn uses a bit packing scheme to store reason codes.
 Typically, as operations are performed on a file these reason codes are combined (&)
 */
-std::string decodeUSNReason(int reason) {
+std::string UsnRecord::getReasonString() {
   std::stringstream ss;
-  ss << "USN|";
-  if(reason & 0x00008000) ss << "BASIC_INFO_CHANGE|";
-  if(reason & 0x80000000) ss << "CLOSE|";
-  if(reason & 0x00020000) ss << "COMPRESSION_CHANGE|";
-  if(reason & 0x00000002) ss << "DATA_EXTEND|";
-  if(reason & 0x00000001) ss << "DATA_OVERWRITE|";
-  if(reason & 0x00000004) ss << "DATA_TRUNCATION|";
-  if(reason & 0x00000400) ss << "EXTENDED_ATTRIBUTE_CHANGE|";
-  if(reason & 0x00040000) ss << "ENCRYPTION_CHANGE|";
-  if(reason & 0x00000100) ss << "FILE_CREATE|";
-  if(reason & 0x00000200) ss << "FILE_DELETE|";
-  if(reason & 0x00010000) ss << "HARD_LINK_CHANGE|";
-  if(reason & 0x00004000) ss << "INDEXABLE_CHANGE|";
-  if(reason & 0x00000020) ss << "NAMED_DATA_EXTEND|";
-  if(reason & 0x00000010) ss << "NAMED_DATA_OVERWRITE|";
-  if(reason & 0x00000040) ss << "NAMED_DATA_TRUNCATION|";
-  if(reason & 0x00080000) ss << "OBJECT_ID_CHANGE|";
-  if(reason & 0x00002000) ss << "RENAME_NEW_NAME|";
-  if(reason & 0x00001000) ss << "RENAME_OLD_NAME|";
-  if(reason & 0x00100000) ss << "REPARSE_POINT_CHANGE|";
-  if(reason & 0x00000800) ss << "SECURITY_CHANGE|";
-  if(reason & 0x00200000) ss << "STREAM_CHANGE|";
-  std::string rtn = ss.str();
-  if(rtn.length() > 0)
-    rtn = rtn.substr(0, rtn.length() - 1);
-  return rtn;
+  ss << "USN";
+  if (Reason & UsnReasons::BASIC_INFO_CHANGE)         ss << "|BASIC_INFO_CHANGE";
+  if (Reason & UsnReasons::CLOSE)                     ss << "|CLOSE";
+  if (Reason & UsnReasons::COMPRESSION_CHANGE)        ss << "|COMPRESSION_CHANGE";
+  if (Reason & UsnReasons::DATA_EXTEND)               ss << "|DATA_EXTEND";
+  if (Reason & UsnReasons::DATA_OVERWRITE)            ss << "|DATA_OVERWRITE";
+  if (Reason & UsnReasons::DATA_TRUNCATION)           ss << "|DATA_TRUNCATION";
+  if (Reason & UsnReasons::EXTENDED_ATTRIBUTE_CHANGE) ss << "|EXTENDED_ATTRIBUTE_CHANGE";
+  if (Reason & UsnReasons::ENCRYPTION_CHANGE)         ss << "|ENCRYPTION_CHANGE";
+  if (Reason & UsnReasons::FILE_CREATE)               ss << "|FILE_CREATE";
+  if (Reason & UsnReasons::FILE_DELETE)               ss << "|FILE_DELETE";
+  if (Reason & UsnReasons::HARD_LINK_CHANGE)          ss << "|HARD_LINK_CHANGE";
+  if (Reason & UsnReasons::INDEXABLE_CHANGE)          ss << "|INDEXABLE_CHANGE";
+  if (Reason & UsnReasons::NAMED_DATA_EXTEND)         ss << "|NAMED_DATA_EXTEND";
+  if (Reason & UsnReasons::NAMED_DATA_OVERWRITE)      ss << "|NAMED_DATA_OVERWRITE";
+  if (Reason & UsnReasons::NAMED_DATA_TRUNCATION)     ss << "|NAMED_DATA_TRUNCATION";
+  if (Reason & UsnReasons::OBJECT_ID_CHANGE)          ss << "|OBJECT_ID_CHANGE";
+  if (Reason & UsnReasons::RENAME_NEW_NAME)           ss << "|RENAME_NEW_NAME";
+  if (Reason & UsnReasons::RENAME_OLD_NAME)           ss << "|RENAME_OLD_NAME";
+  if (Reason & UsnReasons::REPARSE_POINT_CHANGE)      ss << "|REPARSE_POINT_CHANGE";
+  if (Reason & UsnReasons::SECURITY_CHANGE)           ss << "|SECURITY_CHANGE";
+  if (Reason & UsnReasons::STREAM_CHANGE)             ss << "|STREAM_CHANGE";
+  return ss.str();
 }
 
 std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=false) {
@@ -56,19 +55,19 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
   std::streampos end = stream.tellg();
   if (sparse) {
     bool done = false;
-    while(!done) {
+    while (!done) {
       stream.seekg(-(1 << 20), std::ios::cur);
-      stream.read(buffer, 4096);
+      stream.read(buffer, USN_BUFFER_SIZE);
       done = true;
-      for(int i = 0; i < 4096 && done; i++) {
-        if(buffer[i] != 0)
+      for (unsigned int i = 0; i < USN_BUFFER_SIZE && done; i++) {
+        if (buffer[i] != 0)
           done = false;
       }
     }
   }
   else {
     stream.seekg(0, std::ios::beg);
-    stream.read(buffer, 4096);
+    stream.read(buffer, USN_BUFFER_SIZE);
   }
   return end;
 }
@@ -77,18 +76,13 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std::ostream& output) {
-  if(sizeof(long long) < 8) {
+void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input, std::ostream& output) {
+  if (sizeof(long long) < 8) {
     std::cerr << "64-bit arithmetic not available. This won't work. Exiting." << std::endl;
     exit(1);
   }
 
-  unsigned int bufferSize = 4096;
-  char* buffer = new char[bufferSize];
-
-  if(getEpochDifference() != 0) {
-    std::cerr << "Non-standard time epoch in use. Scrutinize dates/times closely.\n Continuing...\n";
-  }
+  char buffer[USN_BUFFER_SIZE];
 
   int records_processed = -1;
 
@@ -96,7 +90,7 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   std::streampos start = input.tellg();
   ProgressBar status(end - start);
 
-  UsnRecord temp_rec;
+  UsnRecord prevRec;
   int rc;
   std::string usn_sql = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?);";
   std::string events_sql = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
@@ -111,153 +105,135 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     exit(2);
   }
 
+  output << getUSNColumnHeaders();
+
   unsigned int offset = 0;
 
   //scan through the $USNJrnl one record at a time. Each record is variable length.
   bool done = false;
-  while(!input.eof() && !done) {
-    status.setDone((unsigned long long) input.tellg() - start);
+  while (!input.eof() && !done) {
+    status.setDone((unsigned long long) input.tellg() - USN_BUFFER_SIZE + offset - start);
 
-    if(offset + 4 > bufferSize || hex_to_long(buffer + offset, 4) + offset > bufferSize) {
-      char* temp = new char[4096 + bufferSize - offset];
-      memcpy(temp, buffer + offset, bufferSize - offset);
-      input.read(temp + bufferSize - offset, 4096);
-      bufferSize = 4096 + bufferSize - offset;
-      delete [] buffer;
-      buffer = temp;
+    if (offset + 4 > USN_BUFFER_SIZE || hex_to_long(buffer + offset, 4) + offset > USN_BUFFER_SIZE) {
+      // We've reached the end of the buffer. Move the record to the front,
+      // then read to fill out the rest of the buffer
+      memmove(buffer, buffer + offset, USN_BUFFER_SIZE - offset);
+      input.read(buffer + USN_BUFFER_SIZE - offset, offset);
       offset = 0;
     }
 
-    //input.read(buffer, 8);
     unsigned long long record_length = hex_to_long(buffer + offset, 4);
 
-    if(record_length == 0) {
+    if (record_length == 0) {
       offset += 8;
       continue;
     }
-    if(record_length > 0x1000) {
-      std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-      std::cerr << "\r";
-      std::cerr.flush();
+    if (record_length > USN_BUFFER_SIZE) {
+      status.clear();
       std::cerr << std::hex << record_length << " is an awfully large record_length!" << std::endl;
       std::cerr << "Cannot continue. Check that we're not missing much at "
         << std::hex << input.tellg()<< std::endl;
       break;
     }
     records_processed++;
-    if(bufferSize < record_length) {
-      char* temp = new char[record_length + bufferSize - offset];
-      memcpy(temp, buffer, bufferSize);
 
-      delete[] buffer;
-      buffer = temp;
-
-      input.read(buffer + bufferSize, record_length - bufferSize);
-      bufferSize = record_length + bufferSize - offset;
-    }
     UsnRecord rec(buffer + offset, records);
-
     output << rec.toString(records);
-
     rec.insert(db, usn_stmt, records);
 
-    if(temp_rec.usn == 0) {
-      temp_rec = rec;
+    if (prevRec.Record != rec.Record || prevRec.Reason & UsnReasons::CLOSE) {
+      prevRec.checkTypeAndInsert(db, events_stmt, records);
+      prevRec.clearFields();
     }
-    temp_rec.reason |= rec.reason;
+    if (prevRec.Usn == 0)
+      prevRec = rec;
+    else
+      prevRec.update(rec);
 
-    // Rename/Move new record
-    if(rec.reason & 0x1000) {
-      temp_rec.prev_file_name = rec.file_name;
-      temp_rec.prev_par_record = rec.par_record;
-    }
-    // Rename/move old record
-    if(rec.reason & 0x2000) {
-      temp_rec.file_name = rec.file_name;
-      temp_rec.par_record = rec.par_record;
-    }
-    if(temp_rec.mft_record_no != rec.mft_record_no || rec.reason & 0x80000000) { //CLOSE
-      // Create event
-      if(rec.reason & 0x100) {
-        rec.insertEvent(EventTypes::CREATE, db, events_stmt, records);
-      }
-      // Delete event
-      if(rec.reason & 0x200) {
-        rec.insertEvent(EventTypes::DELETE, db, events_stmt, records);
-      }
-      // Rename event
-      if(temp_rec.prev_file_name != temp_rec.file_name && (rec.reason & 0x3000)) {
-        temp_rec.insertEvent(EventTypes::RENAME, db, events_stmt, records);
-      }
-      // Move event
-      if(temp_rec.par_record != temp_rec.prev_par_record && (rec.reason & 0x3000)) {
-        temp_rec.insertEvent(EventTypes::MOVE, db, events_stmt, records);
-      }
-      temp_rec.clearFields();
-    }
     offset += record_length;
   }
   status.finish();
   sqlite3_finalize(usn_stmt);
   sqlite3_finalize(events_stmt);
-  delete[] buffer;
 }
 
-UsnRecord::UsnRecord(char* buffer, std::vector<File>& records, int len) {
+void UsnRecord::update(UsnRecord rec) {
+    Reason |= rec.Reason;
 
-  file_ref_no     = hex_to_long(buffer + 0x8, 8);
-  mft_record_no   = hex_to_long(buffer + 0x8, 6);
-  par_file_ref_no = hex_to_long(buffer + 0x10, 8);
-  par_record      = hex_to_long(buffer + 0x10, 6);
-  prev_par_record = 0;
-  usn             = hex_to_long(buffer + 0x18, 8);
-  timestamp       = hex_to_long(buffer + 0x20, 8);
-  reason          = hex_to_long(buffer + 0x28, 4);
-  file_len        = hex_to_long(buffer + 0x38, 2);
-  name_offset     = hex_to_long(buffer + 0x3A, 2);
-  file_name       = mbcatos(buffer + name_offset, file_len >> 1);
-  prev_file_name  = "";
+    if (rec.Reason & UsnReasons::RENAME_OLD_NAME) {
+      PreviousName = rec.Name;
+      PreviousParent = rec.Parent;
+    }
+
+    if (rec.Reason & UsnReasons::RENAME_NEW_NAME) {
+      Name = rec.Name;
+      Parent = rec.Parent;
+    }
+}
+
+UsnRecord::UsnRecord(const char* buffer, const std::vector<File>& records, int len) {
+  if (len < 0 || (unsigned) len >= 0x3C) {
+    PreviousName                     = "";
+    PreviousParent                   = 0;
+    unsigned long long record_length = hex_to_long(buffer, 4);
+    Record                           = hex_to_long(buffer + 0x8, 6);
+    Reference                        = hex_to_long(buffer + 0x8, 8);
+    Parent                           = hex_to_long(buffer + 0x10, 6);
+    ParentReference                  = hex_to_long(buffer + 0x10, 8);
+    Usn                              = hex_to_long(buffer + 0x18, 8);
+    Timestamp                        = filetime_to_iso_8601(hex_to_long(buffer + 0x20, 8));
+    Reason                           = hex_to_long(buffer + 0x28, 4);
+    unsigned int name_len            = hex_to_long(buffer + 0x38, 2);
+    unsigned int name_offset         = hex_to_long(buffer + 0x3A, 2);
+
+    if (len < 0 || (unsigned) len >= record_length) {
+      Name = mbcatos(buffer + name_offset, name_len / 2);
+      return;
+    }
+  }
+  // Not a valid UsnRecord
+  clearFields();
 }
 
 void UsnRecord::clearFields() {
 
-  file_ref_no = 0;
-  mft_record_no = 0;
-
-  par_file_ref_no = 0;
-  prev_par_record = 0;
-
-  usn = 0;
-  timestamp = 0;
-  reason = 0;
-  file_len = 0;
-  name_offset = 0;
-  prev_file_name = "";
-  file_name = "";
-  par_record = 0;
+  Name            = "";
+  Reference       = 0;
+  Record          = 0;
+  ParentReference = 0;
+  Parent          = 0;
+  PreviousName    = "";
+  PreviousParent  = 0;
+  Reason          = 0;
+  Timestamp       = "";
+  Usn             = 0;
 }
 
 UsnRecord::UsnRecord() {
   clearFields();
 }
 
-std::string UsnRecord::toString(std::vector<File>& records) {
+std::string UsnRecord::toString(const std::vector<File>& records) {
   std::stringstream ss;
-  ss << mft_record_no << "\t" << par_record << "\t" << usn << "\t" << filetime_to_iso_8601(timestamp)
-    << "\t" << decodeUSNReason(reason) << "\t" << file_name << "\t" << getFullPath(records, mft_record_no)
-    << "\t" << getFullPath(records, par_record);
-  ss << std::endl;
+  ss << Record                       << "\t"
+     << Parent                       << "\t"
+     << Usn                          << "\t"
+     << Timestamp                    << "\t"
+     << getReasonString()            << "\t"
+     << Name                         << "\t"
+     << getFullPath(records, Record) << "\t"
+     << getFullPath(records, Parent) << std::endl;
   return ss.str();
 }
 
-void UsnRecord::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
-  sqlite3_bind_int64(stmt, 1, mft_record_no);
-  sqlite3_bind_int64(stmt, 2, par_record);
-  sqlite3_bind_int64(stmt, 3, prev_par_record);
-  sqlite3_bind_int64(stmt, 4, usn);
-  sqlite3_bind_text(stmt, 5, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 6, file_name.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 7, prev_file_name.c_str(), -1, SQLITE_TRANSIENT);
+void UsnRecord::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records) {
+  sqlite3_bind_int64(stmt, 1, Record);
+  sqlite3_bind_int64(stmt, 2, Parent);
+  sqlite3_bind_int64(stmt, 3, PreviousParent);
+  sqlite3_bind_int64(stmt, 4, Usn);
+  sqlite3_bind_text(stmt , 5, Timestamp.c_str()   , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , 6, Name.c_str()        , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , 7, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, 8, type);
   sqlite3_bind_int64(stmt, 9, EventSources::USN);
 
@@ -265,17 +241,27 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, 
   sqlite3_reset(stmt);
 }
 
-void UsnRecord::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
-  sqlite3_bind_int64(stmt, 1, mft_record_no);
-  sqlite3_bind_int64(stmt, 2, par_record);
-  sqlite3_bind_int64(stmt, 3, usn);
-  sqlite3_bind_text(stmt, 4, filetime_to_iso_8601(timestamp).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 5, decodeUSNReason(reason).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 6, file_name.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 7, getFullPath(records, mft_record_no).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 8, getFullPath(records, par_record).c_str(), -1, SQLITE_TRANSIENT);
+void UsnRecord::insert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records) {
+  sqlite3_bind_int64(stmt, 1, Record);
+  sqlite3_bind_int64(stmt, 2, Parent);
+  sqlite3_bind_int64(stmt, 3, Usn);
+  sqlite3_bind_text(stmt, 4, Timestamp.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 5, getReasonString().c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 6, Name.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 7, getFullPath(records, Record).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt, 8, getFullPath(records, Parent).c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
 }
 
+void UsnRecord::checkTypeAndInsert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records) {
+  if (Reason & UsnReasons::FILE_CREATE)
+    insertEvent(EventTypes::CREATE, db, stmt, records);
+  if (Reason & UsnReasons::FILE_DELETE)
+    insertEvent(EventTypes::DELETE, db, stmt, records);
+  if (PreviousName != Name && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME)))
+    insertEvent(EventTypes::RENAME, db, stmt, records);
+  if (Parent != PreviousParent && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME)))
+    insertEvent(EventTypes::MOVE, db, stmt, records);
+}

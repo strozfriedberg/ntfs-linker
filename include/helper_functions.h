@@ -18,7 +18,7 @@ static const unsigned long BUILD_NUMBER = __BUILD_NUMBER;
 
 std::string byte_to_str(char* bytes, int size);
 
-unsigned long long hex_to_long(char* arr, int size);
+unsigned long long hex_to_long(const char* arr, int size);
 
 long long filetime_to_unixtime(long long t);
 
@@ -26,18 +26,16 @@ std::wstring string_to_wstring(const std::string &str);
 
 std::string filetime_to_iso_8601(unsigned long long t);
 
-std::string mbcatos(char* arr, unsigned long long len);
+std::string mbcatos(const char* arr, unsigned long long len);
 
 std::string getFlagMeaning(int flags);
-
-time_t getEpochDifference();
 
 int max(int a, int b);
 
 void mem_dump(char* buffer, int length, std::ostream& output = std::cout);
 
-std::string getFullPath(std::vector<File>& records, unsigned int recordNo);
-std::string getFullPath(std::vector<File>& records, unsigned int recordNo, std::vector<unsigned int>& stack);
+std::string getFullPath(const std::vector<File>& records, unsigned int recordNo);
+std::string getFullPath(const std::vector<File>& records, unsigned int recordNo, std::vector<unsigned int>& stack);
 
 char* getCmdOption(char** begin, char** end, const std::string& option);
 
