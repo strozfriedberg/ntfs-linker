@@ -16,15 +16,14 @@ std::string parseUSNJrnlRecord(char* buffer, std::vector<File>& records);
 
 void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
 
-class USN_Record {
+class UsnRecord {
 public:
   unsigned long long file_ref_no, mft_record_no, par_file_ref_no, par_record, prev_par_record, usn, timestamp;
   unsigned int reason, file_len, name_offset;
   std::string file_name, prev_file_name;
 
-  USN_Record(char* buffer, std::vector<File>& records);
-  USN_Record();
-  //USN_Record& operator=(const USN_Record& rhs);
+  UsnRecord(char* buffer, std::vector<File>& records, int len = -1);
+  UsnRecord();
   void clearFields();
   std::string toString(std::vector<File>& records);
   std::string toCreateString(std::vector<File>& records);

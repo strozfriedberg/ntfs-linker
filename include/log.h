@@ -29,7 +29,7 @@ if interchange is set, then it is considered that 0xc == 0xe and 0xd == 0xf
 */
 bool transactionRunMatch(const std::vector<int>& redo1, const std::vector<int>& undo1, const std::vector<int>& redo2, const std::vector<int>& undo2, bool interchange = true);
 
-class Log_Record {
+class LogRecord {
 public:
   unsigned long long cur_lsn, prev_lsn, undo_lsn;
   unsigned int client_id, record_type, flags, redo_op, undo_op, redo_offset, redo_length, undo_offset, undo_length;
@@ -44,7 +44,7 @@ public:
 
 };
 
-class Log_Data {
+class LogData {
 public:
   unsigned long long mft_record_no, par_mft_record, prev_par_mft_record;
   unsigned long long lsn;
@@ -54,7 +54,7 @@ public:
   std::vector<int> redo_ops, undo_ops;
 
   void clearFields();
-  void processLogRecord(Log_Record& rec, std::vector<File>& records);
+  void processLogRecord(LogRecord& rec, std::vector<File>& records);
   std::string toCreateString(std::vector<File>& records);
   std::string toDeleteString(std::vector<File>& records);
   std::string toRenameString(std::vector<File>& records);

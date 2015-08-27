@@ -7,7 +7,7 @@
 Returns the column names used for the USN CSV file
 */
 std::string getUSNColumnHeaders() {
-  return "MFTRecordNumber\tParentMFTRecordNumber\tUSN\tTimeStamp\tReason\tFileName\tPossiblePath\tPossibleParentPath";
+  return "MFTRecordNumber\tParentMFTRecordNumber\tUsn\tTimestamp\tReason\tFileName\tPossiblePath\tPossibleParentPath";
 }
 
 /*
@@ -45,6 +45,34 @@ std::string decodeUSNReason(int reason) {
   return rtn;
 }
 
+std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=false) {
+  /**
+   * Handle sparse $J file.
+   * Seeks to end, then advances backwards until an all zero block is found
+   * Does NOT set the stream position to last all zero block, just somewhere near the end
+   * Returns the streampos of the end
+   */
+  stream.seekg(0, std::ios::end);
+  std::streampos end = stream.tellg();
+  if (sparse) {
+    bool done = false;
+    while(!done) {
+      stream.seekg(-(1 << 20), std::ios::cur);
+      stream.read(buffer, 4096);
+      done = true;
+      for(int i = 0; i < 4096 && done; i++) {
+        if(buffer[i] != 0)
+          done = false;
+      }
+    }
+  }
+  else {
+    stream.seekg(0, std::ios::beg);
+    stream.read(buffer, 4096);
+  }
+  return end;
+}
+
 /*
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
@@ -62,45 +90,13 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     std::cerr << "Non-standard time epoch in use. Scrutinize dates/times closely.\n Continuing...\n";
   }
 
-  bool done = false;
   int records_processed = -1;
-  //print the column headers
-//  output << getUSNColumnHeaders() << std::endl;
 
-  //This section of code to be left commented out.
-  //Originally intended to skip past the leading 0's in the USNJrnl file
-  //However, due to issues with large file support in C++,
-  //This functionality is transferred to the companion python script
-  //Which does the same thing
-
-  /*The USNJrnl file uses a sparse file format.
-  New records are always written to the end of the file.
-  When the file becomes too large, the beginning of the file is deallocated.
-  Since the file is sparse, the logical position of the rest of the data is unchanged.
-  Because of the way some tools extract the USNJrnl file, we may be left with several GB of 0's at the front of the file.
-  Start at the end, seek backwards to the beginning of the data, then continue.
-  */
-  input.seekg(0, std::ios::end);
-  std::streampos end = input.tellg();
-//  while(!done) {
-//    //std::cout << input.tellg() << std::endl;
-//    input.seekg(-(1 << 20), std::ios::cur);
-//    input.read(buffer, 4096);
-//    done = true;
-//    for(int i = 0; i < 4096 && done; i++) {
-//      if(buffer[i] != 0)
-//        done = false;
-//    }
-//  }
-  //if adding in the above functionality, delete these 2 lines below after
-  input.seekg(0, std::ios::beg);
-  input.read(buffer, 4096);
-
+  std::streampos end = advanceStream(input, buffer);
   std::streampos start = input.tellg();
   ProgressBar status(end - start);
-  done = false;
 
-  USN_Record temp_rec;
+  UsnRecord temp_rec;
   int rc;
   std::string usn_sql = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?);";
   std::string events_sql = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
@@ -115,13 +111,10 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     exit(2);
   }
 
-//  rc = sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
-
-
-
   unsigned int offset = 0;
 
   //scan through the $USNJrnl one record at a time. Each record is variable length.
+  bool done = false;
   while(!input.eof() && !done) {
     status.setDone((unsigned long long) input.tellg() - start);
 
@@ -133,7 +126,6 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       delete [] buffer;
       buffer = temp;
       offset = 0;
-
     }
 
     //input.read(buffer, 8);
@@ -163,7 +155,7 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       input.read(buffer + bufferSize, record_length - bufferSize);
       bufferSize = record_length + bufferSize - offset;
     }
-    USN_Record rec(buffer + offset, records);
+    UsnRecord rec(buffer + offset, records);
 
     output << rec.toString(records);
 
@@ -204,7 +196,6 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       temp_rec.clearFields();
     }
     offset += record_length;
-
   }
   status.finish();
   sqlite3_finalize(usn_stmt);
@@ -212,15 +203,13 @@ void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   delete[] buffer;
 }
 
-USN_Record::USN_Record(char* buffer, std::vector<File>& records) {
+UsnRecord::UsnRecord(char* buffer, std::vector<File>& records, int len) {
 
   file_ref_no     = hex_to_long(buffer + 0x8, 8);
   mft_record_no   = hex_to_long(buffer + 0x8, 6);
-
   par_file_ref_no = hex_to_long(buffer + 0x10, 8);
   par_record      = hex_to_long(buffer + 0x10, 6);
   prev_par_record = 0;
-
   usn             = hex_to_long(buffer + 0x18, 8);
   timestamp       = hex_to_long(buffer + 0x20, 8);
   reason          = hex_to_long(buffer + 0x28, 4);
@@ -230,7 +219,7 @@ USN_Record::USN_Record(char* buffer, std::vector<File>& records) {
   prev_file_name  = "";
 }
 
-void USN_Record::clearFields() {
+void UsnRecord::clearFields() {
 
   file_ref_no = 0;
   mft_record_no = 0;
@@ -248,11 +237,11 @@ void USN_Record::clearFields() {
   par_record = 0;
 }
 
-USN_Record::USN_Record() {
+UsnRecord::UsnRecord() {
   clearFields();
 }
 
-std::string USN_Record::toString(std::vector<File>& records) {
+std::string UsnRecord::toString(std::vector<File>& records) {
   std::stringstream ss;
   ss << mft_record_no << "\t" << par_record << "\t" << usn << "\t" << filetime_to_iso_8601(timestamp)
     << "\t" << decodeUSNReason(reason) << "\t" << file_name << "\t" << getFullPath(records, mft_record_no)
@@ -261,7 +250,7 @@ std::string USN_Record::toString(std::vector<File>& records) {
   return ss.str();
 }
 
-void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
+void UsnRecord::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_record);
   sqlite3_bind_int64(stmt, 3, prev_par_record);
@@ -276,7 +265,7 @@ void USN_Record::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt,
   sqlite3_reset(stmt);
 }
 
-void USN_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
+void UsnRecord::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_record);
   sqlite3_bind_int64(stmt, 3, usn);

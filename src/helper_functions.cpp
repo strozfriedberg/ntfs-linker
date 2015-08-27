@@ -137,19 +137,17 @@ However, on some systems this will be locale-dependent an be off by the time zon
 Currently unused
 */
 time_t getEpochDifference() {
-  return 0;
-  struct tm* unix_epoch = new tm;
-  unix_epoch->tm_sec = 0;
-  unix_epoch->tm_min = 0;
-  unix_epoch->tm_hour = 0;
-  unix_epoch->tm_mday = 1;
-  unix_epoch->tm_mon = 0;
-  unix_epoch->tm_year = 70;
-  unix_epoch->tm_wday = 4;
-  unix_epoch->tm_yday = 0;
-  unix_epoch->tm_isdst = 0;
-  time_t epoch_difference = mktime(unix_epoch);
-  delete unix_epoch;
+  struct tm unix_epoch;
+  unix_epoch.tm_sec = 0;
+  unix_epoch.tm_min = 0;
+  unix_epoch.tm_hour = 0;
+  unix_epoch.tm_mday = 1;
+  unix_epoch.tm_mon = 0;
+  unix_epoch.tm_year = 70;
+  unix_epoch.tm_wday = 4;
+  unix_epoch.tm_yday = 0;
+  unix_epoch.tm_isdst = 0;
+  time_t epoch_difference = mktime(&unix_epoch);
   return epoch_difference;
 }
 
