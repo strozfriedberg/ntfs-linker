@@ -1,4 +1,3 @@
-#include "sqlite3.h"
 #include "file.h"
 #include "helper_functions.h"
 #include "aggregate.h"
@@ -8,6 +7,8 @@
 #include <list>
 #include <string>
 #include <sstream>
+
+#include <sqlite3.h>
 
 void prepare_statement(sqlite3 *db, sqlite3_stmt **stmt) {
   std::string sql = "select * from events where EventSource=? order by USN_LSN desc";

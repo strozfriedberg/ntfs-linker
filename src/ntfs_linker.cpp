@@ -6,7 +6,7 @@
 #include "aggregate.h"
 
 extern "C" {
-#include "sqlite3.h"
+#include <sqlite3.h>
 }
 #include <locale>
 

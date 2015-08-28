@@ -1,6 +1,6 @@
 #include "helper_functions.h"
 extern "C" {
-#include "sqlite3.h"
+#include <sqlite3.h>
 }
 #include "file.h"
 #include <iostream>
