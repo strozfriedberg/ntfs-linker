@@ -17,11 +17,13 @@ AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 
 AX_APPEND_COMPILE_FLAGS([-W -Wall -Wextra -Wnon-virtual-dtor -pedantic -pipe -O3 -g -pg], [NL_CXXFLAGS])
-AX_APPEND_LINK_FLAGS([-g -static-libgcc -static-libstdc++ -pthread -ldl], [NL_LDFLAGS])
+AX_APPEND_LINK_FLAGS([-g -static-libgcc -static-libstdc++ -pthread], [NL_LDFLAGS])
 
 BUILD_NUMBER_FILE='build-number.txt'
 BUILD_NUMBER=`cat $BUILD_NUMBER_FILE`
 AX_APPEND_COMPILE_FLAGS([-pthread -D__BUILD_NUMBER=$BUILD_NUMBER], [NL_CPPFLAGS])
+
+PKG_CHECK_MODULES([SQLITE], [sqlite3])
  
 AC_SUBST([NL_CPPFLAGS])
 AC_SUBST([NL_CXXFLAGS])

@@ -1,8 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
  
-AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir)/include/utf8 -I$(srcdir)/include/sqlite3 $(NL_CPPFLAGS)
-AM_CXXFLAGS = $(NL_CXXFLAGS)
-AM_LDFLAGS = $(NL_LDFLAGS)
+AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir)/include/utf8 $(NL_CPPFLAGS) $(SQLITE_CPPFLAGS)
+AM_CXXFLAGS = $(NL_CXXFLAGS) $(SQLITE_CXXFLAGS)
+AM_LDFLAGS = $(NL_LDFLAGS) $(SQLITE_LDFLAGS)
 
 src_ntfs_linker_SOURCES = \
 	src/aggregate.cpp \
@@ -11,8 +11,9 @@ src_ntfs_linker_SOURCES = \
 	src/mft.cpp \
 	src/ntfs_linker.cpp \
 	src/progress.cpp \
-	src/sqlite3.c \
 	src/usn.cpp
+
+src_ntfs_linker_LDADD = $(SQLITE_LIBS)
 
 bin_PROGRAMS = src/ntfs_linker
  
