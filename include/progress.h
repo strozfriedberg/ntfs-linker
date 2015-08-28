@@ -12,6 +12,7 @@ public:
   void printProgress();
   ProgressBar(unsigned long long x);
   void finish();
+  void clear();
 };
 
 

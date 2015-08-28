@@ -165,10 +165,6 @@ void parseMFT(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   }
   char buffer[1024];
 
-  time_t epoch_difference = getEpochDifference();
-  if(epoch_difference != 0) {
-    std::cerr << "Non-standard time epoch in use. Scrutinize dates/times closely.\n Continuing...\n";
-  }
   bool done = false;
   int records_processed = -1;
   //print the column headers

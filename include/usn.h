@@ -5,35 +5,56 @@ extern "C" {
 #include <map>
 #include <iostream>
 
-#ifndef usn_header
-#define usn_header
+#pragma once
 
 std::string getUSNColumnHeaders();
 
-std::string decodeUSNReason(int reason);
+void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
 
-std::string parseUSNJrnlRecord(char* buffer, std::vector<File>& records);
-
-void parseUSN(std::vector<File>& records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
-
-class USN_Record {
+class UsnRecord {
 public:
-  unsigned long long file_ref_no, mft_record_no, par_file_ref_no, par_record, prev_par_record, usn, timestamp;
-  unsigned int reason, file_len, name_offset;
-  std::string file_name, prev_file_name;
+  UsnRecord();
+  UsnRecord(const char* buffer, const std::vector<File>& records, int len = -1);
 
-  USN_Record(char* buffer, std::vector<File>& records);
-  USN_Record();
-  //USN_Record& operator=(const USN_Record& rhs);
+  std::string getReasonString();
+  std::string toCreateString(const  std::vector<File> &records);
+  std::string toDeleteString(const  std::vector<File> &records);
+  std::string toMoveString(const    std::vector<File> &records);
+  std::string toRenameString(const  std::vector<File> &records);
+  std::string toString(const        std::vector<File> &records);
+
+  void checkTypeAndInsert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records);
+  void update(UsnRecord rec);
   void clearFields();
-  std::string toString(std::vector<File>& records);
-  std::string toCreateString(std::vector<File>& records);
-  std::string toDeleteString(std::vector<File>& records);
-  std::string toRenameString(std::vector<File>& records);
-  std::string toMoveString(std::vector<File>& records);
 
-  void insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records);
-  void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records);
+  void insert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records);
+  void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records);
+
+  unsigned long long Reference, Record, ParentReference, Parent, PreviousParent, Usn;
+  unsigned int Reason;
+  std::string Name, PreviousName, Timestamp;
 };
 
-#endif
+namespace UsnReasons {
+  const unsigned int BASIC_INFO_CHANGE         = 0x00008000;
+  const unsigned int CLOSE                     = 0x80000000;
+  const unsigned int COMPRESSION_CHANGE        = 0x00020000;
+  const unsigned int DATA_EXTEND               = 0x00000002;
+  const unsigned int DATA_OVERWRITE            = 0x00000001;
+  const unsigned int DATA_TRUNCATION           = 0x00000004;
+  const unsigned int EXTENDED_ATTRIBUTE_CHANGE = 0x00000400;
+  const unsigned int ENCRYPTION_CHANGE         = 0x00040000;
+  const unsigned int FILE_CREATE               = 0x00000100;
+  const unsigned int FILE_DELETE               = 0x00000200;
+  const unsigned int HARD_LINK_CHANGE          = 0x00010000;
+  const unsigned int INDEXABLE_CHANGE          = 0x00004000;
+  const unsigned int NAMED_DATA_EXTEND         = 0x00000020;
+  const unsigned int NAMED_DATA_OVERWRITE      = 0x00000010;
+  const unsigned int NAMED_DATA_TRUNCATION     = 0x00000040;
+  const unsigned int OBJECT_ID_CHANGE          = 0x00080000;
+  const unsigned int RENAME_NEW_NAME           = 0x00002000;
+  const unsigned int RENAME_OLD_NAME           = 0x00001000;
+  const unsigned int REPARSE_POINT_CHANGE      = 0x00100000;
+  const unsigned int SECURITY_CHANGE           = 0x00000800;
+  const unsigned int STREAM_CHANGE             = 0x00200000;
+}

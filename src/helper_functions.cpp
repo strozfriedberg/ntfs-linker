@@ -35,7 +35,7 @@ Returns the first SIZE bytes of the character array as a long long
 If the result is too large to fit into a long long then overflow will occur
 Reads the bytes as Little Endian
 */
-unsigned long long hex_to_long(char* arr, int size) {
+unsigned long long hex_to_long(const char* arr, int size) {
   unsigned long long result = 0;
   for(int i = size - 1; i >= 0; i--) {
     result <<= 8;
@@ -56,7 +56,6 @@ Unixtime is the number of seconds since 1970-01-01
 long long filetime_to_unixtime(long long t) {
   t -= 11644473600000ULL * 10000; //the number of 100 nano-seconds between 1601-01-01 and 1970-01-01
   t /= 10000000; //convert 100 nanoseconds to seconds
-  t -= getEpochDifference();
   return t;
 }
 
@@ -76,18 +75,13 @@ std::string filetime_to_iso_8601(unsigned long long t) {
   time_t* time = (time_t*) &unixtime;
   struct tm* date = gmtime(time);
 
-  char* str = new char[21];
+  char str[21];
 
-  std::string rtn = "";
+  if (!strftime(str, 20, "%Y-%m-%d %H:%M:%S", date))
+    return "";
   std::stringstream ss;
-  if(strftime(str, 20, "%Y-%m-%d %H:%M:%S", date)) {
-    rtn = str;
-  }
-  else
-    return rtn;
-  ss << rtn << " ";
+  ss << str << " ";
   ss << std::setw(7) << std::setfill('0') << (t % 10000000);
-  delete[] str;
   return ss.str();
 }
 
@@ -96,7 +90,7 @@ Multi-byte character array to UTF8 string
 Reads each 2 bytes of the charater array as a wide character and converts the UTF16 (??) result wstring to UTF8 string
 Length of output string is len, reads len*2 bytes
 */
-std::string mbcatos(char* arr, unsigned long long len) {
+std::string mbcatos(const char* arr, unsigned long long len) {
   std::vector<unsigned short> utf16;
   for(unsigned int i = 0; i < len; i++) {
     utf16.push_back(arr[2*i] + (arr[2*i+1]<<8));
@@ -129,30 +123,6 @@ std::string getFlagMeaning(int flags) {
   return ss.str();
 }
 
-/*
-returns 0
-On some systems the epoch (time 0) might not be 1970-1-1
-An approach similar to this one could be used to get the difference
-However, on some systems this will be locale-dependent an be off by the time zone.
-Currently unused
-*/
-time_t getEpochDifference() {
-  return 0;
-  struct tm* unix_epoch = new tm;
-  unix_epoch->tm_sec = 0;
-  unix_epoch->tm_min = 0;
-  unix_epoch->tm_hour = 0;
-  unix_epoch->tm_mday = 1;
-  unix_epoch->tm_mon = 0;
-  unix_epoch->tm_year = 70;
-  unix_epoch->tm_wday = 4;
-  unix_epoch->tm_yday = 0;
-  unix_epoch->tm_isdst = 0;
-  time_t epoch_difference = mktime(unix_epoch);
-  delete unix_epoch;
-  return epoch_difference;
-}
-
 int max(int a, int b) {
   return a > b? a: b;
 }
@@ -169,7 +139,7 @@ void mem_dump(char* buffer, int length, std::ostream& output) {
 Uses the map of file records to construct the full file path.
 If a file record is not present in the map then the empty stry "" is returned
 */
-std::string getFullPath(std::vector<File>& records, unsigned int recordNo, std::vector<unsigned int>& stack) {
+std::string getFullPath(const std::vector<File>& records, unsigned int recordNo, std::vector<unsigned int>& stack) {
   std::stringstream ss;
   if (recordNo >= records.size() || ! records[recordNo].valid)
     return "";
@@ -184,7 +154,7 @@ std::string getFullPath(std::vector<File>& records, unsigned int recordNo, std::
   return ss.str();
 }
 
-std::string getFullPath(std::vector<File>& records, unsigned int recordNo) {
+std::string getFullPath(const std::vector<File>& records, unsigned int recordNo) {
   std::vector<unsigned int> stack;
   return getFullPath(records, recordNo, stack);
 }

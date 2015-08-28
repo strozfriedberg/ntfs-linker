@@ -43,6 +43,14 @@ std::string decodeLogFileOpCode(int op) {
   }
 }
 
+bool isUTF16leNonAscii(char* arr, unsigned long long len) {
+  for (unsigned int i = 0; i < len; i++) {
+    if (arr[2*i + 1] != 0)
+      return true;
+  }
+  return false;
+}
+
 /*
 Parses the $LogFile
 outputs to the various streams
@@ -69,9 +77,9 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   input.seekg(start);
   input.read(buffer, 4096);
 
-  Log_Data transactions;
-  //transactions.clearFields();
-  Log_Data::initTransactionVectors();
+  LogData transactions;
+  transactions.clearFields();
+  LogData::initTransactionVectors();
   std::string log_sql = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string events_sql  = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
   sqlite3_stmt *log_stmt, *events_stmt;
@@ -94,6 +102,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     unsigned int length;
     update_seq_offset = hex_to_long(buffer + 0x4, 2);
     update_seq_count = hex_to_long(buffer + 0x6, 2);
+    // Equivalent to 8*ceil(update_seq_count/4)
     offset = update_seq_offset + ((((update_seq_count << 1) + 7) >> 3) << 3);
     next_record_offset = hex_to_long(buffer + 0x18, 2);
     if(parseError) { //initialize the offset on the "first" record processed
@@ -104,7 +113,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
 
     //parse log record
     while(offset + 0x30 <= buffer_size) {
-      Log_Record rec;
+      LogRecord rec;
       int rtnVal = rec.init(buffer + offset);
       if(rtnVal == -1) {
         split_record = true;
@@ -223,7 +232,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   delete [] buffer;
 }
 
-std::string Log_Record::toString(std::vector<File>& records) {
+std::string LogRecord::toString(std::vector<File>& records) {
   std::stringstream ss;
   ss << cur_lsn << "\t" << prev_lsn << "\t" << undo_lsn << "\t" << client_id << "\t"
     << record_type << "\t" << decodeLogFileOpCode(redo_op) << "\t"
@@ -233,27 +242,27 @@ std::string Log_Record::toString(std::vector<File>& records) {
   return ss.str();
 }
 
-bool Log_Data::isCreateEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, Log_Data::create_redo, Log_Data::create_undo);
+bool LogData::isCreateEvent() {
+  return transactionRunMatch(redo_ops, undo_ops, LogData::create_redo, LogData::create_undo);
 }
 
-bool Log_Data::isDeleteEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, Log_Data::delete_redo, Log_Data::delete_undo);
+bool LogData::isDeleteEvent() {
+  return transactionRunMatch(redo_ops, undo_ops, LogData::delete_redo, LogData::delete_undo);
 }
 
-bool Log_Data::isRenameEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, Log_Data::rename_redo, Log_Data::rename_undo) && name != prev_name;
+bool LogData::isRenameEvent() {
+  return transactionRunMatch(redo_ops, undo_ops, LogData::rename_redo, LogData::rename_undo) && name != prev_name;
 }
 
-bool Log_Data::isMoveEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, Log_Data::rename_redo, Log_Data::rename_undo) && par_mft_record != prev_par_mft_record;
+bool LogData::isMoveEvent() {
+  return transactionRunMatch(redo_ops, undo_ops, LogData::rename_redo, LogData::rename_undo) && par_mft_record != prev_par_mft_record;
 }
 
-bool Log_Data::isTransactionOver() {
+bool LogData::isTransactionOver() {
   return redo_ops.back() == 0x1b && undo_ops.back() == 0x1;
 }
 
-void Log_Data::initTransactionVectors() {
+void LogData::initTransactionVectors() {
   /*
   Used to determine whether a particular transaction run has occurred
   The source for these runs is "NTFS Log Tracker" : forensicinsight.org
@@ -279,7 +288,7 @@ void Log_Data::initTransactionVectors() {
   write_undo = std::vector<int>(a_write_undo, a_write_undo + sizeof(a_write_undo)/sizeof(int));
 }
 
-int Log_Record::init(char* buffer) {
+int LogRecord::init(char* buffer) {
   data = buffer;
   cur_lsn = hex_to_long(buffer, 8);
   prev_lsn = hex_to_long(buffer + 0x8, 8);
@@ -349,7 +358,7 @@ int Log_Record::init(char* buffer) {
 
 }
 
-void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
+void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
   if(lsn == 0) {
     lsn = rec.cur_lsn;
   }
@@ -377,16 +386,20 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
         //unsigned long long form_code = hex_to_long(start + mft_offset + 8, 1);
         unsigned long long attribute_length = hex_to_long(start + mft_offset+4, 4);
         unsigned long long content_offset = hex_to_long(start + mft_offset + 0x14, 2);
+        unsigned int len;
 
         switch(type_id) {
           case 0x10:
             timestamp = filetime_to_iso_8601(hex_to_long(start + mft_offset + content_offset + 0x0, 8));
             break;
           case 0x30:
-            if(hex_to_long(start + mft_offset+content_offset+0x40, 1) > name_len) {
-              par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
-              name_len = hex_to_long(start + mft_offset + content_offset+0x40, 1);
+            par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
+            len = hex_to_long(start + mft_offset+content_offset+0x40, 1);
+            bool newNameDirty = isUTF16leNonAscii(start + mft_offset + content_offset + 0x42, len);
+            if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+              name_len = len;
               name = mbcatos(start + mft_offset + content_offset+0x42, name_len);
+              IsNameDirty = newNameDirty;
             }
             break;
         }
@@ -435,13 +448,19 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
         else
           timestamp = "";
 
-        name_len = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset+0x40, 1);
-        name = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
+        unsigned int len = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset+0x40, 1);
+        bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, len);
+        if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+          name_len = len;
+          name = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
+          IsNameDirty = newNameDirty;
+        }
         break;
     }
   }
   else if((rec.redo_op == 0xf && rec.undo_op == 0xe) || (rec.redo_op == 0xd && rec.undo_op == 0xc)) {
     if(rec.undo_length > 0x42) {
+      // Delete or rename
       // This is a delete. I think.
       par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
       if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
@@ -449,16 +468,36 @@ void Log_Data::processLogRecord(Log_Record& rec, std::vector<File>& records) {
       else
         timestamp = "";
       unsigned int len = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x40, 1);
-      if(len > name_len) {
+      bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, len);
+      if(((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
         name_len = len;
         name = mbcatos(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, name_len);
+        IsNameDirty = newNameDirty;
       }
     }
 
   }
+  else if ((rec.redo_op == 0x0e && rec.undo_op == 0x0f) || (rec.redo_op == 0x0c && rec.undo_op == 0x0d)) {
+    // Add index entry root/AddIndexEntryAllocation operation
+    // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
+    // for additional info about Index Record structure ("The header part")
+    if (rec.redo_length > 0x52) {
+      mft_record_no = hex_to_long(rec.data + 0x30 + rec.redo_offset, 6);
+      par_mft_record = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x10, 6);
+      timestamp = filetime_to_iso_8601(hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x18, 8));
+
+      unsigned int len = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x50, 1);
+      bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.redo_offset + 0x52, len);
+      if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+        name_len = len;
+        name = mbcatos(rec.data + 0x30 + rec.redo_offset + 0x52, len);
+        IsNameDirty = newNameDirty;
+      }
+    }
+  }
 }
 
-void Log_Data::clearFields() {
+void LogData::clearFields() {
   redo_ops.clear();
   undo_ops.clear();
   mft_record_no = 0;
@@ -469,12 +508,13 @@ void Log_Data::clearFields() {
   lsn = 0;
   name = "";
   prev_name = "";
+  IsNameDirty = true;
 }
 
-std::vector<int> Log_Data::create_redo, Log_Data::create_undo;
-std::vector<int> Log_Data::delete_redo, Log_Data::delete_undo;
-std::vector<int> Log_Data::rename_redo, Log_Data::rename_undo;
-std::vector<int> Log_Data::write_redo, Log_Data::write_undo;
+std::vector<int> LogData::create_redo, LogData::create_undo;
+std::vector<int> LogData::delete_redo, LogData::delete_undo;
+std::vector<int> LogData::rename_redo, LogData::rename_undo;
+std::vector<int> LogData::write_redo, LogData::write_undo;
 
 
 /*
@@ -506,7 +546,7 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
   return true;
 }
 
-void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
+void LogData::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_mft_record);
   sqlite3_bind_int64(stmt, 3, prev_par_mft_record);
@@ -520,7 +560,7 @@ void Log_Data::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, s
   sqlite3_reset(stmt);
 }
 
-void Log_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
+void LogRecord::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
   sqlite3_bind_int64(stmt, 1, cur_lsn);
   sqlite3_bind_int64(stmt, 2, prev_lsn);
   sqlite3_bind_int64(stmt, 3, undo_lsn);
