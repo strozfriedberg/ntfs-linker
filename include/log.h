@@ -1,7 +1,5 @@
 #include "helper_functions.h"
-extern "C" {
 #include <sqlite3.h>
-}
 #include "file.h"
 #include <iostream>
 #include <vector>
@@ -27,6 +25,7 @@ if interchange is set, then it is considered that 0xc == 0xe and 0xd == 0xf
 */
 bool transactionRunMatch(const std::vector<int>& redo1, const std::vector<int>& undo1, const std::vector<int>& redo2, const std::vector<int>& undo2, bool interchange = true);
 
+
 class LogRecord {
 public:
   unsigned long long cur_lsn, prev_lsn, undo_lsn;
@@ -37,10 +36,9 @@ public:
 
   int init(char* buffer);
   void clearFields();
-  void insert(sqlite3*db, sqlite3_stmt* stmt, std::vector<File>& records);
-  std::string toString(std::vector<File>& records);
-
+  void insert(sqlite3_stmt* stmt);
 };
+std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
@@ -57,7 +55,7 @@ public:
   std::string toDeleteString(std::vector<File>& records);
   std::string toRenameString(std::vector<File>& records);
   std::string toMoveString(std::vector<File>& records);
-  void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records);
+  void insertEvent(unsigned int type, sqlite3_stmt* stmt);
   bool isCreateEvent();
   bool isDeleteEvent();
   bool isRenameEvent();

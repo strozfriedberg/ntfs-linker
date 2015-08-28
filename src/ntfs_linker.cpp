@@ -5,12 +5,10 @@
 #include "usn.h"
 #include "aggregate.h"
 
-extern "C" {
 #include <sqlite3.h>
-}
 #include <locale>
 
-int busyHandler(void* foo, int num) {
+int busyHandler(__attribute__((unused)) void* foo, __attribute__((unused)) int num) {
   char input;
   std::cerr << "Database is busy. Cannot commit transaction." << std::endl;
   std::cerr << "Close any application which may have a lock on the database." << std::endl;
@@ -92,7 +90,7 @@ int main(int argc, char** argv) {
     exit(0);
   }
   if(cmdOptionExists(argv, argv+argc, "-h")) {
-    std::cout << argv[0] << " Build #" << BUILD_NUMBER << ": Usage" << std::endl;
+    std::cout << argv[0] << " Version: " << VERSION << ": Usage" << std::endl;
     std::cout << "Sorry, no fancy man page for this yet." << std::endl;
     std::cout << "The following options apply to input files:" << std::endl;
     std::cout << "\t1. {no options}" << std::endl;
@@ -114,13 +112,13 @@ int main(int argc, char** argv) {
     std::cout << "\t1. --overwrite" << std::endl;
     std::cout << "\t\tOverwrite all output files if they currently exist (default: append)" << std::endl;
     std::cout << "\t2. --version" << std::endl;
-    std::cout << "\t\tDisplay the build number and exit." << std::endl;
+    std::cout << "\t\tDisplay the info and exit." << std::endl;
     std::cout << "\t3. -h" << std::endl;
     std::cout << "\t\tDispaly this help screen and exit." << std::endl;
     exit(0);
   }
   if(cmdOptionExists(argv, argv+argc, "--version")) {
-    std::cout << argv[0] << " Build #" << BUILD_NUMBER << std::endl;
+    std::cout << argv[0] << " Version " << VERSION << std::endl;
     exit(0);
   }
 
@@ -186,7 +184,10 @@ int main(int argc, char** argv) {
       cmd << "mkdir " << out << " 2> /dev/null";
     else
       cmd << "mkdir " << out << " 2> nul";
-    system(cmd.str().c_str());
+    if (system(cmd.str().c_str())) {
+      std::cerr << "Couldn't create output directory!" << std::endl;
+      exit(0);
+    }
     ss_mft << out << getPathSeparator() << "mft.txt";
     ss_usn << out << getPathSeparator() << "usnjrnl.txt";
     ss_log << out << getPathSeparator() << "logfile.txt";

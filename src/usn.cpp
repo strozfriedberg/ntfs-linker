@@ -137,12 +137,12 @@ void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input
     }
     records_processed++;
 
-    UsnRecord rec(buffer + offset, records);
+    UsnRecord rec(buffer + offset);
     output << rec.toString(records);
-    rec.insert(db, usn_stmt, records);
+    rec.insert(usn_stmt, records);
 
     if (prevRec.Record != rec.Record || prevRec.Reason & UsnReasons::CLOSE) {
-      prevRec.checkTypeAndInsert(db, events_stmt, records);
+      prevRec.checkTypeAndInsert(events_stmt);
       prevRec.clearFields();
     }
     if (prevRec.Usn == 0)
@@ -171,7 +171,7 @@ void UsnRecord::update(UsnRecord rec) {
     }
 }
 
-UsnRecord::UsnRecord(const char* buffer, const std::vector<File>& records, int len) {
+UsnRecord::UsnRecord(const char* buffer, int len) {
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
     PreviousParent                   = 0;
@@ -226,7 +226,7 @@ std::string UsnRecord::toString(const std::vector<File>& records) {
   return ss.str();
 }
 
-void UsnRecord::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records) {
+void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, 1, Record);
   sqlite3_bind_int64(stmt, 2, Parent);
   sqlite3_bind_int64(stmt, 3, PreviousParent);
@@ -241,7 +241,7 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, 
   sqlite3_reset(stmt);
 }
 
-void UsnRecord::insert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records) {
+void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_bind_int64(stmt, 1, Record);
   sqlite3_bind_int64(stmt, 2, Parent);
   sqlite3_bind_int64(stmt, 3, Usn);
@@ -255,13 +255,13 @@ void UsnRecord::insert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>&
   sqlite3_reset(stmt);
 }
 
-void UsnRecord::checkTypeAndInsert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records) {
+void UsnRecord::checkTypeAndInsert(sqlite3_stmt* stmt) {
   if (Reason & UsnReasons::FILE_CREATE)
-    insertEvent(EventTypes::CREATE, db, stmt, records);
+    insertEvent(EventTypes::CREATE, stmt);
   if (Reason & UsnReasons::FILE_DELETE)
-    insertEvent(EventTypes::DELETE, db, stmt, records);
+    insertEvent(EventTypes::DELETE, stmt);
   if (PreviousName != Name && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME)))
-    insertEvent(EventTypes::RENAME, db, stmt, records);
+    insertEvent(EventTypes::RENAME, stmt);
   if (Parent != PreviousParent && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME)))
-    insertEvent(EventTypes::MOVE, db, stmt, records);
+    insertEvent(EventTypes::MOVE, stmt);
 }

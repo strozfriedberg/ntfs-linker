@@ -41,10 +41,6 @@ unsigned long long hex_to_long(const char* arr, int size) {
     result <<= 8;
     result +=  (unsigned char) arr[i];
   }
-  if(result < 0) {
-    std::cerr << "Error" << std::endl;
-    exit(EXIT_FAILURE);
-  }
   return result;
 }
 

@@ -72,7 +72,7 @@ void initMFTMap(std::istream& input, std::vector<File>& records) {
 
 }
 
-MFT_Record::MFT_Record(char* buffer, std::vector<File>& records) {
+MFT_Record::MFT_Record(char* buffer) {
 
 
   //check if record begins with FILE, otherwise, invalid record
@@ -198,8 +198,8 @@ void parseMFT(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     status.setDone((unsigned long long) input.tellg());
     records_processed++;
     input.read(buffer, 1024);
-    MFT_Record record(buffer, records);
-    record.insert(db, stmt, records);
+    MFT_Record record(buffer);
+    record.insert(stmt, records);
     output << record.toString(records);
   }
 
@@ -215,7 +215,7 @@ void parseMFT(std::vector<File>& records, sqlite3* db, std::istream& input, std:
 
 }
 
-void MFT_Record::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
+void MFT_Record::insert(sqlite3_stmt* stmt, std::vector<File>& records) {
 
   sqlite3_bind_int64(stmt, 1, lsn);
   sqlite3_bind_int64(stmt, 2, mft_record_no);

@@ -1,7 +1,5 @@
 #include "file.h"
-extern "C" {
 #include <sqlite3.h>
-}
 #include <iostream>
 #include <string>
 #include <map>
@@ -39,9 +37,9 @@ private:
   std::string file_name;
 
 public:
-  MFT_Record(char* buffer, std::vector<File>& records);
+  MFT_Record(char* buffer);
   std::string toString(std::vector<File>& records);
-  void insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records);
+  void insert(sqlite3_stmt* stmt, std::vector<File>& records);
 };
 
 

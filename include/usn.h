@@ -1,7 +1,5 @@
 #include "file.h"
-extern "C" {
 #include <sqlite3.h>
-}
 #include <map>
 #include <iostream>
 
@@ -14,7 +12,7 @@ void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input
 class UsnRecord {
 public:
   UsnRecord();
-  UsnRecord(const char* buffer, const std::vector<File>& records, int len = -1);
+  UsnRecord(const char* buffer, int len = -1);
 
   std::string getReasonString();
   std::string toCreateString(const  std::vector<File> &records);
@@ -23,12 +21,12 @@ public:
   std::string toRenameString(const  std::vector<File> &records);
   std::string toString(const        std::vector<File> &records);
 
-  void checkTypeAndInsert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records);
+  void checkTypeAndInsert(sqlite3_stmt* stmt);
   void update(UsnRecord rec);
   void clearFields();
 
-  void insert(sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records);
-  void insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, const std::vector<File>& records);
+  void insert(sqlite3_stmt* stmt, const std::vector<File>& records);
+  void insertEvent(unsigned int type, sqlite3_stmt* stmt);
 
   unsigned long long Reference, Record, ParentReference, Parent, PreviousParent, Usn;
   unsigned int Reason;

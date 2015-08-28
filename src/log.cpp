@@ -129,22 +129,22 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
         length = rtnVal;
       }
 
-      output << rec.toString(records);
-      rec.insert(db, log_stmt, records);
+      output << rec;
+      rec.insert(log_stmt);
 
       transactions.processLogRecord(rec, records);
       if(transactions.isTransactionOver()) {
         if(transactions.isCreateEvent()) {
-          transactions.insertEvent(EventTypes::CREATE, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::CREATE, events_stmt);
         }
         if(transactions.isDeleteEvent()) {
-          transactions.insertEvent(EventTypes::DELETE, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::DELETE, events_stmt);
         }
         if(transactions.isRenameEvent()) {
-          transactions.insertEvent(EventTypes::RENAME, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::RENAME, events_stmt);
         }
         if(transactions.isMoveEvent()) {
-          transactions.insertEvent(EventTypes::MOVE, db, events_stmt, records);
+          transactions.insertEvent(EventTypes::MOVE, events_stmt);
         }
         transactions.clearFields();
       }
@@ -232,14 +232,20 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   delete [] buffer;
 }
 
-std::string LogRecord::toString(std::vector<File>& records) {
-  std::stringstream ss;
-  ss << cur_lsn << "\t" << prev_lsn << "\t" << undo_lsn << "\t" << client_id << "\t"
-    << record_type << "\t" << decodeLogFileOpCode(redo_op) << "\t"
-    << decodeLogFileOpCode(undo_op) << "\t" << target_attr << "\t"
-    << mft_cluster_index << "\t" << target_vcn << "\t" << target_lcn;
-  ss << std::endl;
-  return ss.str();
+std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {
+  out << rec.cur_lsn << "\t"
+      << rec.prev_lsn << "\t"
+      << rec.undo_lsn << "\t"
+      << rec.client_id << "\t"
+      << rec.record_type << "\t"
+      << decodeLogFileOpCode(rec.redo_op) << "\t"
+      << decodeLogFileOpCode(rec.undo_op) << "\t"
+      << rec.target_attr << "\t"
+      << rec.mft_cluster_index << "\t"
+      << rec.target_vcn << "\t"
+      << rec.target_lcn
+      << std::endl;
+  return out;
 }
 
 bool LogData::isCreateEvent() {
@@ -546,7 +552,7 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
   return true;
 }
 
-void LogData::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
+void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, 1, mft_record_no);
   sqlite3_bind_int64(stmt, 2, par_mft_record);
   sqlite3_bind_int64(stmt, 3, prev_par_mft_record);
@@ -560,7 +566,7 @@ void LogData::insertEvent(unsigned int type, sqlite3* db, sqlite3_stmt* stmt, st
   sqlite3_reset(stmt);
 }
 
-void LogRecord::insert(sqlite3* db, sqlite3_stmt* stmt, std::vector<File>& records) {
+void LogRecord::insert(sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, 1, cur_lsn);
   sqlite3_bind_int64(stmt, 2, prev_lsn);
   sqlite3_bind_int64(stmt, 3, undo_lsn);

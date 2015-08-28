@@ -14,7 +14,7 @@
 #ifndef help_h
 #define help_h
 
-static const unsigned long BUILD_NUMBER = __BUILD_NUMBER;
+static const std::string VERSION = __VERSION;
 
 std::string byte_to_str(char* bytes, int size);
 
