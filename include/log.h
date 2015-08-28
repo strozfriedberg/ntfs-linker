@@ -6,9 +6,7 @@ extern "C" {
 #include <iostream>
 #include <vector>
 
-#ifndef log_header
-#define log_header
-
+#pragma once
 /*
 returns the meaning of the operation code
 */
@@ -72,4 +70,33 @@ public:
   static void initTransactionVectors();
 };
 
-#endif
+namespace LogOps {
+    const int NOOP                              = 0x00;
+    const int COMPENSATION_LOG_RECORD           = 0x01;
+    const int INITIALIZE_FILE_RECORD_SEGMENT    = 0x02;
+    const int DEALLOCATE_FILE_RECORD_SEGMENT    = 0x03;
+    const int WRITE_END_OF_FILE_RECORD_SEGMENT  = 0x04;
+    const int CREATE_ATTRIBUTE                  = 0x05;
+    const int DELETE_ATTRIBUTE                  = 0x06;
+    const int UPDATE_RESIDENT_VALUE             = 0x07;
+    const int UPDATE_NONRESIDENT_VALUE          = 0x08;
+    const int UPDATE_MAPPING_PAIRS              = 0x09;
+    const int DELETE_DIRTY_CLUSTERS             = 0x0A;
+    const int SET_NEW_ATTRIBUTE_SIZES           = 0x0B;
+    const int ADD_INDEX_ENTRY_ROOT              = 0x0C;
+    const int DELETE_INDEX_ENTRY_ROOT           = 0x0D;
+    const int ADD_INDEX_ENTRY_ALLOCATION        = 0x0E;
+    const int DELETE_INDEX_ENTRY_ALLOCATION     = 0x0F;
+    const int SET_INDEX_ENTRY_VCN_ALLOCATION    = 0x12;
+    const int UPDATE_FILE_NAME_ROOT             = 0x13;
+    const int UPDATE_FILE_NAME_ALLOCATION       = 0x14;
+    const int SET_BITS_IN_NONRESIDENT_BIT_MAP   = 0x15;
+    const int CLEAR_BITS_IN_NONRESIDENT_BIT_MAP = 0x16;
+    const int PREPARE_TRANSACTION               = 0x19;
+    const int COMMIT_TRANSACTION                = 0x1A;
+    const int FORGET_TRANSACTION                = 0x1B;
+    const int OPEN_NONRESIDENT_ATTRIBUTE        = 0x1C;
+    const int DIRTY_PAGE_TABLE_DUMP             = 0x1F;
+    const int TRANSACTION_TABLE_DUMP            = 0x20;
+    const int UPDATE_RECORD_DATA_ROOT           = 0x21;
+}
