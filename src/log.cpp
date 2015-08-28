@@ -274,14 +274,48 @@ bool LogData::isTransactionOver() {
   return redo_ops.back() == LogOps::FORGET_TRANSACTION && undo_ops.back() == LogOps::COMPENSATION_LOG_RECORD;
 }
 
-  const std::vector<int> LogData::create_redo ({LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::NOOP, LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::INITIALIZE_FILE_RECORD_SEGMENT, LogOps::FORGET_TRANSACTION});
-  const std::vector<int> LogData::create_undo ({LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::DEALLOCATE_FILE_RECORD_SEGMENT, LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::NOOP, LogOps::COMPENSATION_LOG_RECORD});
-  const std::vector<int> LogData::delete_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::DEALLOCATE_FILE_RECORD_SEGMENT, LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::FORGET_TRANSACTION});
-  const std::vector<int> LogData::delete_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::INITIALIZE_FILE_RECORD_SEGMENT, LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::COMPENSATION_LOG_RECORD});
-  const std::vector<int> LogData::rename_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::DELETE_ATTRIBUTE, LogOps::CREATE_ATTRIBUTE, LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::FORGET_TRANSACTION});
-  const std::vector<int> LogData::rename_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::CREATE_ATTRIBUTE, LogOps::DELETE_ATTRIBUTE, LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::COMPENSATION_LOG_RECORD});
-  const std::vector<int> LogData::write_redo  ({LogOps::DELETE_ATTRIBUTE, LogOps::CREATE_ATTRIBUTE, LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::UPDATE_MAPPING_PAIRS, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::FORGET_TRANSACTION});
-  const std::vector<int> LogData::write_undo  ({LogOps::CREATE_ATTRIBUTE, LogOps::DELETE_ATTRIBUTE, LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::UPDATE_MAPPING_PAIRS, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::COMPENSATION_LOG_RECORD});
+const std::vector<int> LogData::create_redo ({LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP,
+                                              LogOps::NOOP,
+                                              LogOps::ADD_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::INITIALIZE_FILE_RECORD_SEGMENT,
+                                              LogOps::FORGET_TRANSACTION});
+const std::vector<int> LogData::create_undo ({LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP,
+                                              LogOps::DEALLOCATE_FILE_RECORD_SEGMENT,
+                                              LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::NOOP,
+                                              LogOps::COMPENSATION_LOG_RECORD});
+const std::vector<int> LogData::delete_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::DEALLOCATE_FILE_RECORD_SEGMENT,
+                                              LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP,
+                                              LogOps::FORGET_TRANSACTION});
+const std::vector<int> LogData::delete_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::INITIALIZE_FILE_RECORD_SEGMENT,
+                                              LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP,
+                                              LogOps::COMPENSATION_LOG_RECORD});
+const std::vector<int> LogData::rename_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::DELETE_ATTRIBUTE,
+                                              LogOps::CREATE_ATTRIBUTE,
+                                              LogOps::ADD_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::FORGET_TRANSACTION});
+const std::vector<int> LogData::rename_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::CREATE_ATTRIBUTE,
+                                              LogOps::DELETE_ATTRIBUTE,
+                                              LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
+                                              LogOps::COMPENSATION_LOG_RECORD});
+const std::vector<int> LogData::write_redo  ({LogOps::DELETE_ATTRIBUTE,
+                                              LogOps::CREATE_ATTRIBUTE,
+                                              LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP,
+                                              LogOps::SET_NEW_ATTRIBUTE_SIZES,
+                                              LogOps::UPDATE_MAPPING_PAIRS,
+                                              LogOps::SET_NEW_ATTRIBUTE_SIZES,
+                                              LogOps::FORGET_TRANSACTION});
+const std::vector<int> LogData::write_undo  ({LogOps::CREATE_ATTRIBUTE,
+                                              LogOps::DELETE_ATTRIBUTE,
+                                              LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP,
+                                              LogOps::SET_NEW_ATTRIBUTE_SIZES,
+                                              LogOps::UPDATE_MAPPING_PAIRS,
+                                              LogOps::SET_NEW_ATTRIBUTE_SIZES,
+                                              LogOps::COMPENSATION_LOG_RECORD});
 
 int LogRecord::init(char* buffer) {
   data = buffer;
