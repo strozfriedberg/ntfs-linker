@@ -238,6 +238,293 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   delete [] buffer;
 }
 
+int LogRecord::init(char* buffer) {
+  data = buffer;
+  cur_lsn = hex_to_long(buffer, 8);
+  prev_lsn = hex_to_long(buffer + 0x8, 8);
+  undo_lsn = hex_to_long(buffer + 0x10, 8);
+
+  client_data_length = hex_to_long(buffer + 0x18, 4);
+
+  client_id = hex_to_long(buffer + 0x1C, 4);
+  record_type = hex_to_long(buffer + 0x20, 4);
+
+  /*
+  Not particularly a concern. Sometimes there is extra slack space at the end of a page.
+  In which case, we read that the record type is 0 and print an error message
+  (since 0 is not a valid record type).
+  If these error messages are spamming error output, however, then something probably went
+  horribly wrong. Most likely cause is that the parser offset became misplaced and tried to
+  parse the wrong bits of the records.
+  */
+  if(record_type == 0) {
+    std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
+    std::cerr << "Invalid record type: " << record_type;
+    if(record_type == 0) {
+      return -2;
+    }
+    exit(0);
+  }
+
+  /*
+  A flag on a record means that at least part of the record is on the next page.
+  We do some fancy switcheroo stuff at the bottom of the loop to compensate.
+  */
+  flags = hex_to_long(buffer + 0x28, 2);
+  if(flags == 1) {
+    return -1;
+  }
+
+  /*
+  If we're reading invalid op codes then chances are something went horribly wrong.
+  We end the process before it can implode.
+  */
+  redo_op = hex_to_long(buffer + 0x30, 2);
+  undo_op = hex_to_long(buffer + 0x32, 2);
+  if(redo_op > 0x21 || undo_op > 0x21) {
+    std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
+    std::cerr << "\rInvalid op code: " << std::hex << redo_op << " " << undo_op;
+    return -2;
+  }
+  redo_offset = hex_to_long(buffer + 0x34, 2);
+  redo_length = hex_to_long(buffer + 0x36, 2);
+  undo_offset = hex_to_long(buffer + 0x38, 2);
+  undo_length = hex_to_long(buffer + 0x3a, 2);
+  target_attr = hex_to_long(buffer + 0x3c, 2);
+  lcns_to_follow = hex_to_long(buffer + 0x3e, 2);
+
+  record_offset = hex_to_long(buffer + 0x40, 2);
+  attribute_offset = hex_to_long(buffer + 0x42, 2);
+  mft_cluster_index = hex_to_long(buffer + 0x44, 2);
+  target_vcn = hex_to_long(buffer + 0x48, 4);
+
+  target_lcn = hex_to_long(buffer + 0x50, 4);
+
+  /*
+  The length given by client_data_length is actually 0x30 less than the length of the record.
+  */
+
+  return 0x30 + client_data_length;
+
+}
+
+void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
+  if(lsn == 0) {
+    lsn = rec.cur_lsn;
+  }
+  redo_ops.push_back(rec.redo_op);
+  undo_ops.push_back(rec.undo_op);
+
+  char *redo_data = rec.data + 0x30 + rec.redo_offset;
+  char *undo_data = rec.data + 0x30 + rec.undo_offset;
+  //pull data from necessary opcodes to save for transaction runs
+  if(rec.redo_op == LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP && rec.undo_op == LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP) {
+    if(rec.redo_length >= 4)
+      mft_record_no = hex_to_long(redo_data, 4);
+  }
+  else if(rec.redo_op == LogOps::INITIALIZE_FILE_RECORD_SEGMENT && rec.undo_op == LogOps::NOOP) {
+    //parse MFT record from redo op for create time, file name, parent dir
+    //need to check for possible second MFT attribute header
+    char* start = redo_data;
+
+    //check if record begins with FILE, otherwise, invalid record
+    if(hex_to_long(start, 4) == 0x454C4946) {
+
+      unsigned long long mft_offset = hex_to_long(start+0x14, 2);
+
+      //parse through each attribute
+      while(mft_offset + 0x18 <= rec.redo_length) {
+
+        unsigned long long type_id = hex_to_long(start + mft_offset, 4);
+        //unsigned long long form_code = hex_to_long(start + mft_offset + 8, 1);
+        unsigned long long attribute_length = hex_to_long(start + mft_offset+4, 4);
+        unsigned long long content_offset = hex_to_long(start + mft_offset + 0x14, 2);
+        unsigned int len;
+
+        switch(type_id) {
+          case 0x10:
+            timestamp = filetime_to_iso_8601(hex_to_long(start + mft_offset + content_offset + 0x0, 8));
+            break;
+          case 0x30:
+            par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
+            len = hex_to_long(start + mft_offset+content_offset+0x40, 1);
+            bool newNameDirty = isUTF16leNonAscii(start + mft_offset + content_offset + 0x42, len);
+            if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+              name_len = len;
+              name = mbcatos(start + mft_offset + content_offset+0x42, name_len);
+              IsNameDirty = newNameDirty;
+            }
+            break;
+        }
+
+        //check for valid attribute length value
+        if(attribute_length > 0 && attribute_length < 1024)
+          mft_offset += attribute_length;
+        else
+          break;
+      }
+    }
+  }
+  else if(rec.redo_op == LogOps::DELETE_ATTRIBUTE && rec.undo_op == LogOps::CREATE_ATTRIBUTE) {
+    //get the name before
+    //from file attribute with header, undo op
+    unsigned long long type_id = hex_to_long(undo_data, 4);
+    //unsigned long long form_code = hex_to_long(undo_data + 8 + 8, 1);
+    unsigned long long content_offset = hex_to_long(undo_data + 0x14, 2);
+    switch(type_id) {
+      case 0x30:
+        prev_par_mft_record = hex_to_long(undo_data + content_offset, 6);
+          if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+            timestamp = records[prev_par_mft_record].timestamp;
+          else
+            timestamp = "";
+          name_len = hex_to_long(undo_data + content_offset+0x40, 1);
+          prev_name = mbcatos(undo_data + content_offset+0x42, name_len);
+        break;
+      }
+
+  }
+  else if(rec.redo_op == LogOps::CREATE_ATTRIBUTE && rec.undo_op == LogOps::DELETE_ATTRIBUTE) {
+    //get the name after
+    //from file attribute with header, redo op
+    //prev_name =
+
+    unsigned long long type_id = hex_to_long(redo_data, 4);
+    //unsigned long long form_code = hex_to_long(redo_data + 8 + 8, 1);
+    unsigned long long content_offset = hex_to_long(redo_data + 0x14, 2);
+    switch(type_id) {
+      case 0x30:
+        par_mft_record = hex_to_long(redo_data + content_offset, 6);
+
+        if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+          timestamp = records[par_mft_record].timestamp;
+        else
+          timestamp = "";
+
+        unsigned int len = hex_to_long(redo_data + content_offset+0x40, 1);
+        bool newNameDirty = isUTF16leNonAscii(redo_data + content_offset+0x42, len);
+        if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+          name_len = len;
+          name = mbcatos(redo_data + content_offset+0x42, name_len);
+          IsNameDirty = newNameDirty;
+        }
+        break;
+    }
+  }
+  else if((rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ROOT)) {
+    if(rec.undo_length > 0x42) {
+      // Delete or rename
+      // This is a delete. I think.
+      par_mft_record = hex_to_long(undo_data + 0x10, 6);
+      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+        timestamp = records[prev_par_mft_record].timestamp;
+      else
+        timestamp = "";
+      unsigned int len = hex_to_long(undo_data + 0x10 + 0x40, 1);
+      bool newNameDirty = isUTF16leNonAscii(undo_data + 0x10 + 0x42, len);
+      if(((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+        name_len = len;
+        name = mbcatos(undo_data + 0x10 + 0x42, name_len);
+        IsNameDirty = newNameDirty;
+      }
+    }
+
+  }
+  else if ((rec.redo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::ADD_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ROOT)) {
+    // Add index entry root/AddIndexEntryAllocation operation
+    // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
+    // for additional info about Index Record structure ("The header part")
+    if (rec.redo_length > 0x52) {
+      mft_record_no = hex_to_long(redo_data, 6);
+      par_mft_record = hex_to_long(redo_data + 0x10, 6);
+      timestamp = filetime_to_iso_8601(hex_to_long(redo_data + 0x18, 8));
+
+      unsigned int len = hex_to_long(redo_data + 0x50, 1);
+      bool newNameDirty = isUTF16leNonAscii(redo_data + 0x52, len);
+      if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
+        name_len = len;
+        name = mbcatos(redo_data + 0x52, len);
+        IsNameDirty = newNameDirty;
+      }
+    }
+  }
+}
+
+void LogData::clearFields() {
+  redo_ops.clear();
+  undo_ops.clear();
+  mft_record_no = 0;
+  par_mft_record = 0;
+  prev_par_mft_record = 0;
+  timestamp = "";
+  name_len = 0;
+  lsn = 0;
+  name = "";
+  prev_name = "";
+  IsNameDirty = true;
+}
+
+/*
+Returns whether the given transaction run (redo1, undo1) matches the
+given transaction run pattern. Will attempt to find a matching entry in redo1, undo1 for each entry
+in redo2, undo2 (in the same order)
+if interchange is true then ADD_INDEX_ENTRY_ROOT=ADD_INDEX_ENTRY_ALLOCATION and DELETE_INDEX_ENTRY_ROOT=DELETE_INDEX_ENTRY_ALLOCATION
+*/
+bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<int>& const_undo1, const std::vector<int>& redo2, const std::vector<int>& undo2, bool interchange) {
+  unsigned int j = 0;
+  std::vector<int> redo1(const_redo1);
+  std::vector<int> undo1(const_undo1);
+  for(unsigned int i = 0; i < redo2.size(); i++) {
+    bool top = false;
+    for(; j < redo1.size() && !top; j++) {
+
+      if(interchange) {
+        if(redo1[j] == LogOps::ADD_INDEX_ENTRY_ROOT)    redo1[j] = LogOps::ADD_INDEX_ENTRY_ALLOCATION;
+        if(redo1[j] == LogOps::DELETE_INDEX_ENTRY_ROOT) redo1[j] = LogOps::DELETE_INDEX_ENTRY_ALLOCATION;
+        if(undo1[j] == LogOps::ADD_INDEX_ENTRY_ROOT)    undo1[j] = LogOps::ADD_INDEX_ENTRY_ALLOCATION;
+        if(undo1[j] == LogOps::DELETE_INDEX_ENTRY_ROOT) undo1[j] = LogOps::DELETE_INDEX_ENTRY_ALLOCATION;
+      }
+      if(redo2[i] == redo1[j] && undo2[i] == undo1[j])
+        top = true;
+    }
+    if(!top)
+      return false;
+  }
+  return true;
+}
+
+void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
+  int i = 0;
+  sqlite3_bind_int64(stmt, ++i, mft_record_no);
+  sqlite3_bind_int64(stmt, ++i, par_mft_record);
+  sqlite3_bind_int64(stmt, ++i, prev_par_mft_record);
+  sqlite3_bind_int64(stmt, ++i, lsn);
+  sqlite3_bind_text (stmt, ++i, timestamp.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, name.c_str()         , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, prev_name.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int64(stmt, ++i, type);
+  sqlite3_bind_int64(stmt, ++i, EventSources::LOG);
+
+  sqlite3_step(stmt);
+  sqlite3_reset(stmt);
+}
+
+void LogRecord::insert(sqlite3_stmt* stmt) {
+  int i = 0;
+  sqlite3_bind_int64(stmt, ++i, cur_lsn);
+  sqlite3_bind_int64(stmt, ++i, prev_lsn);
+  sqlite3_bind_int64(stmt, ++i, undo_lsn);
+  sqlite3_bind_int  (stmt, ++i, client_id);
+  sqlite3_bind_int  (stmt, ++i, record_type);
+  sqlite3_bind_text (stmt, ++i, decodeLogFileOpCode(redo_op).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, decodeLogFileOpCode(undo_op).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int  (stmt, ++i, target_attr);
+  sqlite3_bind_int  (stmt, ++i, mft_cluster_index);
+
+  sqlite3_step(stmt);
+  sqlite3_reset(stmt);
+}
+
 std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {
   out << rec.cur_lsn << "\t"
       << rec.prev_lsn << "\t"
@@ -316,287 +603,3 @@ const std::vector<int> LogData::write_undo  ({LogOps::CREATE_ATTRIBUTE,
                                               LogOps::UPDATE_MAPPING_PAIRS,
                                               LogOps::SET_NEW_ATTRIBUTE_SIZES,
                                               LogOps::COMPENSATION_LOG_RECORD});
-
-int LogRecord::init(char* buffer) {
-  data = buffer;
-  cur_lsn = hex_to_long(buffer, 8);
-  prev_lsn = hex_to_long(buffer + 0x8, 8);
-  undo_lsn = hex_to_long(buffer + 0x10, 8);
-
-  client_data_length = hex_to_long(buffer + 0x18, 4);
-
-  client_id = hex_to_long(buffer + 0x1C, 4);
-  record_type = hex_to_long(buffer + 0x20, 4);
-
-  /*
-  Not particularly a concern. Sometimes there is extra slack space at the end of a page.
-  In which case, we read that the record type is 0 and print an error message
-  (since 0 is not a valid record type).
-  If these error messages are spamming error output, however, then something probably went
-  horribly wrong. Most likely cause is that the parser offset became misplaced and tried to
-  parse the wrong bits of the records.
-  */
-  if(record_type == 0) {
-    std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "Invalid record type: " << record_type;
-    if(record_type == 0) {
-      return -2;
-    }
-    exit(0);
-  }
-
-  /*
-  A flag on a record means that at least part of the record is on the next page.
-  We do some fancy switcheroo stuff at the bottom of the loop to compensate.
-  */
-  flags = hex_to_long(buffer + 0x28, 2);
-  if(flags == 1) {
-    return -1;
-  }
-
-  /*
-  If we're reading invalid op codes then chances are something went horribly wrong.
-  We end the process before it can implode.
-  */
-  redo_op = hex_to_long(buffer + 0x30, 2);
-  undo_op = hex_to_long(buffer + 0x32, 2);
-  if(redo_op > 0x21 || undo_op > 0x21) {
-    std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "\rInvalid op code: " << std::hex << redo_op << " " << undo_op;
-    return -2;
-  }
-  redo_offset = hex_to_long(buffer + 0x34, 2);
-  redo_length = hex_to_long(buffer + 0x36, 2);
-  undo_offset = hex_to_long(buffer + 0x38, 2);
-  undo_length = hex_to_long(buffer + 0x3a, 2);
-  target_attr = hex_to_long(buffer + 0x3c, 2);
-  lcns_to_follow = hex_to_long(buffer + 0x3e, 2);
-
-  record_offset = hex_to_long(buffer + 0x40, 2);
-  attribute_offset = hex_to_long(buffer + 0x42, 2);
-  mft_cluster_index = hex_to_long(buffer + 0x44, 2);
-  target_vcn = hex_to_long(buffer + 0x48, 4);
-
-  target_lcn = hex_to_long(buffer + 0x50, 4);
-
-  /*
-  The length given by client_data_length is actually 0x30 less than the length of the record.
-  */
-
-  return 0x30 + client_data_length;
-
-}
-
-void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
-  if(lsn == 0) {
-    lsn = rec.cur_lsn;
-  }
-  redo_ops.push_back(rec.redo_op);
-  undo_ops.push_back(rec.undo_op);
-  //pull data from necessary opcodes to save for transaction runs
-  if(rec.redo_op == LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP && rec.undo_op == LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP) {
-    if(rec.redo_length >= 4)
-      mft_record_no = hex_to_long(rec.data + 0x30 + rec.redo_offset, 4);
-  }
-  else if(rec.redo_op == LogOps::INITIALIZE_FILE_RECORD_SEGMENT && rec.undo_op == LogOps::NOOP) {
-    //parse MFT record from redo op for create time, file name, parent dir
-    //need to check for possible second MFT attribute header
-    char* start = rec.data + 0x30 + rec.redo_offset;
-
-    //check if record begins with FILE, otherwise, invalid record
-    if(hex_to_long(start, 4) == 0x454C4946) {
-
-      unsigned long long mft_offset = hex_to_long(start+0x14, 2);
-
-      //parse through each attribute
-      while(mft_offset + 0x18 <= rec.redo_length) {
-
-        unsigned long long type_id = hex_to_long(start + mft_offset, 4);
-        //unsigned long long form_code = hex_to_long(start + mft_offset + 8, 1);
-        unsigned long long attribute_length = hex_to_long(start + mft_offset+4, 4);
-        unsigned long long content_offset = hex_to_long(start + mft_offset + 0x14, 2);
-        unsigned int len;
-
-        switch(type_id) {
-          case 0x10:
-            timestamp = filetime_to_iso_8601(hex_to_long(start + mft_offset + content_offset + 0x0, 8));
-            break;
-          case 0x30:
-            par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
-            len = hex_to_long(start + mft_offset+content_offset+0x40, 1);
-            bool newNameDirty = isUTF16leNonAscii(start + mft_offset + content_offset + 0x42, len);
-            if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-              name_len = len;
-              name = mbcatos(start + mft_offset + content_offset+0x42, name_len);
-              IsNameDirty = newNameDirty;
-            }
-            break;
-        }
-
-        //check for valid attribute length value
-        if(attribute_length > 0 && attribute_length < 1024)
-          mft_offset += attribute_length;
-        else
-          break;
-      }
-    }
-  }
-  else if(rec.redo_op == LogOps::DELETE_ATTRIBUTE && rec.undo_op == LogOps::CREATE_ATTRIBUTE) {
-    //get the name before
-    //from file attribute with header, undo op
-    unsigned long long type_id = hex_to_long(rec.data + 0x30 + rec.undo_offset, 4);
-    //unsigned long long form_code = hex_to_long(rec.data + 0x30 + rec.undo_offset + 8 + 8, 1);
-    unsigned long long content_offset = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x14, 2);
-    switch(type_id) {
-      case 0x30:
-        prev_par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset, 6);
-          if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-            timestamp = records[prev_par_mft_record].timestamp;
-          else
-            timestamp = "";
-          name_len = hex_to_long(rec.data + 0x30 + rec.undo_offset + content_offset+0x40, 1);
-          prev_name = mbcatos(rec.data + 0x30 + rec.undo_offset + content_offset+0x42, name_len);
-        break;
-      }
-
-  }
-  else if(rec.redo_op == LogOps::CREATE_ATTRIBUTE && rec.undo_op == LogOps::DELETE_ATTRIBUTE) {
-    //get the name after
-    //from file attribute with header, redo op
-    //prev_name =
-
-    unsigned long long type_id = hex_to_long(rec.data + 0x30 + rec.redo_offset, 4);
-    //unsigned long long form_code = hex_to_long(rec.data + 0x30 + rec.redo_offset + 8 + 8, 1);
-    unsigned long long content_offset = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x14, 2);
-    switch(type_id) {
-      case 0x30:
-        par_mft_record = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset, 6);
-
-        if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-          timestamp = records[par_mft_record].timestamp;
-        else
-          timestamp = "";
-
-        unsigned int len = hex_to_long(rec.data + 0x30 + rec.redo_offset + content_offset+0x40, 1);
-        bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, len);
-        if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-          name_len = len;
-          name = mbcatos(rec.data + 0x30 + rec.redo_offset + content_offset+0x42, name_len);
-          IsNameDirty = newNameDirty;
-        }
-        break;
-    }
-  }
-  else if((rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ROOT)) {
-    if(rec.undo_length > 0x42) {
-      // Delete or rename
-      // This is a delete. I think.
-      par_mft_record = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10, 6);
-      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-        timestamp = records[prev_par_mft_record].timestamp;
-      else
-        timestamp = "";
-      unsigned int len = hex_to_long(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x40, 1);
-      bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, len);
-      if(((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-        name_len = len;
-        name = mbcatos(rec.data + 0x30 + rec.undo_offset + 0x10 + 0x42, name_len);
-        IsNameDirty = newNameDirty;
-      }
-    }
-
-  }
-  else if ((rec.redo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::ADD_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ROOT)) {
-    // Add index entry root/AddIndexEntryAllocation operation
-    // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
-    // for additional info about Index Record structure ("The header part")
-    if (rec.redo_length > 0x52) {
-      mft_record_no = hex_to_long(rec.data + 0x30 + rec.redo_offset, 6);
-      par_mft_record = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x10, 6);
-      timestamp = filetime_to_iso_8601(hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x18, 8));
-
-      unsigned int len = hex_to_long(rec.data + 0x30 + rec.redo_offset + 0x50, 1);
-      bool newNameDirty = isUTF16leNonAscii(rec.data + 0x30 + rec.redo_offset + 0x52, len);
-      if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-        name_len = len;
-        name = mbcatos(rec.data + 0x30 + rec.redo_offset + 0x52, len);
-        IsNameDirty = newNameDirty;
-      }
-    }
-  }
-}
-
-void LogData::clearFields() {
-  redo_ops.clear();
-  undo_ops.clear();
-  mft_record_no = 0;
-  par_mft_record = 0;
-  prev_par_mft_record = 0;
-  timestamp = "";
-  name_len = 0;
-  lsn = 0;
-  name = "";
-  prev_name = "";
-  IsNameDirty = true;
-}
-
-/*
-Returns whether the given transaction run (redo1, undo1) matches the
-given transaction run pattern. Will attempt to find a matching entry in redo1, undo1 for each entry
-in redo2, undo2 (in the same order)
-if interchange is true then ADD_INDEX_ENTRY_ROOT=ADD_INDEX_ENTRY_ALLOCATION and DELETE_INDEX_ENTRY_ROOT=DELETE_INDEX_ENTRY_ALLOCATION
-*/
-bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<int>& const_undo1, const std::vector<int>& redo2, const std::vector<int>& undo2, bool interchange) {
-  unsigned int j = 0;
-  std::vector<int> redo1(const_redo1);
-  std::vector<int> undo1(const_undo1);
-  for(unsigned int i = 0; i < redo2.size(); i++) {
-    bool top = false;
-    for(; j < redo1.size() && !top; j++) {
-
-      if(interchange) {
-        if(redo1[j] == LogOps::ADD_INDEX_ENTRY_ROOT)    redo1[j] = LogOps::ADD_INDEX_ENTRY_ALLOCATION;
-        if(redo1[j] == LogOps::DELETE_INDEX_ENTRY_ROOT) redo1[j] = LogOps::DELETE_INDEX_ENTRY_ALLOCATION;
-        if(undo1[j] == LogOps::ADD_INDEX_ENTRY_ROOT)    undo1[j] = LogOps::ADD_INDEX_ENTRY_ALLOCATION;
-        if(undo1[j] == LogOps::DELETE_INDEX_ENTRY_ROOT) undo1[j] = LogOps::DELETE_INDEX_ENTRY_ALLOCATION;
-      }
-      if(redo2[i] == redo1[j] && undo2[i] == undo1[j])
-        top = true;
-    }
-    if(!top)
-      return false;
-  }
-  return true;
-}
-
-void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
-  int i = 0;
-  sqlite3_bind_int64(stmt, ++i, mft_record_no);
-  sqlite3_bind_int64(stmt, ++i, par_mft_record);
-  sqlite3_bind_int64(stmt, ++i, prev_par_mft_record);
-  sqlite3_bind_int64(stmt, ++i, lsn);
-  sqlite3_bind_text(stmt , ++i, timestamp.c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, name.c_str()         , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, prev_name.c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, ++i, type);
-  sqlite3_bind_int64(stmt, ++i, EventSources::LOG);
-
-  sqlite3_step(stmt);
-  sqlite3_reset(stmt);
-}
-
-void LogRecord::insert(sqlite3_stmt* stmt) {
-  int i = 0;
-  sqlite3_bind_int64(stmt, ++i, cur_lsn);
-  sqlite3_bind_int64(stmt, ++i, prev_lsn);
-  sqlite3_bind_int64(stmt, ++i, undo_lsn);
-  sqlite3_bind_int(stmt  , ++i, client_id);
-  sqlite3_bind_int(stmt  , ++i, record_type);
-  sqlite3_bind_text(stmt , ++i, decodeLogFileOpCode(redo_op).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, decodeLogFileOpCode(undo_op).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt  , ++i, target_attr);
-  sqlite3_bind_int(stmt  , ++i, mft_cluster_index);
-
-  sqlite3_step(stmt);
-  sqlite3_reset(stmt);
-}
