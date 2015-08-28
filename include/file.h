@@ -1,6 +1,5 @@
 #include <string>
-#ifndef file_h
-#define file_h
+#pragma once
 
 /*
 Represents a file. A map of record numbers to these file objects can be used to reconstruct the full path
@@ -24,4 +23,3 @@ class File {
     std::string timestamp;
     bool valid;
 };
-#endif

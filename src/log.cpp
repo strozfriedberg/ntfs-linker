@@ -414,7 +414,6 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
   else if((rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ROOT)) {
     if(rec.undo_length > 0x42) {
       // Delete or rename
-      // This is a delete. I think.
       par_mft_record = hex_to_long(undo_data + 0x10, 6);
       if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
         timestamp = records[prev_par_mft_record].timestamp;

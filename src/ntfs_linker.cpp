@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
   db = initDBTables(dbName, overwrite);
 
   std::cout << "Creating MFT Map..." << std::endl;
-  initMFTMap(i_mft, records);
+  parseMFT(records, db, i_mft, o_mft, true);
 
   i_mft.clear();
   i_mft.seekg(0);
@@ -235,8 +235,6 @@ int main(int argc, char** argv) {
            << "IsAnchor\t"
            << std::endl;
 
-  //std::cout << "Parsing MFT..." << std::endl;
-  //parseMFT(records, db, i_mft, o_mft);
   std::cout << "Parsing USNJrnl..." << std::endl;
   parseUSN(records, db, i_usnjrnl, o_usnjrnl);
   std::cout << "Parsing LogFile..." << std::endl;
