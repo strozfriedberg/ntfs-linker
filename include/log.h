@@ -62,10 +62,8 @@ public:
   bool isMoveEvent();
   bool isTransactionOver();
 
-
-  static std::vector<int> create_redo, create_undo, delete_redo, delete_undo;
-  static std::vector<int> rename_redo, rename_undo, write_redo, write_undo;
-  static void initTransactionVectors();
+  static const std::vector<int> create_redo, create_undo, delete_redo, delete_undo;
+  static const std::vector<int> rename_redo, rename_undo, write_redo, write_undo;
 };
 
 namespace LogOps {

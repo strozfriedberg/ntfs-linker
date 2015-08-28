@@ -8,36 +8,43 @@
 /*
 Decodes the LogFile Op code
 */
+
+int ceilingDivide(int n, int m) {
+  // Returns ceil(n/m), without using clunky FP arithmetic
+  return (n + m - 1) / m;
+
+}
+
 std::string decodeLogFileOpCode(int op) {
   switch(op) {
-    case 0x00: return "Noop";
-    case 0x01: return "CompensationLogRecord";
-    case 0x02: return "InitializeFileRecordSegment";
-    case 0x03: return "DeallocateFileRecordSegment";
-    case 0x04: return "WriteEndOfFileRecordSegment";
-    case 0x05: return "CreateAttribute";
-    case 0x06: return "DeleteAttribute";
-    case 0x07: return "UpdateResidentValue";
-    case 0x08: return "UpdateNonresidentValue";
-    case 0x09: return "UpdateMappingPairs";
-    case 0x0A: return "DeleteDirtyClusters";
-    case 0x0B: return "SetNewAttributeSizes";
-    case 0x0C: return "AddIndexEntryRoot";
-    case 0x0D: return "DeleteIndexEntryRoot";
-    case 0x0E: return "AddIndexEntryAllocation";
-    case 0x0F: return "DeleteIndexEntryAllocation";
-    case 0x12: return "SetIndexEntryVCNAllocation";
-    case 0x13: return "UpdateFileNameRoot";
-    case 0x14: return "UpdateFileNameAllocation";
-    case 0x15: return "SetBitsInNonresidentBitMap";
-    case 0x16: return "ClearBitsInNonresidentBitMap";
-    case 0x19: return "PrepareTransaction";
-    case 0x1A: return "CommitTransaction";
-    case 0x1B: return "ForgetTransaction";
-    case 0x1C: return "OpenNonresidentAttribute";
-    case 0x1F: return "DirtyPageTableDump";
-    case 0x20: return "TransactionTableDump";
-    case 0x21: return "UpdateRecordDataRoot";
+    case LogOps::NOOP                               : return "Noop";
+    case LogOps::COMPENSATION_LOG_RECORD            : return "CompensationLogRecord";
+    case LogOps::INITIALIZE_FILE_RECORD_SEGMENT     : return "InitializeFileRecordSegment";
+    case LogOps::DEALLOCATE_FILE_RECORD_SEGMENT     : return "DeallocateFileRecordSegment";
+    case LogOps::WRITE_END_OF_FILE_RECORD_SEGMENT   : return "WriteEndOfFileRecordSegment";
+    case LogOps::CREATE_ATTRIBUTE                   : return "CreateAttribute";
+    case LogOps::DELETE_ATTRIBUTE                   : return "DeleteAttribute";
+    case LogOps::UPDATE_RESIDENT_VALUE              : return "UpdateResidentValue";
+    case LogOps::UPDATE_NONRESIDENT_VALUE           : return "UpdateNonresidentValue";
+    case LogOps::UPDATE_MAPPING_PAIRS               : return "UpdateMappingPairs";
+    case LogOps::DELETE_DIRTY_CLUSTERS              : return "DeleteDirtyClusters";
+    case LogOps::SET_NEW_ATTRIBUTE_SIZES            : return "SetNewAttributeSizes";
+    case LogOps::ADD_INDEX_ENTRY_ROOT               : return "AddIndexEntryRoot";
+    case LogOps::DELETE_INDEX_ENTRY_ROOT            : return "DeleteIndexEntryRoot";
+    case LogOps::ADD_INDEX_ENTRY_ALLOCATION         : return "AddIndexEntryAllocation";
+    case LogOps::DELETE_INDEX_ENTRY_ALLOCATION      : return "DeleteIndexEntryAllocation";
+    case LogOps::SET_INDEX_ENTRY_VCN_ALLOCATION     : return "SetIndexEntryVCNAllocation";
+    case LogOps::UPDATE_FILE_NAME_ROOT              : return "UpdateFileNameRoot";
+    case LogOps::UPDATE_FILE_NAME_ALLOCATION        : return "UpdateFileNameAllocation";
+    case LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP    : return "SetBitsInNonresidentBitMap";
+    case LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP  : return "ClearBitsInNonresidentBitMap";
+    case LogOps::PREPARE_TRANSACTION                : return "PrepareTransaction";
+    case LogOps::COMMIT_TRANSACTION                 : return "CommitTransaction";
+    case LogOps::FORGET_TRANSACTION                 : return "ForgetTransaction";
+    case LogOps::OPEN_NONRESIDENT_ATTRIBUTE         : return "OpenNonresidentAttribute";
+    case LogOps::DIRTY_PAGE_TABLE_DUMP              : return "DirtyPageTableDump";
+    case LogOps::TRANSACTION_TABLE_DUMP             : return "TransactionTableDump";
+    case LogOps::UPDATE_RECORD_DATA_ROOT            : return "UpdateRecordDataRoot";
     default:
       return "Invalid";
   }
@@ -79,7 +86,6 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
 
   LogData transactions;
   transactions.clearFields();
-  LogData::initTransactionVectors();
   std::string log_sql = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string events_sql  = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
   sqlite3_stmt *log_stmt, *events_stmt;
@@ -103,7 +109,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     update_seq_offset = hex_to_long(buffer + 0x4, 2);
     update_seq_count = hex_to_long(buffer + 0x6, 2);
     // Equivalent to 8*ceil(update_seq_count/4)
-    offset = update_seq_offset + ((((update_seq_count << 1) + 7) >> 3) << 3);
+    offset = update_seq_offset + ceilingDivide(update_seq_count, 4) * 8;
     next_record_offset = hex_to_long(buffer + 0x18, 2);
     if(parseError) { //initialize the offset on the "first" record processed
       offset = next_record_offset;
@@ -155,8 +161,8 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     /*
     If a record is left dangling across a page boundary, we can still parse the record
     The strategy is to rearrange the data like so:
-    BEFORE: dangling transaction | RCRD header | rest of transaction | rest of page
-    AFTER : RCRD header | dangling transaction | rest of transaction | rest of page
+    BEFORE: dangling record | RCRD header | rest of record | rest of page
+    AFTER : RCRD header | dangling record | rest of record | rest of page
     We perform  a little switcheroo then return to the top of the loop
     */
     if(split_record) {
@@ -172,7 +178,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
 
       update_seq_offset = hex_to_long(temp + buffer_size - offset + 0x4, 2);
       update_seq_count = hex_to_long(temp + buffer_size - offset + 0x6, 2);
-      unsigned int header_length = update_seq_offset + ((((update_seq_count << 1) + 7) >> 3) << 3);
+      unsigned int header_length = update_seq_offset + ceilingDivide(update_seq_count, 4) * 8;
       memmove(temp, temp + buffer_size - offset, header_length);
       memcpy(temp + header_length, buffer + offset, buffer_size - offset);
       delete[] buffer;
@@ -198,7 +204,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
 
         update_seq_offset = hex_to_long(temp + 0x4, 2);
         update_seq_count = hex_to_long(temp + 0x6, 2);
-        header_length = update_seq_offset + ((((update_seq_count << 1) + 7) >> 3) << 3);
+        header_length = update_seq_offset + ceilingDivide(update_seq_count, 4) * 8;
         memcpy(buffer + write_offset, temp + header_length, 4096 - header_length);
         write_offset += 4096 - header_length;
         records_processed++;
@@ -265,34 +271,17 @@ bool LogData::isMoveEvent() {
 }
 
 bool LogData::isTransactionOver() {
-  return redo_ops.back() == 0x1b && undo_ops.back() == 0x1;
+  return redo_ops.back() == LogOps::FORGET_TRANSACTION && undo_ops.back() == LogOps::COMPENSATION_LOG_RECORD;
 }
 
-void LogData::initTransactionVectors() {
-  /*
-  Used to determine whether a particular transaction run has occurred
-  The source for these runs is "NTFS Log Tracker" : forensicinsight.org
-  My reading of that presentation is that the transactions should be consecutive,
-  however, I found very few (if any) transaction runs that match the below exactly.
-  Instead I check that the below sequences are merely a subsequence of the given run.
-  */
-  int a_create_redo[] = {0x15, 0x0, 0xe, 0x2, 0x1b};
-  int a_create_undo[] = {0x16, 0x3, 0xf, 0x0, 0x1};
-  int a_delete_redo[] = {0xf, 0x3, 0x16, 0x1b};
-  int a_delete_undo[] = {0xe, 0x2, 0x15, 0x1};
-  int a_rename_redo[] = {0xf, 0x6, 0x5, 0xe, 0x1b};
-  int a_rename_undo[] = {0xe, 0x5, 0x6, 0xf, 0x1};
-  int a_write_redo[] = {0x6, 0x5, 0x15, 0xb, 0x9, 0xb, 0x1b};
-  int a_write_undo[] = {0x5, 0x6, 0x16, 0xb, 0x9, 0xb, 0x1};
-  create_redo = std::vector<int>(a_create_redo, a_create_redo + sizeof(a_create_redo)/sizeof(int));
-  create_undo = std::vector<int>(a_create_undo, a_create_undo + sizeof(a_create_undo)/sizeof(int));
-  delete_redo = std::vector<int>(a_delete_redo, a_delete_redo + sizeof(a_delete_redo)/sizeof(int));
-  delete_undo = std::vector<int>(a_delete_undo, a_delete_undo + sizeof(a_delete_undo)/sizeof(int));
-  rename_redo = std::vector<int>(a_rename_redo, a_rename_redo + sizeof(a_rename_redo)/sizeof(int));
-  rename_undo = std::vector<int>(a_rename_undo, a_rename_undo + sizeof(a_rename_undo)/sizeof(int));
-  write_redo = std::vector<int>(a_write_redo, a_write_redo + sizeof(a_write_redo)/sizeof(int));
-  write_undo = std::vector<int>(a_write_undo, a_write_undo + sizeof(a_write_undo)/sizeof(int));
-}
+  const std::vector<int> LogData::create_redo ({LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::NOOP, LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::INITIALIZE_FILE_RECORD_SEGMENT, LogOps::FORGET_TRANSACTION});
+  const std::vector<int> LogData::create_undo ({LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::DEALLOCATE_FILE_RECORD_SEGMENT, LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::NOOP, LogOps::COMPENSATION_LOG_RECORD});
+  const std::vector<int> LogData::delete_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::DEALLOCATE_FILE_RECORD_SEGMENT, LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::FORGET_TRANSACTION});
+  const std::vector<int> LogData::delete_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::INITIALIZE_FILE_RECORD_SEGMENT, LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::COMPENSATION_LOG_RECORD});
+  const std::vector<int> LogData::rename_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::DELETE_ATTRIBUTE, LogOps::CREATE_ATTRIBUTE, LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::FORGET_TRANSACTION});
+  const std::vector<int> LogData::rename_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION, LogOps::CREATE_ATTRIBUTE, LogOps::DELETE_ATTRIBUTE, LogOps::DELETE_INDEX_ENTRY_ALLOCATION, LogOps::COMPENSATION_LOG_RECORD});
+  const std::vector<int> LogData::write_redo  ({LogOps::DELETE_ATTRIBUTE, LogOps::CREATE_ATTRIBUTE, LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::UPDATE_MAPPING_PAIRS, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::FORGET_TRANSACTION});
+  const std::vector<int> LogData::write_undo  ({LogOps::CREATE_ATTRIBUTE, LogOps::DELETE_ATTRIBUTE, LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::UPDATE_MAPPING_PAIRS, LogOps::SET_NEW_ATTRIBUTE_SIZES, LogOps::COMPENSATION_LOG_RECORD});
 
 int LogRecord::init(char* buffer) {
   data = buffer;
@@ -371,11 +360,11 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
   redo_ops.push_back(rec.redo_op);
   undo_ops.push_back(rec.undo_op);
   //pull data from necessary opcodes to save for transaction runs
-  if(rec.redo_op == 0x15 && rec.undo_op == 0x16) {
+  if(rec.redo_op == LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP && rec.undo_op == LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP) {
     if(rec.redo_length >= 4)
       mft_record_no = hex_to_long(rec.data + 0x30 + rec.redo_offset, 4);
   }
-  else if(rec.redo_op == 0x2 && rec.undo_op == 0x0) {
+  else if(rec.redo_op == LogOps::INITIALIZE_FILE_RECORD_SEGMENT && rec.undo_op == LogOps::NOOP) {
     //parse MFT record from redo op for create time, file name, parent dir
     //need to check for possible second MFT attribute header
     char* start = rec.data + 0x30 + rec.redo_offset;
@@ -418,7 +407,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
       }
     }
   }
-  else if(rec.redo_op == 0x6 && rec.undo_op == 0x5) {
+  else if(rec.redo_op == LogOps::DELETE_ATTRIBUTE && rec.undo_op == LogOps::CREATE_ATTRIBUTE) {
     //get the name before
     //from file attribute with header, undo op
     unsigned long long type_id = hex_to_long(rec.data + 0x30 + rec.undo_offset, 4);
@@ -437,7 +426,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
       }
 
   }
-  else if(rec.redo_op == 0x5 && rec.undo_op == 0x6) {
+  else if(rec.redo_op == LogOps::CREATE_ATTRIBUTE && rec.undo_op == LogOps::DELETE_ATTRIBUTE) {
     //get the name after
     //from file attribute with header, redo op
     //prev_name =
@@ -464,7 +453,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
         break;
     }
   }
-  else if((rec.redo_op == 0xf && rec.undo_op == 0xe) || (rec.redo_op == 0xd && rec.undo_op == 0xc)) {
+  else if((rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ROOT)) {
     if(rec.undo_length > 0x42) {
       // Delete or rename
       // This is a delete. I think.
@@ -483,7 +472,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
     }
 
   }
-  else if ((rec.redo_op == 0x0e && rec.undo_op == 0x0f) || (rec.redo_op == 0x0c && rec.undo_op == 0x0d)) {
+  else if ((rec.redo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::ADD_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ROOT)) {
     // Add index entry root/AddIndexEntryAllocation operation
     // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
     // for additional info about Index Record structure ("The header part")
@@ -517,17 +506,11 @@ void LogData::clearFields() {
   IsNameDirty = true;
 }
 
-std::vector<int> LogData::create_redo, LogData::create_undo;
-std::vector<int> LogData::delete_redo, LogData::delete_undo;
-std::vector<int> LogData::rename_redo, LogData::rename_undo;
-std::vector<int> LogData::write_redo, LogData::write_undo;
-
-
 /*
 Returns whether the given transaction run (redo1, undo1) matches the
 given transaction run pattern. Will attempt to find a matching entry in redo1, undo1 for each entry
 in redo2, undo2 (in the same order)
-if interchange is true then 0xc=0xe and 0xd=0xf
+if interchange is true then ADD_INDEX_ENTRY_ROOT=ADD_INDEX_ENTRY_ALLOCATION and DELETE_INDEX_ENTRY_ROOT=DELETE_INDEX_ENTRY_ALLOCATION
 */
 bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<int>& const_undo1, const std::vector<int>& redo2, const std::vector<int>& undo2, bool interchange) {
   unsigned int j = 0;
@@ -538,10 +521,10 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
     for(; j < redo1.size() && !top; j++) {
 
       if(interchange) {
-        if(redo1[j] == 0xc) redo1[j] = 0xe;
-        if(redo1[j] == 0xd) redo1[j] = 0xf;
-        if(undo1[j] == 0xc) undo1[j] = 0xe;
-        if(undo1[j] == 0xd) undo1[j] = 0xf;
+        if(redo1[j] == LogOps::ADD_INDEX_ENTRY_ROOT)    redo1[j] = LogOps::ADD_INDEX_ENTRY_ALLOCATION;
+        if(redo1[j] == LogOps::DELETE_INDEX_ENTRY_ROOT) redo1[j] = LogOps::DELETE_INDEX_ENTRY_ALLOCATION;
+        if(undo1[j] == LogOps::ADD_INDEX_ENTRY_ROOT)    undo1[j] = LogOps::ADD_INDEX_ENTRY_ALLOCATION;
+        if(undo1[j] == LogOps::DELETE_INDEX_ENTRY_ROOT) undo1[j] = LogOps::DELETE_INDEX_ENTRY_ALLOCATION;
       }
       if(redo2[i] == redo1[j] && undo2[i] == undo1[j])
         top = true;
@@ -553,29 +536,33 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
 }
 
 void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
-  sqlite3_bind_int64(stmt, 1, mft_record_no);
-  sqlite3_bind_int64(stmt, 2, par_mft_record);
-  sqlite3_bind_int64(stmt, 3, prev_par_mft_record);
-  sqlite3_bind_int64(stmt, 4, lsn);
-  sqlite3_bind_text(stmt, 5, timestamp.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 6, name.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 7, prev_name.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, 8, type);
-  sqlite3_bind_int64(stmt, 9, EventSources::LOG);
+  int i = 0;
+  sqlite3_bind_int64(stmt, ++i, mft_record_no);
+  sqlite3_bind_int64(stmt, ++i, par_mft_record);
+  sqlite3_bind_int64(stmt, ++i, prev_par_mft_record);
+  sqlite3_bind_int64(stmt, ++i, lsn);
+  sqlite3_bind_text(stmt , ++i, timestamp.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, name.c_str()         , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, prev_name.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int64(stmt, ++i, type);
+  sqlite3_bind_int64(stmt, ++i, EventSources::LOG);
+
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
 }
 
 void LogRecord::insert(sqlite3_stmt* stmt) {
-  sqlite3_bind_int64(stmt, 1, cur_lsn);
-  sqlite3_bind_int64(stmt, 2, prev_lsn);
-  sqlite3_bind_int64(stmt, 3, undo_lsn);
-  sqlite3_bind_int(stmt, 4, client_id);
-  sqlite3_bind_int(stmt, 5, record_type);
-  sqlite3_bind_text(stmt, 6, decodeLogFileOpCode(redo_op).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 7, decodeLogFileOpCode(undo_op).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt, 8, target_attr);
-  sqlite3_bind_int(stmt, 9, mft_cluster_index);
+  int i = 0;
+  sqlite3_bind_int64(stmt, ++i, cur_lsn);
+  sqlite3_bind_int64(stmt, ++i, prev_lsn);
+  sqlite3_bind_int64(stmt, ++i, undo_lsn);
+  sqlite3_bind_int(stmt  , ++i, client_id);
+  sqlite3_bind_int(stmt  , ++i, record_type);
+  sqlite3_bind_text(stmt , ++i, decodeLogFileOpCode(redo_op).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, decodeLogFileOpCode(undo_op).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int(stmt  , ++i, target_attr);
+  sqlite3_bind_int(stmt  , ++i, mft_cluster_index);
+
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
 }
