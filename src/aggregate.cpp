@@ -106,7 +106,7 @@ void Event::update_records(std::vector<File>& records) {
   switch(Type) {
     case EventTypes::CREATE:
       // A file was created, so to move backwards, delete it
-      records[Record].valid = false;
+      records[Record].Valid = false;
       records[Record] = File();
       break;
     case EventTypes::DELETE:
@@ -114,10 +114,10 @@ void Event::update_records(std::vector<File>& records) {
       records[Record] = File(PreviousName, Record, Parent, Timestamp);
       break;
     case EventTypes::MOVE:
-      records[Record].par_record_no = PreviousParent;
+      records[Record].Parent = PreviousParent;
       break;
     case EventTypes::RENAME:
-      records[Record].name = PreviousName;
+      records[Record].Name = PreviousName;
       break;
   }
   return;

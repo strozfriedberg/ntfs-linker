@@ -301,27 +301,27 @@ int LogRecord::init(char* buffer) {
 }
 
 void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
-  if(lsn == 0) {
-    lsn = rec.cur_lsn;
+  if(Lsn == 0) {
+    Lsn = rec.cur_lsn;
   }
-  redo_ops.push_back(rec.redo_op);
-  undo_ops.push_back(rec.undo_op);
+  RedoOps.push_back(rec.redo_op);
+  UndoOps.push_back(rec.undo_op);
 
   char *redo_data = rec.data + 0x30 + rec.redo_offset;
   char *undo_data = rec.data + 0x30 + rec.undo_offset;
   //pull data from necessary opcodes to save for transaction runs
   if(rec.redo_op == LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP && rec.undo_op == LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP) {
     if(rec.redo_length >= 4)
-      mft_record_no = hex_to_long(redo_data, 4);
+      Record = hex_to_long(redo_data, 4);
   }
   else if(rec.redo_op == LogOps::INITIALIZE_FILE_RECORD_SEGMENT && rec.undo_op == LogOps::NOOP) {
     //parse MFT record from redo op for create time, file name, parent dir
     //need to check for possible second MFT attribute header
     MFTRecord mftRec(redo_data, rec.redo_length);
-    timestamp = filetime_to_iso_8601(mftRec.Sia.Created);
-    par_mft_record = mftRec.Fna.Parent;
-    if (compareNames(name, mftRec.Fna.Name))
-      name = mftRec.Fna.Name;
+    Timestamp = filetime_to_iso_8601(mftRec.Sia.Created);
+    Parent = mftRec.Fna.Parent;
+    if (compareNames(Name, mftRec.Fna.Name))
+      Name = mftRec.Fna.Name;
   }
   else if(rec.redo_op == LogOps::DELETE_ATTRIBUTE && rec.undo_op == LogOps::CREATE_ATTRIBUTE) {
     //get the name before
@@ -330,13 +330,13 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
     unsigned long long content_offset = hex_to_long(undo_data + 0x14, 2);
     if (type_id == 0x30) {
       FNAttribute fna(undo_data + content_offset);
-      prev_par_mft_record = fna.Parent;
-      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-        timestamp = records[prev_par_mft_record].timestamp;
+      PreviousParent = fna.Parent;
+      if(records.size() > PreviousParent && records[PreviousParent].Valid)
+        Timestamp = records[PreviousParent].Timestamp;
       else
-        timestamp = "";
-      if (compareNames(prev_name, fna.Name))
-        prev_name = fna.Name;
+        Timestamp = "";
+      if (compareNames(PreviousName, fna.Name))
+        PreviousName = fna.Name;
     }
   }
   else if(rec.redo_op == LogOps::CREATE_ATTRIBUTE && rec.undo_op == LogOps::DELETE_ATTRIBUTE) {
@@ -348,30 +348,30 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
     unsigned long long content_offset = hex_to_long(redo_data + 0x14, 2);
     if (type_id == 0x30) {
       FNAttribute fna(redo_data + content_offset);
-      par_mft_record = fna.Parent;
+      Parent = fna.Parent;
 
-      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-        timestamp = records[par_mft_record].timestamp;
+      if(records.size() > PreviousParent && records[PreviousParent].Valid)
+        Timestamp = records[Parent].Timestamp;
       else
-        timestamp = "";
+        Timestamp = "";
 
-      if (compareNames(name, fna.Name))
-        name = fna.Name;
+      if (compareNames(Name, fna.Name))
+        Name = fna.Name;
     }
   }
   else if((rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ROOT)) {
     if(rec.undo_length > 0x42) {
       // Delete or rename
       FNAttribute fna(undo_data + 0x10);
-      par_mft_record = fna.Parent;
+      Parent = fna.Parent;
 
-      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-        timestamp = records[prev_par_mft_record].timestamp;
+      if(records.size() > PreviousParent && records[PreviousParent].Valid)
+        Timestamp = records[PreviousParent].Timestamp;
       else
-        timestamp = "";
+        Timestamp = "";
 
-      if (compareNames(name, fna.Name))
-        name = fna.Name;
+      if (compareNames(Name, fna.Name))
+        Name = fna.Name;
     }
 
   }
@@ -380,29 +380,28 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
     // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
     // for additional info about Index Record structure ("The header part")
     if (rec.redo_length > 0x52) {
-      mft_record_no = hex_to_long(redo_data, 6);
-      par_mft_record = hex_to_long(redo_data + 0x10, 6);
-      timestamp = filetime_to_iso_8601(hex_to_long(redo_data + 0x18, 8));
+      Record = hex_to_long(redo_data, 6);
+      Parent = hex_to_long(redo_data + 0x10, 6);
+      Timestamp = filetime_to_iso_8601(hex_to_long(redo_data + 0x18, 8));
 
       unsigned int len = hex_to_long(redo_data + 0x50, 1);
       std::string new_name = mbcatos(redo_data + 0x52, len);
-      if (compareNames(name, new_name))
-        name = new_name;
+      if (compareNames(Name, new_name))
+        Name = new_name;
     }
   }
 }
 
 void LogData::clearFields() {
-  redo_ops.clear();
-  undo_ops.clear();
-  mft_record_no = 0;
-  par_mft_record = 0;
-  prev_par_mft_record = 0;
-  timestamp = "";
-  name_len = 0;
-  lsn = 0;
-  name = "";
-  prev_name = "";
+  RedoOps.clear();
+  UndoOps.clear();
+  Record = 0;
+  Parent = 0;
+  PreviousParent = 0;
+  Timestamp = "";
+  Lsn = 0;
+  Name = "";
+  PreviousName = "";
 }
 
 /*
@@ -411,10 +410,10 @@ given transaction run pattern. Will attempt to find a matching entry in redo1, u
 in redo2, undo2 (in the same order)
 if interchange is true then ADD_INDEX_ENTRY_ROOT=ADD_INDEX_ENTRY_ALLOCATION and DELETE_INDEX_ENTRY_ROOT=DELETE_INDEX_ENTRY_ALLOCATION
 */
-bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<int>& const_undo1, const std::vector<int>& redo2, const std::vector<int>& undo2, bool interchange) {
+bool LogData::transactionRunMatch(const std::vector<int>& redo2, const std::vector<int>& undo2, bool interchange) {
   unsigned int j = 0;
-  std::vector<int> redo1(const_redo1);
-  std::vector<int> undo1(const_undo1);
+  std::vector<int> redo1(RedoOps);
+  std::vector<int> undo1(UndoOps);
   for(unsigned int i = 0; i < redo2.size(); i++) {
     bool top = false;
     for(; j < redo1.size() && !top; j++) {
@@ -436,13 +435,13 @@ bool transactionRunMatch(const std::vector<int>& const_redo1, const std::vector<
 
 void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   int i = 0;
-  sqlite3_bind_int64(stmt, ++i, mft_record_no);
-  sqlite3_bind_int64(stmt, ++i, par_mft_record);
-  sqlite3_bind_int64(stmt, ++i, prev_par_mft_record);
-  sqlite3_bind_int64(stmt, ++i, lsn);
-  sqlite3_bind_text (stmt, ++i, timestamp.c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, name.c_str()         , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, prev_name.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int64(stmt, ++i, Record);
+  sqlite3_bind_int64(stmt, ++i, Parent);
+  sqlite3_bind_int64(stmt, ++i, PreviousParent);
+  sqlite3_bind_int64(stmt, ++i, Lsn);
+  sqlite3_bind_text (stmt, ++i, Timestamp.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Name.c_str()         , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, PreviousName.c_str()    , -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, type);
   sqlite3_bind_int64(stmt, ++i, EventSources::LOG);
 
@@ -483,61 +482,61 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {
 }
 
 bool LogData::isCreateEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, LogData::create_redo, LogData::create_undo);
+  return transactionRunMatch(LogData::createRedo, LogData::createUndo);
 }
 
 bool LogData::isDeleteEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, LogData::delete_redo, LogData::delete_undo);
+  return transactionRunMatch(LogData::deleteRedo, LogData::deleteUndo);
 }
 
 bool LogData::isRenameEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, LogData::rename_redo, LogData::rename_undo) && name != prev_name;
+  return Name != PreviousName && transactionRunMatch(LogData::renameRedo, LogData::renameUndo);
 }
 
 bool LogData::isMoveEvent() {
-  return transactionRunMatch(redo_ops, undo_ops, LogData::rename_redo, LogData::rename_undo) && par_mft_record != prev_par_mft_record;
+  return Parent != PreviousParent && transactionRunMatch(LogData::renameRedo, LogData::renameUndo);
 }
 
 bool LogData::isTransactionOver() {
-  return redo_ops.back() == LogOps::FORGET_TRANSACTION && undo_ops.back() == LogOps::COMPENSATION_LOG_RECORD;
+  return RedoOps.back() == LogOps::FORGET_TRANSACTION && UndoOps.back() == LogOps::COMPENSATION_LOG_RECORD;
 }
 
-const std::vector<int> LogData::create_redo ({LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP,
+const std::vector<int> LogData::createRedo ({LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP,
                                               LogOps::NOOP,
                                               LogOps::ADD_INDEX_ENTRY_ALLOCATION,
                                               LogOps::INITIALIZE_FILE_RECORD_SEGMENT,
                                               LogOps::FORGET_TRANSACTION});
-const std::vector<int> LogData::create_undo ({LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP,
+const std::vector<int> LogData::createUndo ({LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP,
                                               LogOps::DEALLOCATE_FILE_RECORD_SEGMENT,
                                               LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
                                               LogOps::NOOP,
                                               LogOps::COMPENSATION_LOG_RECORD});
-const std::vector<int> LogData::delete_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
+const std::vector<int> LogData::deleteRedo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
                                               LogOps::DEALLOCATE_FILE_RECORD_SEGMENT,
                                               LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP,
                                               LogOps::FORGET_TRANSACTION});
-const std::vector<int> LogData::delete_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION,
+const std::vector<int> LogData::deleteUndo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION,
                                               LogOps::INITIALIZE_FILE_RECORD_SEGMENT,
                                               LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP,
                                               LogOps::COMPENSATION_LOG_RECORD});
-const std::vector<int> LogData::rename_redo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
+const std::vector<int> LogData::renameRedo ({LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
                                               LogOps::DELETE_ATTRIBUTE,
                                               LogOps::CREATE_ATTRIBUTE,
                                               LogOps::ADD_INDEX_ENTRY_ALLOCATION,
                                               LogOps::FORGET_TRANSACTION});
-const std::vector<int> LogData::rename_undo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION,
+const std::vector<int> LogData::renameUndo ({LogOps::ADD_INDEX_ENTRY_ALLOCATION,
                                               LogOps::CREATE_ATTRIBUTE,
                                               LogOps::DELETE_ATTRIBUTE,
                                               LogOps::DELETE_INDEX_ENTRY_ALLOCATION,
                                               LogOps::COMPENSATION_LOG_RECORD});
-const std::vector<int> LogData::write_redo  ({LogOps::DELETE_ATTRIBUTE,
+const std::vector<int> LogData::writeRedo  ({LogOps::DELETE_ATTRIBUTE,
                                               LogOps::CREATE_ATTRIBUTE,
                                               LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP,
                                               LogOps::SET_NEW_ATTRIBUTE_SIZES,
                                               LogOps::UPDATE_MAPPING_PAIRS,
                                               LogOps::SET_NEW_ATTRIBUTE_SIZES,
                                               LogOps::FORGET_TRANSACTION});
-const std::vector<int> LogData::write_undo  ({LogOps::CREATE_ATTRIBUTE,
+const std::vector<int> LogData::writeUndo  ({LogOps::CREATE_ATTRIBUTE,
                                               LogOps::DELETE_ATTRIBUTE,
                                               LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP,
                                               LogOps::SET_NEW_ATTRIBUTE_SIZES,

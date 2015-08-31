@@ -135,18 +135,18 @@ void mem_dump(char* buffer, int length, std::ostream& output) {
 Uses the map of file records to construct the full file path.
 If a file record is not present in the map then the empty stry "" is returned
 */
-std::string getFullPath(const std::vector<File>& records, unsigned int recordNo, std::vector<unsigned int>& stack) {
+std::string getFullPath(const std::vector<File>& records, unsigned int record, std::vector<unsigned int>& stack) {
   std::stringstream ss;
-  if (recordNo >= records.size() || ! records[recordNo].valid)
+  if (record >= records.size() || !records[record].Valid)
     return "";
-  if (std::find(stack.begin(), stack.end(), recordNo) != stack.end())
+  if (std::find(stack.begin(), stack.end(), record) != stack.end())
     return "CYCLICAL_HARD_LINK";
-  File record = records[recordNo];
-  if(recordNo == record.par_record_no)
-    return record.name;
-  stack.push_back(recordNo);
-  ss << getFullPath(records, record.par_record_no, stack);
-  ss << "\\" << record.name;
+  File file(records[record]);
+  if(record == file.Record)
+    return file.Name;
+  stack.push_back(record);
+  ss << getFullPath(records, file.Parent, stack);
+  ss << "\\" << file.Name;
   return ss.str();
 }
 
