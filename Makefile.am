@@ -11,7 +11,8 @@ src_ntfs_linker_SOURCES = \
 	src/mft.cpp \
 	src/ntfs_linker.cpp \
 	src/progress.cpp \
-	src/usn.cpp
+	src/usn.cpp \
+	src/sqlite_helper.cpp
 
 src_ntfs_linker_LDADD = $(SQLITE_LIBS)
 

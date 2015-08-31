@@ -4,6 +4,8 @@
 #include "helper_functions.h"
 #include "mft.h"
 #include "progress.h"
+#include "sqlite_helper.h"
+#include "usn.h"
 
 /*
 Decodes the LogFile Op code
@@ -54,7 +56,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std::ostream& output) {
+void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
   unsigned int buffer_size = 4096;
   char* buffer = new char[buffer_size];
   bool split_record = false;
@@ -62,7 +64,6 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   bool parseError = true;
   int records_processed = 3;
   int adjust = 0;
-  int rc = 0;
 
   /*Skip past the junk at the beginning of the file
   The first two pages (0x0000 - 0x2000) are restart pages
@@ -78,11 +79,6 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
 
   LogData transactions;
   transactions.clearFields();
-  std::string log_sql = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string events_sql  = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  sqlite3_stmt *log_stmt, *events_stmt;
-  rc &= sqlite3_prepare_v2(db, log_sql.c_str(), log_sql.length() + 1, &log_stmt, NULL);
-  rc &= sqlite3_prepare_v2(db, events_sql.c_str(), events_sql.length() + 1, &events_stmt, NULL);
 
   //scan through the $LogFile one  page at a time. Each record is 4096 bytes.
   while(!input.eof() && !done) {
@@ -128,21 +124,21 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       }
 
       output << rec;
-      rec.insert(log_stmt);
+      rec.insert(sqliteHelper.LogInsert);
 
-      transactions.processLogRecord(rec, records);
+      transactions.processLogRecord(rec, records, sqliteHelper);
       if(transactions.isTransactionOver()) {
         if(transactions.isCreateEvent()) {
-          transactions.insertEvent(EventTypes::CREATE, events_stmt);
+          transactions.insertEvent(EventTypes::CREATE, sqliteHelper.EventInsert);
         }
         if(transactions.isDeleteEvent()) {
-          transactions.insertEvent(EventTypes::DELETE, events_stmt);
+          transactions.insertEvent(EventTypes::DELETE, sqliteHelper.EventInsert);
         }
         if(transactions.isRenameEvent()) {
-          transactions.insertEvent(EventTypes::RENAME, events_stmt);
+          transactions.insertEvent(EventTypes::RENAME, sqliteHelper.EventInsert);
         }
         if(transactions.isMoveEvent()) {
-          transactions.insertEvent(EventTypes::MOVE, events_stmt);
+          transactions.insertEvent(EventTypes::MOVE, sqliteHelper.EventInsert);
         }
         transactions.clearFields();
       }
@@ -223,10 +219,7 @@ void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input, std:
     }
 
   }
-//  rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, 0);
   status.finish();
-  sqlite3_finalize(log_stmt);
-  sqlite3_finalize(events_stmt);
   delete [] buffer;
 }
 
@@ -300,7 +293,7 @@ int LogRecord::init(char* buffer) {
 
 }
 
-void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
+void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLiteHelper& sqliteHelper) {
   if(Lsn == 0) {
     Lsn = rec.cur_lsn;
   }
@@ -389,6 +382,13 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
       if (compareNames(Name, new_name))
         Name = new_name;
     }
+  }
+  else if (rec.redo_op == LogOps::UPDATE_NONRESIDENT_VALUE && rec.undo_op == LogOps::NOOP) {
+    // Embedded $UsnJrnl/$J record
+    UsnRecord usnRecord(redo_data, rec.redo_length);
+    usnRecord.insert(sqliteHelper.UsnInsert, records);
+    usnRecord.checkTypeAndInsert(sqliteHelper.EventInsert);
+
   }
 }
 

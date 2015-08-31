@@ -2,6 +2,7 @@
 #include "mft.h"
 #include "file.h"
 #include "progress.h"
+#include "sqlite_helper.h"
 
 std::string getMFTColumnHeaders() {
   return "Logical Sequence Number\tMFT_Record_No\tupdate_sequence_no\tfile_name\tisDir\tisAllocated" \
@@ -106,7 +107,7 @@ std::string MFTRecord::toString(std::vector<File>& records) {
   return ss.str();
 }
 
-void parseMFT(std::vector<File>& records, sqlite3* db, std::istream& input, std::ostream& output, const bool initRecords) {
+void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const bool initRecords) {
   if(sizeof(long long) < 8) {
     std::cerr << "64-bit arithmetic not available. This won't work." << std::endl;
     exit(1);
@@ -116,19 +117,6 @@ void parseMFT(std::vector<File>& records, sqlite3* db, std::istream& input, std:
   bool done = false;
   int records_processed = 0;
 
-  sqlite3_stmt* stmt;
-  if (!initRecords) {
-    //prepare the SQL statement
-    int rc = 0;
-    std::string sql = "insert into mft values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-    rc = sqlite3_prepare_v2(db, sql.c_str(), sql.length() + 1, &stmt, NULL);
-    if (rc) {
-      std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-      std::cerr << sqlite3_errmsg(db) << std::endl;
-      sqlite3_close(db);
-      exit(2);
-    }
-  }
   input.seekg(0, std::ios::end);
   unsigned long long end = input.tellg();
   input.seekg(0, std::ios::beg);
@@ -146,14 +134,12 @@ void parseMFT(std::vector<File>& records, sqlite3* db, std::istream& input, std:
       records[record.Record] = record.asFile();
     }
     else {
-      record.insert(stmt, records);
+      record.insert(sqliteHelper.MftInsert, records);
       output << record.toString(records);
     }
   }
 
   status.finish();
-  if (!initRecords)
-    sqlite3_finalize(stmt);
 }
 
 void MFTRecord::insert(sqlite3_stmt* stmt, std::vector<File>& records) {

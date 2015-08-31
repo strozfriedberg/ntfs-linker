@@ -1,4 +1,6 @@
 #include "file.h"
+#include "sqlite_helper.h"
+
 #include <sqlite3.h>
 #include <map>
 #include <iostream>
@@ -7,7 +9,7 @@
 
 std::string getUSNColumnHeaders();
 
-void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input = std::cin, std::ostream& output = std::cout);
 
 class UsnRecord {
 public:

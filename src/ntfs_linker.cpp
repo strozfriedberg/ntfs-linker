@@ -6,77 +6,6 @@
 #include "aggregate.h"
 
 #include <sqlite3.h>
-#include <locale>
-
-int busyHandler(__attribute__((unused)) void* foo, __attribute__((unused)) int num) {
-  char input;
-  std::cerr << "Database is busy. Cannot commit transaction." << std::endl;
-  std::cerr << "Close any application which may have a lock on the database." << std::endl;
-  std::cerr << "Try again? (y/n): ";
-  std::cin >> input;
-  if(input == 'y' || input == 'Y')
-    return 1;
-  else
-    exit(0);
-
-}
-
-sqlite3* initDBTables(std::string dbName, bool overwrite) {
-  sqlite3* db;
-  int rc = 0;
-
-  /*
-  vacuum cleaning the db file doesn't seem to work
-  Instead, I'll open the file for writing, then close it
-  so that the file is truncated
-  */
-  if(overwrite) {
-    std::ofstream file(dbName.c_str(), std::ios::trunc);
-    file.close();
-  }
-  rc = sqlite3_open_v2(dbName.c_str(), &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
-  if(rc) {
-    std::cerr << "Error opening database" << std::endl;
-    exit(1);
-  }
-
-  sqlite3_busy_handler(db, &busyHandler, 0);
-  rc = sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
-  if(rc) {
-    std::cerr << "Error opening database" << std::endl;
-    std::cerr << sqlite3_errmsg(db) << std::endl;
-    exit(1);
-  }
-
-  if(overwrite) {
-    rc &= sqlite3_exec(db, "drop table if exists mft;", 0, 0, 0);
-    rc &= sqlite3_exec(db, "drop table if exists logfile;", 0, 0, 0);
-    rc &= sqlite3_exec(db, "drop table if exists usnjrnl;", 0, 0, 0);
-    rc &= sqlite3_exec(db, "drop table if exists events;", 0, 0, 0);
-  }
-  rc &= sqlite3_exec(db, "create table if not exists mft (LSN int, MFTRecNo int, ParMFTRecNo int, USN int, FileName text, isDir int, isAllocated int" \
-    ", sia_created text, sia_modified text, sia_mft_modified text, sia_accessed text, fna_created text, fna_modified text" \
-    ",fna_mft_modified text, fna_accessed text, logical_size text, physical_size text);", 0, 0, 0);
-  rc &= sqlite3_exec(db, "create table if not exists log (CurrentLSN int, PrevLSN int, UndoLSN int, ClientID int, RecordType int, RedoOP text" \
-    ", UndoOP text, TargetAttribute int, MFTClusterIndex int);", 0, 0, 0);
-  rc &= sqlite3_exec(db, "create table if not exists usn (MFTRecNo int, ParRecNo int, USN int, Timestamp text, Reason text, FileName text, PossiblePath text" \
-    ", PossibleParPath text);", 0, 0, 0);
-  rc &= sqlite3_exec(db, "create table if not exists events" \
-      "(MFTRecNo int, ParRecNo int, PreviousParRecNo int, USN_LSN int, Timestamp text, FileName text, PreviousFileName text" \
-      ", EventType int, EventSource int);", 0, 0, 0);
-  return db;
-
-}
-
-void commit(sqlite3* db) {
-  int rc = sqlite3_exec(db, "END TRANSACTION", 0, 0, 0);
-  if(rc) {
-    std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-    std::cerr << sqlite3_errmsg(db) << std::endl;
-    sqlite3_close(db);
-    exit(2);
-  }
-}
 
 int main(int argc, char** argv) {
   std::vector<File> records;
@@ -91,7 +20,6 @@ int main(int argc, char** argv) {
   }
   if(cmdOptionExists(argv, argv+argc, "-h")) {
     std::cout << argv[0] << " Version: " << VERSION << ": Usage" << std::endl;
-    std::cout << "Sorry, no fancy man page for this yet." << std::endl;
     std::cout << "The following options apply to input files:" << std::endl;
     std::cout << "\t1. {no options}" << std::endl;
     std::cout << "\t\tUse current folder to look for files named $MFT, $LogFile, $J" << std::endl;
@@ -136,14 +64,6 @@ int main(int argc, char** argv) {
     i_mft.open(ss_mft.str().c_str(), std::ios::binary);
     i_usnjrnl.open(ss_usn.str().c_str(), std::ios::binary);
     i_logfile.open(ss_log.str().c_str(), std::ios::binary);
-
-//    if(!i_usnjrnl) {
-//      ss_usn.str("");
-//      ss_usn << dir << sep << "$USNJR~1";
-//      i_usnjrnl.open(ss_usn.str().c_str(), std::ios::binary);
-//    }
-
-
   } else if(cmdOptionExists(argv, argv+argc, "-m")) {
     i_mft.open(getCmdOption(argv, argv+argc, "-m"), std::ios::binary);
     i_usnjrnl.open(getCmdOption(argv, argv+argc, "-u"), std::ios::binary);
@@ -210,11 +130,10 @@ int main(int argc, char** argv) {
 
   //Set up db connection
   std::cout << "Setting up DB Connection..." << std::endl;
-  sqlite3* db;
-  db = initDBTables(dbName, overwrite);
+  SQLiteHelper sqliteHelper(dbName, overwrite);
 
   std::cout << "Creating MFT Map..." << std::endl;
-  parseMFT(records, db, i_mft, o_mft, true);
+  parseMFT(records, sqliteHelper, i_mft, o_mft, true);
 
   i_mft.clear();
   i_mft.seekg(0);
@@ -236,14 +155,14 @@ int main(int argc, char** argv) {
            << std::endl;
 
   std::cout << "Parsing USNJrnl..." << std::endl;
-  parseUSN(records, db, i_usnjrnl, o_usnjrnl);
+  parseUSN(records, sqliteHelper, i_usnjrnl, o_usnjrnl);
   std::cout << "Parsing LogFile..." << std::endl;
-  parseLog(records, db, i_logfile, o_logfile);
-  commit(db);
+  parseLog(records, sqliteHelper, i_logfile, o_logfile);
+  sqliteHelper.commit();
 
   std::cout << "Generating unified events output..." << std::endl;
-  outputEvents(records, db, o_events);
+  outputEvents(records, sqliteHelper, o_events);
 
-  sqlite3_close(db);
+  sqliteHelper.close();
   std::cout << "Process complete." << std::endl;
 }

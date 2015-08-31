@@ -76,7 +76,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input, std::ostream& output) {
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
   if (sizeof(long long) < 8) {
     std::cerr << "64-bit arithmetic not available. This won't work. Exiting." << std::endl;
     exit(1);
@@ -91,20 +91,6 @@ void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input
   ProgressBar status(end - start);
 
   UsnRecord prevRec;
-  int rc;
-  std::string usn_sql = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string events_sql = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  sqlite3_stmt *usn_stmt, *events_stmt;
-  rc = 0;
-  rc &= sqlite3_prepare_v2(db, usn_sql.c_str(), usn_sql.length() + 1, &usn_stmt, NULL);
-  rc &= sqlite3_prepare_v2(db, events_sql.c_str(), events_sql.length() + 1, &events_stmt, NULL);
-  if (rc) {
-    std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-    std::cerr << sqlite3_errmsg(db) << std::endl;
-    sqlite3_close(db);
-    exit(2);
-  }
-
   output << getUSNColumnHeaders();
 
   unsigned int offset = 0;
@@ -139,10 +125,10 @@ void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input
 
     UsnRecord rec(buffer + offset);
     output << rec.toString(records);
-    rec.insert(usn_stmt, records);
+    rec.insert(sqliteHelper.UsnInsert, records);
 
     if (prevRec.Record != rec.Record || prevRec.Reason & UsnReasons::CLOSE) {
-      prevRec.checkTypeAndInsert(events_stmt);
+      prevRec.checkTypeAndInsert(sqliteHelper.EventInsert);
       prevRec.clearFields();
     }
     if (prevRec.Usn == 0)
@@ -153,8 +139,6 @@ void parseUSN(const std::vector<File>& records, sqlite3* db, std::istream& input
     offset += record_length;
   }
   status.finish();
-  sqlite3_finalize(usn_stmt);
-  sqlite3_finalize(events_stmt);
 }
 
 void UsnRecord::update(UsnRecord rec) {

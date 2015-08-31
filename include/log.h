@@ -1,6 +1,8 @@
-#include "helper_functions.h"
-#include <sqlite3.h>
 #include "file.h"
+#include "helper_functions.h"
+#include "sqlite_helper.h"
+
+#include <sqlite3.h>
 #include <iostream>
 #include <vector>
 
@@ -14,8 +16,7 @@ std::string decodeLogFileOpCode(int op);
 Parses the $LogFile stream input
 Writes output to designated streams
 */
-void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input = std::cin, std::ostream& output = std::cout);
-//void parseLog(std::vector<File>& records, sqlite3* db, std::istream& input);
+void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input = std::cin, std::ostream& output = std::cout);
 
 class LogRecord {
 public:
@@ -39,7 +40,7 @@ public:
   std::vector<int> RedoOps, UndoOps;
 
   void clearFields();
-  void processLogRecord(LogRecord& rec, std::vector<File>& records);
+  void processLogRecord(LogRecord& rec, std::vector<File>& records, SQLiteHelper& sqliteHelper);
   std::string pickName(std::string a, std::string b);
   std::string toCreateString(std::vector<File>& records);
   std::string toDeleteString(std::vector<File>& records);

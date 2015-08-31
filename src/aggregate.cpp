@@ -1,6 +1,7 @@
 #include "file.h"
 #include "helper_functions.h"
 #include "aggregate.h"
+#include "sqlite_helper.h"
 
 #include <fstream>
 #include <vector>
@@ -10,54 +11,40 @@
 
 #include <sqlite3.h>
 
-void prepare_statement(sqlite3 *db, sqlite3_stmt **stmt) {
-  std::string sql = "select * from events where EventSource=? order by USN_LSN desc";
-  sqlite3_prepare_v2(db, sql.c_str(), sql.length() + 1, stmt, NULL);
-}
-
-void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& out) {
-  sqlite3_stmt *usn_stmt, *log_stmt;
-  prepare_statement(db, &usn_stmt);
-  sqlite3_bind_int64(usn_stmt, 1, EventSources::USN);
-  prepare_statement(db, &log_stmt);
-  sqlite3_bind_int64(log_stmt, 1, EventSources::LOG);
-
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out) {
   int u;
   Event usn_event;
 
-  u = sqlite3_step(usn_stmt);
+  u = sqlite3_step(sqliteHelper.EventUsnSelect);
 
   // Output log events until the log event is a create, so we can compare timestamps properly.
-  EventLNIS log(log_stmt, EventTypes::CREATE);
+  EventLNIS log(sqliteHelper.EventLogSelect, EventTypes::CREATE);
   log.advance(records, out, false);
 
   while (u == SQLITE_ROW && log.hasMore()) {
-    usn_event.init(usn_stmt);
+    usn_event.init(sqliteHelper.EventUsnSelect);
 
     if (usn_event.Timestamp > log.getTimestamp()) {
       usn_event.isAnchor = true;
       usn_event.write(out, records);
       usn_event.update_records(records);
-      u = sqlite3_step(usn_stmt);
+      u = sqlite3_step(sqliteHelper.EventUsnSelect);
     } else {
       log.advance(records, out, true);
     }
   }
 
   while (u == SQLITE_ROW) {
-    usn_event.init(usn_stmt);
+    usn_event.init(sqliteHelper.EventUsnSelect);
     usn_event.isAnchor = true;
     usn_event.write(out, records);
     usn_event.update_records(records);
-    u = sqlite3_step(usn_stmt);
+    u = sqlite3_step(sqliteHelper.EventUsnSelect);
   }
 
   while(log.hasMore())
     log.advance(records, out, true);
 
-
-  sqlite3_finalize(usn_stmt);
-  sqlite3_finalize(log_stmt);
   return;
 }
 

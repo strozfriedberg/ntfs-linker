@@ -1,11 +1,13 @@
-#include <sqlite3.h>
 #include "file.h"
 #include "helper_functions.h"
+#include "sqlite_helper.h"
 
 #include <fstream>
+#include <sqlite3.h>
 #include <map>
 #include <vector>
 #include <list>
+#pragma once
 
 class Event {
 public:
@@ -40,7 +42,7 @@ public:
   bool Started;
 };
 
-void outputEvents(std::vector<File>& records, sqlite3* db, std::ofstream& o_events);
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events);
 
 template<typename T>
 std::list<int> computeLNIS(std::vector<T>& elements, std::vector<int>& hits) {
