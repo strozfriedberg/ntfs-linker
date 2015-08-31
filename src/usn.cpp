@@ -155,7 +155,7 @@ void UsnRecord::update(UsnRecord rec) {
     }
 }
 
-UsnRecord::UsnRecord(const char* buffer, int len) {
+UsnRecord::UsnRecord(const char* buffer, int len, bool isEmbedded) : IsEmbedded(isEmbedded) {
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
     PreviousParent                   = 0;
@@ -194,6 +194,7 @@ void UsnRecord::clearFields() {
 }
 
 UsnRecord::UsnRecord() {
+  IsEmbedded = false;
   clearFields();
 }
 
@@ -219,7 +220,7 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text(stmt , 6, Name.c_str()        , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt , 7, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, 8, type);
-  sqlite3_bind_int64(stmt, 9, EventSources::USN);
+  sqlite3_bind_int64(stmt, 9, IsEmbedded ? EventSources::USN_EMBEDDED : EventSources::USN);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

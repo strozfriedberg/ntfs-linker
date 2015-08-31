@@ -225,8 +225,12 @@ std::ostream& operator<<(std::ostream& out, EventSources e) {
   switch(e) {
     case EventSources::USN:
       return out << "$UsnJrnl/$J";
-    default:
+    case EventSources::LOG:
       return out << "$LogFile";
+    case EventSources::USN_EMBEDDED:
+      return out << "Embedded $UsnJrnl/$J";
+    default:
+      return out << "N/A";
   }
 }
 

@@ -139,7 +139,8 @@ int main(int argc, char** argv) {
   i_mft.seekg(0);
 
   //print column headers
-  o_events << "MFTRecNo\t"
+  o_events << "Order\t"
+           << "MFTRecNo\t"
            << "ParRecNo\t"
            << "PreviousParRecNo\t"
            << "USN_LSN\t"

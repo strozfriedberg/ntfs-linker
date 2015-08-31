@@ -19,31 +19,32 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
 
   // Output log events until the log event is a create, so we can compare timestamps properly.
   EventLNIS log(sqliteHelper.EventLogSelect, EventTypes::CREATE);
-  log.advance(records, out, false);
+  int order = 0;
+  order = log.advance(order, records, out, false);
 
   while (u == SQLITE_ROW && log.hasMore()) {
     usn_event.init(sqliteHelper.EventUsnSelect);
 
     if (usn_event.Timestamp > log.getTimestamp()) {
       usn_event.isAnchor = true;
-      usn_event.write(out, records);
-      usn_event.update_records(records);
+      usn_event.write(++order, out, records);
+      usn_event.updateRecords(records);
       u = sqlite3_step(sqliteHelper.EventUsnSelect);
     } else {
-      log.advance(records, out, true);
+      order = log.advance(order, records, out, true);
     }
   }
 
   while (u == SQLITE_ROW) {
     usn_event.init(sqliteHelper.EventUsnSelect);
     usn_event.isAnchor = true;
-    usn_event.write(out, records);
-    usn_event.update_records(records);
+    usn_event.write(++order, out, records);
+    usn_event.updateRecords(records);
     u = sqlite3_step(sqliteHelper.EventUsnSelect);
   }
 
   while(log.hasMore())
-    log.advance(records, out, true);
+    order = log.advance(order, records, out, true);
 
   return;
 }
@@ -72,23 +73,24 @@ Event::Event() {
   Timestamp = Name = PreviousName = "";
 }
 
-void Event::write(std::ostream& out, std::vector<File>& records) {
-  out << Record << "\t"
-      << Parent << "\t"
-      << PreviousParent << "\t"
-      << UsnLsn << "\t"
-      << Timestamp << "\t"
-      << Name << "\t"
-      << PreviousName << "\t"
-      << getFullPath(records, Record) << "\t"
-      << getFullPath(records, Parent) << "\t"
+void Event::write(int order, std::ostream& out, std::vector<File>& records) {
+  out << order                                                             << "\t"
+      << Record                                                            << "\t"
+      << Parent                                                            << "\t"
+      << PreviousParent                                                    << "\t"
+      << UsnLsn                                                            << "\t"
+      << Timestamp                                                         << "\t"
+      << Name                                                              << "\t"
+      << PreviousName                                                      << "\t"
+      << getFullPath(records, Record)                                      << "\t"
+      << getFullPath(records, Parent)                                      << "\t"
       << (PreviousParent == 0 ? "" : getFullPath(records, PreviousParent)) << "\t"
-      << static_cast<EventTypes>(Type) << "\t"
-      << static_cast<EventSources>(Source) << "\t"
-      << isAnchor << std::endl;
+      << static_cast<EventTypes>(Type)                                     << "\t"
+      << static_cast<EventSources>(Source)                                 << "\t"
+      << isAnchor                                                          << std::endl;
 }
 
-void Event::update_records(std::vector<File>& records) {
+void Event::updateRecords(std::vector<File>& records) {
   std::vector<File>::iterator it;
   switch(Type) {
     case EventTypes::CREATE:
@@ -110,7 +112,7 @@ void Event::update_records(std::vector<File>& records) {
   return;
 }
 
-void EventLNIS::advance(std::vector<File>& records, std::ofstream& out, bool update) {
+int EventLNIS::advance(int order, std::vector<File>& records, std::ofstream& out, bool update) {
   int start, end;
   if (Started) {
     start = *cursor;
@@ -132,10 +134,11 @@ void EventLNIS::advance(std::vector<File>& records, std::ofstream& out, bool upd
   }
 
   for(int i = start; i < end; ++i) {
-    Events[i].write(out, records);
+    Events[i].write(++order, out, records);
     if (update)
-      Events[i].update_records(records);
+      Events[i].updateRecords(records);
   }
+  return order;
 }
 
 EventLNIS::EventLNIS(sqlite3_stmt* stmt, EventTypes type) : Started(false) {

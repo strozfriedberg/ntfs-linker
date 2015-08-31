@@ -14,7 +14,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
 class UsnRecord {
 public:
   UsnRecord();
-  UsnRecord(const char* buffer, int len = -1);
+  UsnRecord(const char* buffer, int len = -1, bool isEmbedded=false);
 
   std::string getReasonString();
   std::string toCreateString(const  std::vector<File> &records);
@@ -32,6 +32,7 @@ public:
 
   unsigned long long Reference, Record, ParentReference, Parent, PreviousParent, Usn;
   unsigned int Reason;
+  bool IsEmbedded;
   std::string Name, PreviousName, Timestamp;
 };
 

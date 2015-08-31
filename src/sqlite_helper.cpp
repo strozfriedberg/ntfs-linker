@@ -87,16 +87,18 @@ void SQLiteHelper::prepareStatements() {
   std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?);";
   std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string eventInsert = "insert into events values (?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventSelect = "select * from events where EventSource=? order by USN_LSN desc";
+  std::string eventLogSelect = "select * from events where EventSource=? order by USN_LSN desc";
+  std::string eventUsnSelect = "select * from events where EventSource=? or EventSource=? order by USN_LSN desc";
 
   rc |= prepareStatement(&MftInsert, mftInsert);
   rc |= prepareStatement(&UsnInsert, usnInsert);
   rc |= prepareStatement(&LogInsert, logInsert);
   rc |= prepareStatement(&EventInsert, eventInsert);
-  rc |= prepareStatement(&EventUsnSelect, eventSelect);
-  rc |= prepareStatement(&EventLogSelect, eventSelect);
+  rc |= prepareStatement(&EventUsnSelect, eventUsnSelect);
+  rc |= prepareStatement(&EventLogSelect, eventLogSelect);
 
   sqlite3_bind_int64(EventUsnSelect, 1, EventSources::USN);
+  sqlite3_bind_int64(EventUsnSelect, 2, EventSources::USN_EMBEDDED);
   sqlite3_bind_int64(EventLogSelect, 1, EventSources::LOG);
 
   if (rc) {

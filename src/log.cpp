@@ -385,7 +385,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
   }
   else if (rec.redo_op == LogOps::UPDATE_NONRESIDENT_VALUE && rec.undo_op == LogOps::NOOP) {
     // Embedded $UsnJrnl/$J record
-    UsnRecord usnRecord(redo_data, rec.redo_length);
+    UsnRecord usnRecord(redo_data, rec.redo_length, true);
     usnRecord.insert(sqliteHelper.UsnInsert, records);
     usnRecord.checkTypeAndInsert(sqliteHelper.EventInsert);
 

@@ -13,8 +13,8 @@ class Event {
 public:
   Event();
   void init(sqlite3_stmt* stmt);
-  void write(std::ostream& out, std::vector<File>& records);
-  void update_records(std::vector<File>& records);
+  void write(int order, std::ostream& out, std::vector<File>& records);
+  void updateRecords(std::vector<File>& records);
 
   unsigned long long Record, Parent, PreviousParent, UsnLsn, Type, Source;
   std::string Timestamp, Name, PreviousName;
@@ -30,7 +30,7 @@ class EventLNIS {
 public:
   EventLNIS(sqlite3_stmt* stmt, EventTypes type);
   void readEvents(sqlite3_stmt* stmt, EventTypes type);
-  void advance(std::vector<File>& records, std::ofstream& out, bool update);
+  int advance(int order, std::vector<File>& records, std::ofstream& out, bool update);
   bool hasMore();
   std::string getTimestamp();
 

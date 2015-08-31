@@ -48,7 +48,8 @@ void prep_ofstream(std::ofstream& out, const char* name, bool overwrite);
 
 enum EventSources: unsigned int {
   USN = 0,
-  LOG = 1
+  LOG = 1,
+  USN_EMBEDDED = 2
 };
 
 enum EventTypes: unsigned int {
