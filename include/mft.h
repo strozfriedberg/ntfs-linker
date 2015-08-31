@@ -38,7 +38,6 @@ public:
   unsigned long long Created, Modified, MFTModified, Accessed;
   unsigned long long LogicalSize, PhysicalSize;
   std::string Name;
-private:
   unsigned int countAscii();
   bool Valid;
 };
@@ -47,18 +46,18 @@ bool operator<(FNAttribute a, FNAttribute b);
 
 class MFTRecord {
 public:
-  MFTRecord(char* buffer);
+  MFTRecord(char* buffer, unsigned int len=1024);
   std::string toString(std::vector<File>& records);
   void insert(sqlite3_stmt* stmt, std::vector<File>& records);
   File asFile();
 
   unsigned int Record;
-
-private:
-  unsigned long long Lsn;
-  bool isDir, isAllocated;
   SIAttribute Sia;
 
   // There may be multiple, but we'll pick just one.
   FNAttribute Fna;
+
+private:
+  unsigned long long Lsn;
+  bool isDir, isAllocated;
 };

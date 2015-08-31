@@ -50,14 +50,6 @@ std::string decodeLogFileOpCode(int op) {
   }
 }
 
-bool isUTF16leNonAscii(char* arr, unsigned long long len) {
-  for (unsigned int i = 0; i < len; i++) {
-    if (arr[2*i + 1] != 0)
-      return true;
-  }
-  return false;
-}
-
 /*
 Parses the $LogFile
 outputs to the various streams
@@ -325,64 +317,27 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
   else if(rec.redo_op == LogOps::INITIALIZE_FILE_RECORD_SEGMENT && rec.undo_op == LogOps::NOOP) {
     //parse MFT record from redo op for create time, file name, parent dir
     //need to check for possible second MFT attribute header
-    char* start = redo_data;
-
-    //check if record begins with FILE, otherwise, invalid record
-    if(hex_to_long(start, 4) == 0x454C4946) {
-
-      unsigned long long mft_offset = hex_to_long(start+0x14, 2);
-
-      //parse through each attribute
-      while(mft_offset + 0x18 <= rec.redo_length) {
-
-        unsigned long long type_id = hex_to_long(start + mft_offset, 4);
-        //unsigned long long form_code = hex_to_long(start + mft_offset + 8, 1);
-        unsigned long long attribute_length = hex_to_long(start + mft_offset+4, 4);
-        unsigned long long content_offset = hex_to_long(start + mft_offset + 0x14, 2);
-        unsigned int len;
-
-        switch(type_id) {
-          case 0x10:
-            timestamp = filetime_to_iso_8601(hex_to_long(start + mft_offset + content_offset + 0x0, 8));
-            break;
-          case 0x30:
-            par_mft_record = hex_to_long(start + mft_offset + content_offset, 6);
-            len = hex_to_long(start + mft_offset+content_offset+0x40, 1);
-            bool newNameDirty = isUTF16leNonAscii(start + mft_offset + content_offset + 0x42, len);
-            if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-              name_len = len;
-              name = mbcatos(start + mft_offset + content_offset+0x42, name_len);
-              IsNameDirty = newNameDirty;
-            }
-            break;
-        }
-
-        //check for valid attribute length value
-        if(attribute_length > 0 && attribute_length < 1024)
-          mft_offset += attribute_length;
-        else
-          break;
-      }
-    }
+    MFTRecord mftRec(redo_data, rec.redo_length);
+    timestamp = filetime_to_iso_8601(mftRec.Sia.Created);
+    par_mft_record = mftRec.Fna.Parent;
+    if (compareNames(name, mftRec.Fna.Name))
+      name = mftRec.Fna.Name;
   }
   else if(rec.redo_op == LogOps::DELETE_ATTRIBUTE && rec.undo_op == LogOps::CREATE_ATTRIBUTE) {
     //get the name before
     //from file attribute with header, undo op
     unsigned long long type_id = hex_to_long(undo_data, 4);
-    //unsigned long long form_code = hex_to_long(undo_data + 8 + 8, 1);
     unsigned long long content_offset = hex_to_long(undo_data + 0x14, 2);
-    switch(type_id) {
-      case 0x30:
-        prev_par_mft_record = hex_to_long(undo_data + content_offset, 6);
-          if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-            timestamp = records[prev_par_mft_record].timestamp;
-          else
-            timestamp = "";
-          name_len = hex_to_long(undo_data + content_offset+0x40, 1);
-          prev_name = mbcatos(undo_data + content_offset+0x42, name_len);
-        break;
-      }
-
+    if (type_id == 0x30) {
+      FNAttribute fna(undo_data + content_offset);
+      prev_par_mft_record = fna.Parent;
+      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+        timestamp = records[prev_par_mft_record].timestamp;
+      else
+        timestamp = "";
+      if (compareNames(prev_name, fna.Name))
+        prev_name = fna.Name;
+    }
   }
   else if(rec.redo_op == LogOps::CREATE_ATTRIBUTE && rec.undo_op == LogOps::DELETE_ATTRIBUTE) {
     //get the name after
@@ -390,42 +345,33 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
     //prev_name =
 
     unsigned long long type_id = hex_to_long(redo_data, 4);
-    //unsigned long long form_code = hex_to_long(redo_data + 8 + 8, 1);
     unsigned long long content_offset = hex_to_long(redo_data + 0x14, 2);
-    switch(type_id) {
-      case 0x30:
-        par_mft_record = hex_to_long(redo_data + content_offset, 6);
+    if (type_id == 0x30) {
+      FNAttribute fna(redo_data + content_offset);
+      par_mft_record = fna.Parent;
 
-        if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
-          timestamp = records[par_mft_record].timestamp;
-        else
-          timestamp = "";
+      if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
+        timestamp = records[par_mft_record].timestamp;
+      else
+        timestamp = "";
 
-        unsigned int len = hex_to_long(redo_data + content_offset+0x40, 1);
-        bool newNameDirty = isUTF16leNonAscii(redo_data + content_offset+0x42, len);
-        if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-          name_len = len;
-          name = mbcatos(redo_data + content_offset+0x42, name_len);
-          IsNameDirty = newNameDirty;
-        }
-        break;
+      if (compareNames(name, fna.Name))
+        name = fna.Name;
     }
   }
   else if((rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ROOT)) {
     if(rec.undo_length > 0x42) {
       // Delete or rename
-      par_mft_record = hex_to_long(undo_data + 0x10, 6);
+      FNAttribute fna(undo_data + 0x10);
+      par_mft_record = fna.Parent;
+
       if(records.size() > prev_par_mft_record && records[prev_par_mft_record].valid)
         timestamp = records[prev_par_mft_record].timestamp;
       else
         timestamp = "";
-      unsigned int len = hex_to_long(undo_data + 0x10 + 0x40, 1);
-      bool newNameDirty = isUTF16leNonAscii(undo_data + 0x10 + 0x42, len);
-      if(((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-        name_len = len;
-        name = mbcatos(undo_data + 0x10 + 0x42, name_len);
-        IsNameDirty = newNameDirty;
-      }
+
+      if (compareNames(name, fna.Name))
+        name = fna.Name;
     }
 
   }
@@ -439,12 +385,9 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records) {
       timestamp = filetime_to_iso_8601(hex_to_long(redo_data + 0x18, 8));
 
       unsigned int len = hex_to_long(redo_data + 0x50, 1);
-      bool newNameDirty = isUTF16leNonAscii(redo_data + 0x52, len);
-      if (((IsNameDirty || len > name_len) && !newNameDirty) || (IsNameDirty && len > name_len)) {
-        name_len = len;
-        name = mbcatos(redo_data + 0x52, len);
-        IsNameDirty = newNameDirty;
-      }
+      std::string new_name = mbcatos(redo_data + 0x52, len);
+      if (compareNames(name, new_name))
+        name = new_name;
     }
   }
 }
@@ -460,7 +403,6 @@ void LogData::clearFields() {
   lsn = 0;
   name = "";
   prev_name = "";
-  IsNameDirty = true;
 }
 
 /*

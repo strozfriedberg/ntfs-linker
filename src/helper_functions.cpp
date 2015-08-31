@@ -229,3 +229,23 @@ std::ostream& operator<<(std::ostream& out, EventSources e) {
       return out << "$LogFile";
   }
 }
+
+unsigned int countAscii(std::string name) {
+  unsigned int count = 0;
+  for (auto c: name) {
+    if (!(c & 0x80))
+      count++;
+  }
+  return count;
+}
+
+bool compareNames(std::string a, std::string b) {
+  // Compares attributes based on the names
+  // We prefer names which are ASCII, and after that names which are long.
+  // TODO this uses the byte count of the UTF8 string, which could add preference to names with more non ascii characters...
+  bool x = countAscii(a) == a.length();
+  bool y = countAscii(b) == b.length();
+  if (x != y)
+    return y;
+  return a.length() < b.length();
+}

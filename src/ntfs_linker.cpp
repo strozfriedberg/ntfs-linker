@@ -181,9 +181,9 @@ int main(int argc, char** argv) {
     std::stringstream cmd, ss_db;
 
     if(isUnix())
-      cmd << "mkdir " << out << " 2> /dev/null";
+      cmd << "mkdir -p " << out << " 2> /dev/null";
     else
-      cmd << "mkdir " << out << " 2> nul";
+      cmd << "if not exist \"" << out << "\" mkdir " << out << " 2> nul";
     if (system(cmd.str().c_str())) {
       std::cerr << "Couldn't create output directory!" << std::endl;
       exit(0);

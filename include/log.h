@@ -45,12 +45,12 @@ public:
   unsigned long long mft_record_no, par_mft_record, prev_par_mft_record;
   unsigned long long lsn;
   unsigned int name_len;
-  bool IsNameDirty;
   std::string name, prev_name, timestamp;
   std::vector<int> redo_ops, undo_ops;
 
   void clearFields();
   void processLogRecord(LogRecord& rec, std::vector<File>& records);
+  std::string pickName(std::string a, std::string b);
   std::string toCreateString(std::vector<File>& records);
   std::string toDeleteString(std::vector<File>& records);
   std::string toRenameString(std::vector<File>& records);

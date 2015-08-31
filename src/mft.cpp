@@ -9,7 +9,7 @@ std::string getMFTColumnHeaders() {
     "\tfna_mft_modified\tfna_accessed\tlogical_size\tphysical_size";
 }
 
-MFTRecord::MFTRecord(char* buffer) {
+MFTRecord::MFTRecord(char* buffer, unsigned int len) {
   // MFT entries must begin with FILE
   if(hex_to_long(buffer, 4) != 0x454C4946) {
     return;
@@ -26,7 +26,7 @@ MFTRecord::MFTRecord(char* buffer) {
   isDir                                  = allocation_flag & 0x2;
 
   // Parse the attributes
-  while(offset < 1024 && offset < mft_space_allocated) {
+  while(offset < len && offset < mft_space_allocated) {
 
     unsigned long long type_id          = hex_to_long(buffer + offset,        4);
     unsigned long long attribute_length = hex_to_long(buffer + offset + 4,    4);
@@ -40,13 +40,16 @@ MFTRecord::MFTRecord(char* buffer) {
       case 0x30:
         // Use the fna which is "largest" (based on ASCII-ness and size)
         FNAttribute fna2(attribute_data);
-        if (Fna < fna2)
+        if (!Fna.Valid)
+          Fna = fna2;
+
+        if (compareNames(Fna.Name, fna2.Name))
           Fna = fna2;
         break;
     }
 
     //check for valid attribute length value
-    if(attribute_length > 0 && attribute_length < 1024)
+    if(attribute_length > 0 && attribute_length < len)
       offset += attribute_length;
     else {
       break;
@@ -76,30 +79,8 @@ FNAttribute::FNAttribute(char* buffer) {
   Valid                 = true;
 }
 
-unsigned int FNAttribute::countAscii() {
-  unsigned int count = 0;
-  for (auto c: Name) {
-    if (c == (c & 0x7F))
-      count++;
-  }
-  return count;
-}
-
 File MFTRecord::asFile() {
   return File(Fna.Name, Record, Fna.Parent, filetime_to_iso_8601(Sia.MFTModified));
-}
-
-bool operator<(FNAttribute a, FNAttribute b) {
-  // Compares attributes based on the names
-  // We prefer names which are ASCII, and after that names which are long.
-  // TODO this uses the byte count of the UTF8 string, which could add preference to names with more non ascii characters...
-  bool x = a.countAscii() == a.Name.length();
-  bool y = b.countAscii() == b.Name.length();
-  if (a.Valid != b.Valid)
-    return b.Valid;
-  if (x != y)
-    return y;
-  return a.Name.length() < b.Name.length();
 }
 
 std::string MFTRecord::toString(std::vector<File>& records) {

@@ -11,8 +11,7 @@
 #include <string.h>
 
 #include "file.h"
-#ifndef help_h
-#define help_h
+#pragma once
 
 static const std::string VERSION = __VERSION;
 
@@ -63,4 +62,4 @@ std::ostream& operator<<(std::ostream& out, EventTypes e);
 
 std::ostream& operator<<(std::ostream& out, EventSources e);
 
-#endif
+bool compareNames(std::string a, std::string b);
