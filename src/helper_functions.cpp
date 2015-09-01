@@ -137,13 +137,13 @@ If a file record is not present in the map then the empty stry "" is returned
 */
 std::string getFullPath(const std::vector<File>& records, unsigned int record, std::vector<unsigned int>& stack) {
   std::stringstream ss;
-  if (record >= records.size() || !records[record].Valid)
+  if (record >= records.size())
     return "";
   if (std::find(stack.begin(), stack.end(), record) != stack.end())
     return "CYCLICAL_HARD_LINK";
   File file(records[record]);
-  if(record == file.Record)
-    return file.Name;
+  if(record == file.Parent)
+    return "";
   stack.push_back(record);
   ss << getFullPath(records, file.Parent, stack);
   ss << "\\" << file.Name;

@@ -74,6 +74,8 @@ Event::Event() {
 }
 
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
+  if (UsnLsn == 1116277320)
+    std::cout << UsnLsn << std::endl;
   out << order                                                             << "\t"
       << Record                                                            << "\t"
       << Parent                                                            << "\t"
@@ -94,19 +96,25 @@ void Event::updateRecords(std::vector<File>& records) {
   std::vector<File>::iterator it;
   switch(Type) {
     case EventTypes::CREATE:
-      // A file was created, so to move backwards, delete it
-      records[Record].Valid = false;
-      records[Record] = File();
+      // A file was created, so to move backwards, we should delete it
+      // But let's leave it be.
+      //records[Record].Valid = false;
+      //records[Record] = File();
       break;
     case EventTypes::DELETE:
       // A file was deleted, so to move backwards, create it
-      records[Record] = File(PreviousName, Record, Parent, Timestamp);
+      if (Record != 0)
+        records[Record] = File(Name, Record, Parent, Timestamp);
       break;
     case EventTypes::MOVE:
-      records[Record].Parent = PreviousParent;
+      // Embedded events haven't been aggregated, so before/after name not known
+      if (Source != EventSources::USN_EMBEDDED)
+        records[Record].Parent = PreviousParent;
       break;
     case EventTypes::RENAME:
-      records[Record].Name = PreviousName;
+      // Embedded events haven't been aggregated, so before/after name not known
+      if (Source != EventSources::USN_EMBEDDED && PreviousName != "")
+        records[Record].Name = PreviousName;
       break;
   }
   return;

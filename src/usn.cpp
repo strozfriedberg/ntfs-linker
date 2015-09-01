@@ -133,8 +133,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     if (prevRec.Usn == 0)
       prevRec = rec;
-    else
-      prevRec.update(rec);
+    prevRec.update(rec);
 
     offset += record_length;
   }
@@ -245,8 +244,12 @@ void UsnRecord::checkTypeAndInsert(sqlite3_stmt* stmt) {
     insertEvent(EventTypes::CREATE, stmt);
   if (Reason & UsnReasons::FILE_DELETE)
     insertEvent(EventTypes::DELETE, stmt);
-  if (PreviousName != Name && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME)))
+  if (PreviousName != Name
+      && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME))
+      && PreviousName != "")
     insertEvent(EventTypes::RENAME, stmt);
-  if (Parent != PreviousParent && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME)))
+  if (Parent != PreviousParent
+      && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME))
+      && PreviousParent != 0)
     insertEvent(EventTypes::MOVE, stmt);
 }
