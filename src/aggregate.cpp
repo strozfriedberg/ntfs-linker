@@ -26,7 +26,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
     usn_event.init(sqliteHelper.EventUsnSelect);
 
     if (usn_event.Timestamp > log.getTimestamp()) {
-      usn_event.isAnchor = true;
+      usn_event.IsAnchor = true;
       usn_event.write(++order, out, records);
       usn_event.updateRecords(records);
       u = sqlite3_step(sqliteHelper.EventUsnSelect);
@@ -37,7 +37,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
 
   while (u == SQLITE_ROW) {
     usn_event.init(sqliteHelper.EventUsnSelect);
-    usn_event.isAnchor = true;
+    usn_event.IsAnchor = true;
     usn_event.write(++order, out, records);
     usn_event.updateRecords(records);
     u = sqlite3_step(sqliteHelper.EventUsnSelect);
@@ -60,12 +60,13 @@ void Event::init(sqlite3_stmt* stmt) {
   PreviousName   = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
   Type           = sqlite3_column_int(stmt, ++i);
   Source         = sqlite3_column_int(stmt, ++i);
+  IsEmbedded     = sqlite3_column_int(stmt, ++i);
 
   if (PreviousParent == Parent)
     PreviousParent = 0;
   if (PreviousName == Name)
     PreviousName = "";
-  isAnchor = false;
+  IsAnchor = false;
 }
 
 Event::Event() {
@@ -74,8 +75,6 @@ Event::Event() {
 }
 
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
-  if (UsnLsn == 1116277320)
-    std::cout << UsnLsn << std::endl;
   out << order                                                             << "\t"
       << Record                                                            << "\t"
       << Parent                                                            << "\t"
@@ -89,7 +88,8 @@ void Event::write(int order, std::ostream& out, std::vector<File>& records) {
       << (PreviousParent == 0 ? "" : getFullPath(records, PreviousParent)) << "\t"
       << static_cast<EventTypes>(Type)                                     << "\t"
       << static_cast<EventSources>(Source)                                 << "\t"
-      << isAnchor                                                          << std::endl;
+      << IsAnchor                                                          << "\t"
+      << IsEmbedded                                                        << std::endl;
 }
 
 void Event::updateRecords(std::vector<File>& records) {
@@ -108,12 +108,12 @@ void Event::updateRecords(std::vector<File>& records) {
       break;
     case EventTypes::MOVE:
       // Embedded events haven't been aggregated, so before/after name not known
-      if (Source != EventSources::USN_EMBEDDED)
+      if (!IsEmbedded)
         records[Record].Parent = PreviousParent;
       break;
     case EventTypes::RENAME:
       // Embedded events haven't been aggregated, so before/after name not known
-      if (Source != EventSources::USN_EMBEDDED && PreviousName != "")
+      if (!IsEmbedded && PreviousName != "")
         records[Record].Name = PreviousName;
       break;
   }
@@ -124,7 +124,7 @@ int EventLNIS::advance(int order, std::vector<File>& records, std::ofstream& out
   int start, end;
   if (Started) {
     start = *cursor;
-    Events[start].isAnchor = true;
+    Events[start].IsAnchor = true;
     ++cursor;
     if (cursor == LNIS.end()) {
       end = Events.size();

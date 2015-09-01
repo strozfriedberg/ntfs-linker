@@ -444,11 +444,12 @@ void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, ++i, Parent);
   sqlite3_bind_int64(stmt, ++i, PreviousParent);
   sqlite3_bind_int64(stmt, ++i, Lsn);
-  sqlite3_bind_text (stmt, ++i, Timestamp.c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, Name.c_str()         , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, PreviousName.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Timestamp.c_str()   , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Name.c_str()        , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, type);
   sqlite3_bind_int64(stmt, ++i, EventSources::LOG);
+  sqlite3_bind_int64(stmt, ++i, 0);  // Not embedded
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

@@ -211,29 +211,32 @@ std::string UsnRecord::toString(const std::vector<File>& records) {
 }
 
 void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
-  sqlite3_bind_int64(stmt, 1, Record);
-  sqlite3_bind_int64(stmt, 2, Parent);
-  sqlite3_bind_int64(stmt, 3, PreviousParent);
-  sqlite3_bind_int64(stmt, 4, Usn);
-  sqlite3_bind_text(stmt , 5, Timestamp.c_str()   , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , 6, Name.c_str()        , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , 7, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, 8, type);
-  sqlite3_bind_int64(stmt, 9, IsEmbedded ? EventSources::USN_EMBEDDED : EventSources::USN);
+  unsigned int i = 0;
+  sqlite3_bind_int64(stmt, ++i, Record);
+  sqlite3_bind_int64(stmt, ++i, Parent);
+  sqlite3_bind_int64(stmt, ++i, PreviousParent);
+  sqlite3_bind_int64(stmt, ++i, Usn);
+  sqlite3_bind_text(stmt , ++i, Timestamp.c_str()   , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, Name.c_str()        , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int64(stmt, ++i, type);
+  sqlite3_bind_int64(stmt, ++i, EventSources::USN);
+  sqlite3_bind_int64(stmt, ++i, IsEmbedded);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
 }
 
 void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
-  sqlite3_bind_int64(stmt, 1, Record);
-  sqlite3_bind_int64(stmt, 2, Parent);
-  sqlite3_bind_int64(stmt, 3, Usn);
-  sqlite3_bind_text(stmt, 4, Timestamp.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 5, getReasonString().c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 6, Name.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 7, getFullPath(records, Record).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt, 8, getFullPath(records, Parent).c_str(), -1, SQLITE_TRANSIENT);
+  unsigned int i = 0;
+  sqlite3_bind_int64(stmt, ++i, Record);
+  sqlite3_bind_int64(stmt, ++i, Parent);
+  sqlite3_bind_int64(stmt, ++i, Usn);
+  sqlite3_bind_text(stmt , ++i, Timestamp.c_str()                   , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, getReasonString().c_str()           , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, Name.c_str()                        , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, getFullPath(records, Record).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(stmt , ++i, getFullPath(records, Parent).c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

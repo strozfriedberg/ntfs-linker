@@ -153,6 +153,7 @@ int main(int argc, char** argv) {
            << "EventType\t"
            << "EventSource\t"
            << "IsAnchor\t"
+           << "IsEmbedded\t"
            << std::endl;
 
   std::cout << "Parsing USNJrnl..." << std::endl;
