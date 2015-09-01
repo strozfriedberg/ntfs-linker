@@ -253,3 +253,29 @@ bool compareNames(std::string a, std::string b) {
     return y;
   return a.length() < b.length();
 }
+
+int doFixup(char* buffer, unsigned int len, unsigned int sectorSize) {
+  // As a means of detecting sector corruption, NTFS replaces the last two bytes
+  // of each sector with some magic, and stores the replaced bytes in the update
+  // sequence array. Perform fixup on the buffer and return whether the sector
+  // is corrupt. Only performs one record's worth of fixup, regardless of buffer
+  // size, but ensures to not attempt to access outside the buffer.
+  bool corrupt = false;
+  if (len > 8) {
+    unsigned int seqOffset = hex_to_long(buffer + 4, 2);
+    unsigned int seqLen = hex_to_long(buffer + 6, 2);
+    for(unsigned int i = 1; i < seqLen && 2*i + seqOffset < len && sectorSize * i <= len; i++) {
+      unsigned int arrayOffset = seqOffset + 2*i;
+      unsigned int dataOffset = sectorSize * i - 2;
+
+      if (memcmp(buffer + dataOffset, buffer + seqOffset, 2) == 0) {
+        // The magic number matches
+        memcpy(buffer + dataOffset, buffer + arrayOffset, 2);
+      }
+      else {
+        corrupt = true;
+      }
+    }
+  }
+  return corrupt;
+}

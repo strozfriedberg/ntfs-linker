@@ -127,6 +127,7 @@ void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
     status.setDone((unsigned long long) input.tellg());
     records_processed++;
     input.read(buffer, 1024);
+    doFixup(buffer, 1024, 512);
     MFTRecord record(buffer);
     if (initRecords) {
       for(int i = record.Record - records.size() + 1; i >= 0; i--)

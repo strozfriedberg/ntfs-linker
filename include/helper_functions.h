@@ -64,3 +64,5 @@ std::ostream& operator<<(std::ostream& out, EventTypes e);
 std::ostream& operator<<(std::ostream& out, EventSources e);
 
 bool compareNames(std::string a, std::string b);
+
+int doFixup(char* buffer, unsigned int len, unsigned int sectorSize=512);

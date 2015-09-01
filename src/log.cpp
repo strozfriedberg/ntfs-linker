@@ -76,6 +76,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   unsigned long long start = 0x4000;
   input.seekg(start);
   input.read(buffer, 4096);
+  doFixup(buffer, 4096, 512);
 
   LogData transactions;
   transactions.clearFields();
@@ -87,6 +88,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
     //check log record header
     if(hex_to_long(buffer, 4) != 0x44524352) {
       input.read(buffer, 4096);
+      doFixup(buffer, 4096, 512);
       buffer_size = 4096;
       adjust = 0;
       continue;
@@ -158,6 +160,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       char* temp = new char[new_size];
       adjust = buffer_size - offset;
       input.read(temp + buffer_size - offset, 4096);
+      doFixup(temp + buffer_size - offset, 4096, 512);
       if(input.eof()) {
         done = true;
         delete[] temp;
@@ -189,6 +192,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       for(unsigned int i = 1; write_offset < new_size; i++) {
         temp = new char[4096];
         input.read(temp, 4096);
+        doFixup(temp, 4096, 512);
 
         update_seq_offset = hex_to_long(temp + 0x4, 2);
         update_seq_count = hex_to_long(temp + 0x6, 2);
@@ -209,6 +213,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       we just read the next page. Easy.
       */
       input.read(buffer, 4096);
+      doFixup(buffer, 4096, 512);
       buffer_size = 4096;
 
       if(input.eof()) {
