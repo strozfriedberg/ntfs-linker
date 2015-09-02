@@ -23,6 +23,32 @@ AX_APPEND_COMPILE_FLAGS([-pthread -D__VERSION="'\"ntfs_linker_version\"'"], [NL_
 
 PKG_CHECK_MODULES([SQLITE], [sqlite3])
 
+#
+# Boost
+#
+if test "x$with_boost" = "xno"; then
+  AC_MSG_ERROR([--without-boost specified, but Boost is mandatory.])
+else
+  case "$host" in
+  *-*-mingw*)
+    # AX_BOOST_BASE doesn't find the Boost libs for mingw, we help it out
+    if test "$with_boost_libdir" = ""; then
+      with_boost_libdir="/usr/${host}/sys-root/mingw/lib"
+      AC_MSG_WARN([--with-boost-libdir not set. We are guessing ${with_boost_libdir}.])
+    fi
+    ;;
+  esac
+
+  AX_BOOST_BASE([1.49.0],
+    [],
+    [AC_MSG_ERROR([Failed to find usable Boost headers.])])
+fi
+
+AX_BOOST_PROGRAM_OPTIONS
+if test "x$ax_cv_boost_program_options" != "xyes"; then
+  AC_MSG_ERROR([Failed to find Boost program_options library.])
+fi
+
 # Ensure that we statically link everything which is not a system lib;
 # -all-static includes libstdc++ and libgcc, which are excluded by
 # -static.
