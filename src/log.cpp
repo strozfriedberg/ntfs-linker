@@ -156,7 +156,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
     We perform  a little switcheroo then return to the top of the loop
     */
     if(split_record) {
-      unsigned int new_size = ((length - buffer_size + offset + 4031) / 4032) * 4096 + buffer_size - offset;
+      unsigned int new_size = ceilingDivide(length - buffer_size + offset, 4032) * 4096 + buffer_size - offset;
       char* temp = new char[new_size];
       adjust = buffer_size - offset;
       input.read(temp + buffer_size - offset, 4096);

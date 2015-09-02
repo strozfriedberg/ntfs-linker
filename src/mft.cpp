@@ -27,7 +27,7 @@ MFTRecord::MFTRecord(char* buffer, unsigned int len) {
   isDir                                  = allocation_flag & 0x2;
 
   // Parse the attributes
-  while(offset < len && offset < mft_space_allocated) {
+  while(offset + 0x16 <= len && offset + 0x16 <= mft_space_allocated) {
 
     unsigned long long type_id          = hex_to_long(buffer + offset,        4);
     unsigned long long attribute_length = hex_to_long(buffer + offset + 4,    4);
