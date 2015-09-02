@@ -69,11 +69,6 @@ int process(Options& opts) {
   std::cout << "Creating MFT Map..." << std::endl;
   parseMFT(records, sqliteHelper, i_mft, o_mft, true);
 
-  i_mft.clear();
-  i_mft.seekg(0);
-
-  //print column headers
-
   std::cout << "Parsing USNJrnl..." << std::endl;
   parseUSN(records, sqliteHelper, i_usnjrnl, o_usnjrnl);
   std::cout << "Parsing LogFile..." << std::endl;

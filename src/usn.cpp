@@ -10,7 +10,7 @@ std::string getUSNColumnHeaders() {
   return "MFTRecordNumber\tParentMFTRecordNumber\tUsn\tTimestamp\tReason\tFileName\tPossiblePath\tPossibleParentPath";
 }
 
-const unsigned int USN_BUFFER_SIZE = 2097152;
+const unsigned int USN_BUFFER_SIZE = 65536;
 
 /*
 Decodes the Usn reason code
@@ -82,7 +82,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     exit(1);
   }
 
-  char buffer[USN_BUFFER_SIZE];
+  static char buffer[USN_BUFFER_SIZE];
 
   int records_processed = -1;
 
