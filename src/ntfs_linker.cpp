@@ -23,6 +23,7 @@ void printHelp(const po::options_description& desc) {
   std::cout << "ntfs-linker, Copyright (c) Stroz Friedberg, LLC" << std::endl;
   std::cout << "Version " << VERSION << std::endl;
   std::cout << desc << std::endl;
+  std::cout << "Note: this program will also look for files named $J when looking for $UsnJrnl file." << std::endl;
 }
 
 int process(Options& opts) {
@@ -31,8 +32,8 @@ int process(Options& opts) {
 
   fs::path inDir(opts.inputDir);
   i_mft.open((inDir / fs::path("$MFT")).string(), std::ios::binary);
-  i_logfile.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
-  i_usnjrnl.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
+  i_usnjrnl.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
+  i_logfile.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
 
 
   if(!i_mft) {
@@ -40,8 +41,11 @@ int process(Options& opts) {
     exit(0);
   }
   if(!i_usnjrnl) {
-    std::cerr << "$UsnJrnl File not found." << std::endl;
-    exit(0);
+    i_usnjrnl.open((inDir / fs::path("$J")).string(), std::ios::binary);
+    if(!i_usnjrnl) {
+      std::cerr << "$UsnJrnl File not found." << std::endl;
+      exit(0);
+    }
   }
   if(!i_logfile) {
     std::cerr << "$LogFile File not found: " << std::endl;
