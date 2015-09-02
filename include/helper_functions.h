@@ -34,11 +34,10 @@ int max(int a, int b);
 void mem_dump(char* buffer, int length, std::ostream& output = std::cout);
 
 std::string getFullPath(const std::vector<File>& records, unsigned int recordNo);
-std::string getFullPath(const std::vector<File>& records, unsigned int recordNo, std::vector<unsigned int>& stack);
 
 bool isUnix();
 
-void prep_ofstream(std::ofstream& out, const char* name, bool overwrite);
+void prep_ofstream(std::ofstream& out, const std::string& name, bool overwrite);
 
 enum EventSources: unsigned int {
   USN = 0,

@@ -30,9 +30,9 @@ int process(Options& opts) {
   std::ofstream o_mft, o_usnjrnl, o_logfile, o_events;
 
   fs::path inDir(opts.inputDir);
-  i_mft.open((inDir / fs::path("$MFT")).c_str(), std::ios::binary);
-  i_logfile.open((inDir / fs::path("$UsnJrnl")).c_str(), std::ios::binary);
-  i_usnjrnl.open((inDir / fs::path("$LogFile")).c_str(), std::ios::binary);
+  i_mft.open((inDir / fs::path("$MFT")).string(), std::ios::binary);
+  i_logfile.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
+  i_usnjrnl.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
 
 
   if(!i_mft) {
@@ -49,22 +49,12 @@ int process(Options& opts) {
   }
 
   fs::path outDir(opts.outputDir);
-  std::stringstream cmd;
+  fs::create_directories(outDir);
 
-  // Create the output directory if it doesn't exist
-  if(isUnix())
-    cmd << "mkdir -p " << opts.outputDir << " 2> /dev/null";
-  else
-    cmd << "if not exist \"" << opts.outputDir << "\" mkdir " << opts.outputDir << " 2> nul";
-  if (system(cmd.str().c_str())) {
-    std::cerr << "Couldn't create output directory!" << std::endl;
-    exit(0);
-  }
-
-  prep_ofstream(o_mft    , (outDir / fs::path("mft.txt")).c_str()    , opts.overwrite);
-  prep_ofstream(o_usnjrnl, (outDir / fs::path("usnjrnl.txt")).c_str(), opts.overwrite);
-  prep_ofstream(o_logfile, (outDir / fs::path("logfile.txt")).c_str(), opts.overwrite);
-  prep_ofstream(o_events , (outDir / fs::path("events.txt")).c_str() , opts.overwrite);
+  prep_ofstream(o_mft    , (outDir / fs::path("mft.txt")).string()    , opts.overwrite);
+  prep_ofstream(o_usnjrnl, (outDir / fs::path("usnjrnl.txt")).string(), opts.overwrite);
+  prep_ofstream(o_logfile, (outDir / fs::path("logfile.txt")).string(), opts.overwrite);
+  prep_ofstream(o_events , (outDir / fs::path("events.txt")).string() , opts.overwrite);
 
   //Set up db connection
   std::cout << "Setting up DB Connection..." << std::endl;

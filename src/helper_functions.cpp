@@ -170,7 +170,7 @@ bool isUnix() {
 prepares the ofstream for writing
 opens the stream with whatever necessary flags, and writes any necessary start bits
 */
-void prep_ofstream(std::ofstream& out, const char* name, bool overwrite) {
+void prep_ofstream(std::ofstream& out, const std::string& name, bool overwrite) {
   std::ios_base::openmode mode = std::ios::out | std::ios::binary;
   if (overwrite)
     mode |= std::ios::trunc;
