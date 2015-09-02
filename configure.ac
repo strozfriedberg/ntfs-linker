@@ -49,6 +49,16 @@ if test "x$ax_cv_boost_program_options" != "xyes"; then
   AC_MSG_ERROR([Failed to find Boost program_options library.])
 fi
 
+AX_BOOST_SYSTEM
+if test "x$ax_cv_boost_system" != "xyes"; then
+  AC_MSG_ERROR([Failed to find Boost system library.])
+fi
+
+AX_BOOST_FILESYSTEM
+if test "x$ax_cv_boost_filesystem" != "xyes"; then
+  AC_MSG_ERROR([Failed to find Boost filesystem library.])
+fi
+
 # Ensure that we statically link everything which is not a system lib;
 # -all-static includes libstdc++ and libgcc, which are excluded by
 # -static.
