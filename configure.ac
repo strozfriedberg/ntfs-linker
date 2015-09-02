@@ -17,12 +17,20 @@ AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 
 AX_APPEND_COMPILE_FLAGS([-W -Wall -Wextra -Wnon-virtual-dtor -pedantic -pipe -O3 -g -pg], [NL_CXXFLAGS])
-AX_APPEND_LINK_FLAGS([-g -static-libgcc -static-libstdc++ -pthread], [NL_LDFLAGS])
+AX_APPEND_LINK_FLAGS([-g -pthread], [NL_LDFLAGS])
 
 AX_APPEND_COMPILE_FLAGS([-pthread -D__VERSION="'\"ntfs_linker_version\"'"], [NL_CPPFLAGS])
 
 PKG_CHECK_MODULES([SQLITE], [sqlite3])
- 
+
+# Ensure that we statically link everything which is not a system lib;
+# -all-static includes libstdc++ and libgcc, which are excluded by
+# -static.
+if test "x$enable_shared" != "xyes"; then
+  CXXLD="$CXX -all-static"
+fi
+AC_SUBST([CXXLD])
+
 AC_SUBST([NL_CPPFLAGS])
 AC_SUBST([NL_CXXFLAGS])
 AC_SUBST([NL_LDFLAGS])
