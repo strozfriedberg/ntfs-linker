@@ -28,6 +28,8 @@ PKG_CHECK_MODULES([SQLITE], [sqlite3])
 # -static.
 if test "x$enable_shared" != "xyes"; then
   CXXLD="$CXX -all-static"
+else
+  CXXLD="$CXX"
 fi
 AC_SUBST([CXXLD])
 
