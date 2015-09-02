@@ -155,29 +155,6 @@ std::string getFullPath(const std::vector<File>& records, unsigned int recordNo)
   return getFullPath(records, recordNo, stack);
 }
 
-
-char* getCmdOption(char** begin, char** end, const std::string& option) {
-  char** itr = find(begin, end, option);
-  if(itr != end && ++itr != end)
-    return *itr;
-  return 0;
-}
-
-bool cmdOptionExists(char**begin, char** end, const std::string& option) {
-  return std::find(begin, end, option) != end;
-}
-
-
-/*
-Returns the directory separator for the current OS.
-e.g., '/' on unix and '\' on windows
-*/
-char getPathSeparator() {
-  if(isUnix())
-    return '/';
-  return '\\';
-}
-
 /*
 32-bit and 64-bit windows versions both define _WIN32
 */

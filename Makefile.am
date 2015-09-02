@@ -14,7 +14,10 @@ src_ntfs_linker_SOURCES = \
 	src/usn.cpp \
 	src/sqlite_helper.cpp
 
-src_ntfs_linker_LDADD = $(SQLITE_LIBS) $(BOOST_LIBS)
+src_ntfs_linker_LDADD = $(SQLITE_LIBS) $(BOOST_LIBS) \
+	$(BOOST_FILESYSTEM_LIB) \
+	$(BOOST_SYSTEM_LIB) \
+	$(BOOST_PROGRAM_OPTIONS_LIB)
 
 bin_PROGRAMS = src/ntfs_linker
  

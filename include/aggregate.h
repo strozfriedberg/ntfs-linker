@@ -15,6 +15,7 @@ public:
   void init(sqlite3_stmt* stmt);
   void write(int order, std::ostream& out, std::vector<File>& records);
   void updateRecords(std::vector<File>& records);
+  static std::string getColumnHeaders();
 
   unsigned long long Record, Parent, PreviousParent, UsnLsn, Type, Source;
   std::string Timestamp, Name, PreviousName;

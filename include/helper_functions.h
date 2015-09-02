@@ -36,12 +36,6 @@ void mem_dump(char* buffer, int length, std::ostream& output = std::cout);
 std::string getFullPath(const std::vector<File>& records, unsigned int recordNo);
 std::string getFullPath(const std::vector<File>& records, unsigned int recordNo, std::vector<unsigned int>& stack);
 
-char* getCmdOption(char** begin, char** end, const std::string& option);
-
-bool cmdOptionExists(char** begin, char** end, const std::string& option);
-
-char getPathSeparator();
-
 bool isUnix();
 
 void prep_ofstream(std::ofstream& out, const char* name, bool overwrite);

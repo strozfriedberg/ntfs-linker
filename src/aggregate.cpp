@@ -74,6 +74,27 @@ Event::Event() {
   Timestamp = Name = PreviousName = "";
 }
 
+std::string Event::getColumnHeaders() {
+  std::stringstream ss;
+  ss << "Order\t"
+     << "MFTRecNo\t"
+     << "ParRecNo\t"
+     << "PreviousParRecNo\t"
+     << "USN_LSN\t"
+     << "Timestamp\t"
+     << "FileName\t"
+     << "PreviousFileName\t"
+     << "Path\t"
+     << "ParPath\t"
+     << "PreviousParPath\t"
+     << "EventType\t"
+     << "EventSource\t"
+     << "IsAnchor\t"
+     << "IsEmbedded\t"
+     << std::endl;
+  return ss.str();
+}
+
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
   out << order                                                             << "\t"
       << Record                                                            << "\t"
