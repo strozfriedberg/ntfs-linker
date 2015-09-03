@@ -57,11 +57,18 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
     bool done = false;
     while (!done) {
       stream.seekg(-(1 << 20), std::ios::cur);
-      stream.read(buffer, USN_BUFFER_SIZE);
-      done = true;
-      for (unsigned int i = 0; i < USN_BUFFER_SIZE && done; i++) {
-        if (buffer[i] != 0)
-          done = false;
+      if (stream.fail()) {
+        done = true;
+        stream.clear();
+        stream.seekg(0, std::ios::beg);
+      }
+      else {
+        stream.read(buffer, USN_BUFFER_SIZE);
+        done = true;
+        for (unsigned int i = 0; i < USN_BUFFER_SIZE && done; i++) {
+          if (buffer[i] != 0)
+            done = false;
+        }
       }
     }
   }
