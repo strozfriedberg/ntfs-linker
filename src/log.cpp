@@ -331,10 +331,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
     if (type_id == 0x30) {
       FNAttribute fna(undo_data + content_offset);
       PreviousParent = fna.Parent;
-      if(records.size() > PreviousParent && records[PreviousParent].Valid)
-        Timestamp = records[PreviousParent].Timestamp;
-      else
-        Timestamp = "";
+
       if (compareNames(PreviousName, fna.Name))
         PreviousName = fna.Name;
     }
@@ -350,11 +347,6 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
       FNAttribute fna(redo_data + content_offset);
       Parent = fna.Parent;
 
-      if(records.size() > PreviousParent && records[PreviousParent].Valid)
-        Timestamp = records[Parent].Timestamp;
-      else
-        Timestamp = "";
-
       if (compareNames(Name, fna.Name))
         Name = fna.Name;
     }
@@ -364,11 +356,6 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
       // Delete or rename
       FNAttribute fna(undo_data + 0x10);
       Parent = fna.Parent;
-
-      if(records.size() > PreviousParent && records[PreviousParent].Valid)
-        Timestamp = records[PreviousParent].Timestamp;
-      else
-        Timestamp = "";
 
       if (compareNames(Name, fna.Name))
         Name = fna.Name;
