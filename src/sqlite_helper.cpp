@@ -17,7 +17,7 @@ int busyHandler(__attribute__((unused)) void* foo, __attribute__((unused)) int n
 
 }
 
-SQLiteHelper::SQLiteHelper(std::string dbName, bool overwrite) {
+void SQLiteHelper::init(std::string dbName, bool overwrite) {
   int rc = 0;
 
   /*

@@ -19,6 +19,12 @@ struct Options {
 
 };
 
+struct IOContainer {
+  std::ifstream i_mft, i_usnjrnl, i_logfile;
+  std::ofstream o_mft, o_usnjrnl, o_logfile, o_events;
+  SQLiteHelper sqliteHelper;
+};
+
 void printHelp(const po::options_description& desc) {
   std::cout << "ntfs-linker, Copyright (c) Stroz Friedberg, LLC" << std::endl;
   std::cout << "Version " << VERSION << std::endl;
@@ -26,28 +32,26 @@ void printHelp(const po::options_description& desc) {
   std::cout << "Note: this program will also look for files named $J when looking for $UsnJrnl file." << std::endl;
 }
 
-int process(Options& opts) {
-  std::ifstream i_mft, i_usnjrnl, i_logfile;
-  std::ofstream o_mft, o_usnjrnl, o_logfile, o_events;
-
+void setupIO(Options& opts, IOContainer& container) {
   fs::path inDir(opts.inputDir);
-  i_mft.open((inDir / fs::path("$MFT")).string(), std::ios::binary);
-  i_usnjrnl.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
-  i_logfile.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
+
+  container.i_mft.open((inDir / fs::path("$MFT")).string(), std::ios::binary);
+  container.i_usnjrnl.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
+  container.i_logfile.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
 
 
-  if(!i_mft) {
+  if(!container.i_mft) {
     std::cerr << "$MFT File not found." << std::endl;
     exit(0);
   }
-  if(!i_usnjrnl) {
-    i_usnjrnl.open((inDir / fs::path("$J")).string(), std::ios::binary);
-    if(!i_usnjrnl) {
+  if(!container.i_usnjrnl) {
+    container.i_usnjrnl.open((inDir / fs::path("$J")).string(), std::ios::binary);
+    if(!container.i_usnjrnl) {
       std::cerr << "$UsnJrnl File not found." << std::endl;
       exit(0);
     }
   }
-  if(!i_logfile) {
+  if(!container.i_logfile) {
     std::cerr << "$LogFile File not found: " << std::endl;
     exit(0);
   }
@@ -55,29 +59,32 @@ int process(Options& opts) {
   fs::path outDir(opts.outputDir);
   fs::create_directories(outDir);
 
-  prep_ofstream(o_usnjrnl, (outDir / fs::path("usnjrnl.txt")).string(), opts.overwrite);
-  prep_ofstream(o_logfile, (outDir / fs::path("logfile.txt")).string(), opts.overwrite);
-  prep_ofstream(o_events , (outDir / fs::path("events.txt")).string() , opts.overwrite);
+  prep_ofstream(container.o_usnjrnl, (outDir / fs::path("usnjrnl.txt")).string(), opts.overwrite);
+  prep_ofstream(container.o_logfile, (outDir / fs::path("logfile.txt")).string(), opts.overwrite);
+  prep_ofstream(container.o_events , (outDir / fs::path("events.txt")).string() , opts.overwrite);
 
-  //Set up db connection
   std::cout << "Setting up DB Connection..." << std::endl;
   std::string dbName = (outDir / fs::path("ntfs.db")).string();
-  SQLiteHelper sqliteHelper(dbName, opts.overwrite);
+  container.sqliteHelper.init(dbName, opts.overwrite);
+}
+
+int process(IOContainer& container) {
+  //Set up db connection
 
   std::vector<File> records;
   std::cout << "Creating MFT Map..." << std::endl;
-  parseMFT(records, sqliteHelper, i_mft, o_mft, true);
+  parseMFT(records, container.sqliteHelper, container.i_mft, container.o_mft, true);
 
   std::cout << "Parsing USNJrnl..." << std::endl;
-  parseUSN(records, sqliteHelper, i_usnjrnl, o_usnjrnl);
+  parseUSN(records, container.sqliteHelper, container.i_usnjrnl, container.o_usnjrnl);
   std::cout << "Parsing LogFile..." << std::endl;
-  parseLog(records, sqliteHelper, i_logfile, o_logfile);
-  sqliteHelper.commit();
+  parseLog(records, container.sqliteHelper, container.i_logfile, container.o_logfile);
+  container.sqliteHelper.commit();
 
   std::cout << "Generating unified events output..." << std::endl;
-  outputEvents(records, sqliteHelper, o_events);
+  outputEvents(records, container.sqliteHelper, container.o_events);
 
-  sqliteHelper.close();
+  container.sqliteHelper.close();
   std::cout << "Process complete." << std::endl;
   return 0;
 }
@@ -110,7 +117,9 @@ int main(int argc, char** argv) {
         std::cout << "ntfs_linker version: " << VERSION << std::endl;
     else if (vm.count("input-dir") && vm.count("output-dir")) {
       // Run
-      return process(opts);
+      IOContainer container;
+      setupIO(opts, container);
+      return process(container);
     }
     else {
       std::cerr << "Error: did not understand arguments" << std::endl;

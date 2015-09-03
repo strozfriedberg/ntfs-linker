@@ -4,7 +4,10 @@
 
 class SQLiteHelper {
 public:
-  SQLiteHelper(std::string dbName, bool overwrite);
+  SQLiteHelper() : MftInsert(NULL), UsnInsert(NULL), LogInsert(NULL),
+                   EventInsert(NULL), EventUsnSelect(NULL), EventLogSelect(NULL),
+                   Db(NULL) {}
+  void init(std::string dbName, bool overwrite);
   void commit();
   void close();
 
