@@ -53,10 +53,12 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
    */
   stream.seekg(0, std::ios::end);
   std::streampos end = stream.tellg();
+  std::cerr << "End of stream is: " << end << std::endl;
   if (sparse) {
     bool done = false;
     while (!done) {
       stream.seekg(-(1 << 20), std::ios::cur);
+      std::cerr << "Current pos is " << stream.tellg() << std::endl;
       stream.read(buffer, USN_BUFFER_SIZE);
       done = true;
       for (unsigned int i = 0; i < USN_BUFFER_SIZE && done; i++) {
@@ -86,7 +88,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
 
   int records_processed = -1;
 
-  std::streampos end = advanceStream(input, buffer);
+  std::streampos end = advanceStream(input, buffer, true);
   std::streampos start = input.tellg();
   ProgressBar status(end - start);
 
