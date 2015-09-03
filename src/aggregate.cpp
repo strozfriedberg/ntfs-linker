@@ -20,6 +20,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
   // Output log events until the log event is a create, so we can compare timestamps properly.
   EventLNIS log(sqliteHelper.EventLogSelect, EventTypes::CREATE);
   int order = 0;
+  out << Event::getColumnHeaders() << std::endl;
   order = log.advance(order, records, out, false);
 
   while (u == SQLITE_ROW && log.hasMore()) {
@@ -90,8 +91,7 @@ std::string Event::getColumnHeaders() {
      << "EventType\t"
      << "EventSource\t"
      << "IsAnchor\t"
-     << "IsEmbedded\t"
-     << std::endl;
+     << "IsEmbedded\t";
   return ss.str();
 }
 
