@@ -124,7 +124,7 @@ void Event::updateRecords(std::vector<File>& records) {
       break;
     case EventTypes::DELETE:
       // A file was deleted, so to move backwards, create it
-      if (Record != 0)
+      if (Record >= 0)
         records[Record] = File(Name, Record, Parent, Timestamp);
       break;
     case EventTypes::MOVE:
