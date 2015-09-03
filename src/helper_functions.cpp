@@ -16,12 +16,12 @@
 #include "helper_functions.h"
 
 /*
-Returns the first SIZE bytes of the character array as a long long
-If the result is too large to fit into a long long then overflow will occur
+Returns the first SIZE bytes of the character array as a int64_t
+If the result is too large to fit into a int64_t then overflow will occur
 Reads the bytes as Little Endian
 */
-unsigned long long hex_to_long(const char* arr, int size) {
-  unsigned long long result = 0;
+uint64_t hex_to_long(const char* arr, int size) {
+  uint64_t result = 0;
   for(int i = size - 1; i >= 0; i--) {
     result <<= 8;
     result +=  (unsigned char) arr[i];
@@ -34,7 +34,7 @@ Converts filetime to unixtime
 The filetime format is the number of 100 nanoseconds since 1601-01-01 (Assumed to be after the Gregorian Calendar cross-over date)
 Unixtime is the number of seconds since 1970-01-01
 */
-long long filetime_to_unixtime(long long t) {
+int64_t filetime_to_unixtime(int64_t t) {
   t -= 11644473600000ULL * 10000; //the number of 100 nano-seconds between 1601-01-01 and 1970-01-01
   t /= 10000000; //convert 100 nanoseconds to seconds
   return t;
@@ -51,8 +51,8 @@ Converts the filetime format used by microsoft windows files into ISO 8601 human
 The filetime format is the number of 100 nanoseconds since 1601-01-01 (Assumed to be after the Gregorian Calendar cross-over date)
 Returned string format is YYYY-MM-DD HH:MM:SS 0000000 (nanoseconds)
 */
-std::string filetime_to_iso_8601(unsigned long long t) {
-  long long unixtime = filetime_to_unixtime(t);
+std::string filetime_to_iso_8601(uint64_t t) {
+  int64_t unixtime = filetime_to_unixtime(t);
   time_t* time = (time_t*) &unixtime;
   struct tm* date = gmtime(time);
 
@@ -71,7 +71,7 @@ Multi-byte character array to UTF8 string
 Reads each 2 bytes of the charater array as a wide character and converts the UTF16 (??) result wstring to UTF8 string
 Length of output string is len, reads len*2 bytes
 */
-std::string mbcatos(const char* arr, unsigned long long len) {
+std::string mbcatos(const char* arr, uint64_t len) {
   std::vector<unsigned short> utf16;
   for(unsigned int i = 0; i < len; i++) {
     utf16.push_back(arr[2*i] + (arr[2*i+1]<<8));

@@ -119,7 +119,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       offset = 0;
     }
 
-    unsigned long long record_length = hex_to_long(buffer + offset, 4);
+    uint64_t record_length = hex_to_long(buffer + offset, 4);
 
     if (record_length == 0) {
       offset += 8;
@@ -169,7 +169,7 @@ UsnRecord::UsnRecord(const char* buffer, int len, bool isEmbedded) : IsEmbedded(
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
     PreviousParent                   = 0;
-    unsigned long long record_length = hex_to_long(buffer, 4);
+    uint64_t record_length = hex_to_long(buffer, 4);
     Record                           = hex_to_long(buffer + 0x8, 6);
     Reference                        = hex_to_long(buffer + 0x8, 8);
     Parent                           = hex_to_long(buffer + 0x10, 6);

@@ -24,8 +24,8 @@ public:
                   Usn(0), Valid(false) {}
   SIAttribute(char* buffer);
 
-  unsigned long long Created, Modified, MFTModified, Accessed;
-  unsigned long long Usn;
+  uint64_t Created, Modified, MFTModified, Accessed;
+  uint64_t Usn;
 private:
   bool Valid;
 };
@@ -37,8 +37,8 @@ public:
   FNAttribute(char* buffer);
   friend bool operator<(FNAttribute a, FNAttribute b);
   unsigned int Parent;
-  unsigned long long Created, Modified, MFTModified, Accessed;
-  unsigned long long LogicalSize, PhysicalSize;
+  uint64_t Created, Modified, MFTModified, Accessed;
+  uint64_t LogicalSize, PhysicalSize;
   std::string Name;
   unsigned int countAscii();
   bool Valid;
@@ -60,6 +60,6 @@ public:
   FNAttribute Fna;
 
 private:
-  unsigned long long Lsn;
+  uint64_t Lsn;
   bool isDir, isAllocated;
 };

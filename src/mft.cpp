@@ -17,22 +17,22 @@ MFTRecord::MFTRecord(char* buffer, unsigned int len) {
   }
 
   // Parse basic information from file record segment header
-  Lsn                                    = hex_to_long(buffer + 8,    8);
-  Record                                 = hex_to_long(buffer + 0x2c, 4);
-  unsigned long long allocation_flag     = hex_to_long(buffer + 0x16, 2);
-  unsigned long long mft_space_allocated = hex_to_long(buffer + 0x18, 4);
-  unsigned long long offset              = hex_to_long(buffer + 0x14, 2);
+  Lsn                          = hex_to_long(buffer + 8,    8);
+  Record                       = hex_to_long(buffer + 0x2c, 4);
+  uint64_t allocation_flag     = hex_to_long(buffer + 0x16, 2);
+  uint64_t mft_space_allocated = hex_to_long(buffer + 0x18, 4);
+  uint64_t offset              = hex_to_long(buffer + 0x14, 2);
 
-  isAllocated                            = allocation_flag & 0x1;
-  isDir                                  = allocation_flag & 0x2;
+  isAllocated                  = allocation_flag & 0x1;
+  isDir                        = allocation_flag & 0x2;
 
   // Parse the attributes
   while(offset + 0x16 <= len && offset + 0x16 <= mft_space_allocated) {
 
-    unsigned long long type_id          = hex_to_long(buffer + offset,        4);
-    unsigned long long attribute_length = hex_to_long(buffer + offset + 4,    4);
-    unsigned long long content_offset   = hex_to_long(buffer + offset + 0x14, 2);
-    char* attribute_data = buffer + offset + content_offset;
+    uint64_t type_id          = hex_to_long(buffer + offset,        4);
+    uint64_t attribute_length = hex_to_long(buffer + offset + 4,    4);
+    uint64_t content_offset   = hex_to_long(buffer + offset + 0x14, 2);
+    char* attribute_data      = buffer + offset + content_offset;
 
     switch(type_id) {
       case 0x10:
@@ -107,23 +107,19 @@ std::string MFTRecord::toString(std::vector<File>& records) {
 }
 
 void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const bool initRecords) {
-  if(sizeof(long long) < 8) {
-    std::cerr << "64-bit arithmetic not available. This won't work." << std::endl;
-    exit(1);
-  }
   char buffer[1024];
 
   bool done = false;
   int records_processed = 0;
 
   input.seekg(0, std::ios::end);
-  unsigned long long end = input.tellg();
+  uint64_t end = input.tellg();
   input.seekg(0, std::ios::beg);
   ProgressBar status(end);
 
   //scan through the $MFT one record at a time. Each record is 1024 bytes.
   while(!input.eof() && !done) {
-    status.setDone((unsigned long long) input.tellg());
+    status.setDone((uint64_t) input.tellg());
     records_processed++;
     input.read(buffer, 1024);
     doFixup(buffer, 1024, 512);

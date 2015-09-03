@@ -71,9 +71,9 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   in my testing I've seen very little of value here, and it doesn't follow the same format as the rest of the $LogFile
   */
   input.seekg(0, std::ios::end);
-  unsigned long long end = input.tellg();
+  uint64_t end = input.tellg();
   ProgressBar status(end);
-  unsigned long long start = 0x4000;
+  uint64_t start = 0x4000;
   input.seekg(start);
   input.read(buffer, 4096);
   doFixup(buffer, 4096, 512);
@@ -86,7 +86,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   //scan through the $LogFile one  page at a time. Each record is 4096 bytes.
   while(!input.eof() && !done) {
 
-    status.setDone((unsigned long long) input.tellg() - start);
+    status.setDone((uint64_t) input.tellg() - start);
     //check log record header
     if(hex_to_long(buffer, 4) != 0x44524352) {
       input.read(buffer, 4096);
@@ -326,8 +326,8 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
   else if(rec.redo_op == LogOps::DELETE_ATTRIBUTE && rec.undo_op == LogOps::CREATE_ATTRIBUTE) {
     //get the name before
     //from file attribute with header, undo op
-    unsigned long long type_id = hex_to_long(undo_data, 4);
-    unsigned long long content_offset = hex_to_long(undo_data + 0x14, 2);
+    uint64_t type_id = hex_to_long(undo_data, 4);
+    uint64_t content_offset = hex_to_long(undo_data + 0x14, 2);
     if (type_id == 0x30) {
       FNAttribute fna(undo_data + content_offset);
       PreviousParent = fna.Parent;
@@ -341,8 +341,8 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
     //from file attribute with header, redo op
     //prev_name =
 
-    unsigned long long type_id = hex_to_long(redo_data, 4);
-    unsigned long long content_offset = hex_to_long(redo_data + 0x14, 2);
+    uint64_t type_id = hex_to_long(redo_data, 4);
+    uint64_t content_offset = hex_to_long(redo_data + 0x14, 2);
     if (type_id == 0x30) {
       FNAttribute fna(redo_data + content_offset);
       Parent = fna.Parent;

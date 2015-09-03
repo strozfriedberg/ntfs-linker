@@ -2,15 +2,15 @@
 
 class ProgressBar {
 private:
-  unsigned long long done;
-  unsigned long long toDo;
+  uint64_t done;
+  uint64_t toDo;
   int last;
 public:
-  void addToDo(unsigned long long x);
-  void addDone(unsigned long long x);
-  void setDone(unsigned long long x);
+  void addToDo(uint64_t x);
+  void addDone(uint64_t x);
+  void setDone(uint64_t x);
   void printProgress();
-  ProgressBar(unsigned long long x);
+  ProgressBar(uint64_t x);
   void finish();
   void clear();
 };

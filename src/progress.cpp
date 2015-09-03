@@ -5,16 +5,16 @@
 #include <sstream>
 #include "progress.h"
 
-void ProgressBar::addToDo(unsigned long long x) {
+void ProgressBar::addToDo(uint64_t x) {
   toDo += x;
 }
 
-void ProgressBar::addDone(unsigned long long x) {
+void ProgressBar::addDone(uint64_t x) {
   done += x;
   printProgress();
 }
 
-void ProgressBar::setDone(unsigned long long x) {
+void ProgressBar::setDone(uint64_t x) {
   done = x;
   printProgress();
 }
@@ -39,7 +39,7 @@ void ProgressBar::printProgress() {
   }
 }
 
-ProgressBar::ProgressBar(unsigned long long x) {
+ProgressBar::ProgressBar(uint64_t x) {
   toDo = x;
   done = 0;
   last = -1;

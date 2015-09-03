@@ -15,13 +15,13 @@
 
 static const std::string VERSION = __VERSION;
 
-unsigned long long hex_to_long(const char* arr, int size);
+uint64_t hex_to_long(const char* arr, int size);
 
-long long filetime_to_unixtime(long long t);
+int64_t filetime_to_unixtime(int64_t t);
 
-std::string filetime_to_iso_8601(unsigned long long t);
+std::string filetime_to_iso_8601(uint64_t t);
 
-std::string mbcatos(const char* arr, unsigned long long len);
+std::string mbcatos(const char* arr, uint64_t len);
 
 std::string getFullPath(const std::vector<File>& records, unsigned int recordNo);
 
