@@ -29,6 +29,7 @@ public:
   int init(char* buffer);
   void clearFields();
   void insert(sqlite3_stmt* stmt);
+  static std::string getColumnHeaders();
 };
 std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 

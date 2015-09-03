@@ -78,6 +78,8 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   input.read(buffer, 4096);
   doFixup(buffer, 4096, 512);
 
+  output << LogRecord::getColumnHeaders() << std::endl;
+
   LogData transactions;
   transactions.clearFields();
 
@@ -469,6 +471,22 @@ void LogRecord::insert(sqlite3_stmt* stmt) {
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
+}
+
+std::string LogRecord::getColumnHeaders() {
+  std::stringstream ss;
+  ss << "CurLsn\t"
+     << "PrevLsn\t"
+     << "UndoLsn\t"
+     << "ClientID\t"
+     << "RecordType\t"
+     << "RedoOp\t"
+     << "UndoOp\t"
+     << "TargetAttribute\t"
+     << "MFTClusterIndex\t"
+     << "TargetVCN\t"
+     << "TargetLCN\t";
+  return ss.str();
 }
 
 std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {

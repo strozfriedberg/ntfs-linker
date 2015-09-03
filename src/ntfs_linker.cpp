@@ -55,7 +55,6 @@ int process(Options& opts) {
   fs::path outDir(opts.outputDir);
   fs::create_directories(outDir);
 
-  prep_ofstream(o_mft    , (outDir / fs::path("mft.txt")).string()    , opts.overwrite);
   prep_ofstream(o_usnjrnl, (outDir / fs::path("usnjrnl.txt")).string(), opts.overwrite);
   prep_ofstream(o_logfile, (outDir / fs::path("logfile.txt")).string(), opts.overwrite);
   prep_ofstream(o_events , (outDir / fs::path("events.txt")).string() , opts.overwrite);
