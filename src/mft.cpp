@@ -102,8 +102,7 @@ std::string MFTRecord::toString(std::vector<File>& records) {
      << filetime_to_iso_8601(Fna.MFTModified)  << "\t"
      << filetime_to_iso_8601(Fna.Accessed)     << "\t"
      << Fna.LogicalSize                        << "\t"
-     << Fna.PhysicalSize
-     << std::endl;
+     << Fna.PhysicalSize                       << std::endl;
   return ss.str();
 }
 

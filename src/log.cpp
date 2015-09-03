@@ -78,7 +78,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   input.read(buffer, 4096);
   doFixup(buffer, 4096, 512);
 
-  output << LogRecord::getColumnHeaders() << std::endl;
+  output << LogRecord::getColumnHeaders();
 
   LogData transactions;
   transactions.clearFields();
@@ -389,9 +389,9 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
 void LogData::clearFields() {
   RedoOps.clear();
   UndoOps.clear();
-  Record = 0;
-  Parent = 0;
-  PreviousParent = 0;
+  Record = -1;
+  Parent = -1;
+  PreviousParent = -1;
   Timestamp = "";
   Lsn = 0;
   Name = "";
@@ -462,17 +462,17 @@ void LogRecord::insert(sqlite3_stmt* stmt) {
 
 std::string LogRecord::getColumnHeaders() {
   std::stringstream ss;
-  ss << "CurLsn\t"
-     << "PrevLsn\t"
-     << "UndoLsn\t"
-     << "ClientID\t"
-     << "RecordType\t"
-     << "RedoOp\t"
-     << "UndoOp\t"
-     << "TargetAttribute\t"
-     << "MFTClusterIndex\t"
-     << "TargetVCN\t"
-     << "TargetLCN\t";
+  ss << "Current Lsn\t"
+     << "Previous Lsn\t"
+     << "Undo Lsn\t"
+     << "Client ID\t"
+     << "Record Type\t"
+     << "Redo Op\t"
+     << "Undo Op\t"
+     << "Target Attribute\t"
+     << "MFT Cluster Index\t"
+     << "Target VCN\t"
+     << "Target LCN" << std::endl;
   return ss.str();
 }
 

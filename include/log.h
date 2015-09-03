@@ -35,7 +35,7 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
-  unsigned long long Record, Parent, PreviousParent;
+  int64_t Record, Parent, PreviousParent;
   unsigned long long Lsn;
   std::string Name, PreviousName, Timestamp;
   std::vector<int> RedoOps, UndoOps;

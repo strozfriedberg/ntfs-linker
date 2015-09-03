@@ -7,7 +7,16 @@
 Returns the column names used for the Usn CSV file
 */
 std::string getUSNColumnHeaders() {
-  return "MFTRecordNumber\tParentMFTRecordNumber\tUsn\tTimestamp\tReason\tFileName\tPossiblePath\tPossibleParentPath";
+  std::stringstream ss;
+  ss << "MFT Record Number\t"
+     << "Parent Record Number\t"
+     << "Usn\t"
+     << "Timestamp\t"
+     << "Reason\t"
+     << "Filename\t"
+     << "Path\t"
+     << "Parent Path" << std::endl;
+  return ss.str();
 }
 
 const unsigned int USN_BUFFER_SIZE = 65536;
@@ -84,11 +93,6 @@ Parses all records found in the USN file represented by input. Uses the records 
 Outputs the results to several streams.
 */
 void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
-  if (sizeof(long long) < 8) {
-    std::cerr << "64-bit arithmetic not available. This won't work. Exiting." << std::endl;
-    exit(1);
-  }
-
   static char buffer[USN_BUFFER_SIZE];
 
   int records_processed = -1;
@@ -105,7 +109,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
   //scan through the $USNJrnl one record at a time. Each record is variable length.
   bool done = false;
   while (!input.eof() && !done) {
-    status.setDone((unsigned long long) input.tellg() - USN_BUFFER_SIZE + offset - start);
+    status.setDone((uint64_t) input.tellg() - USN_BUFFER_SIZE + offset - start);
 
     if (offset + 4 > USN_BUFFER_SIZE || hex_to_long(buffer + offset, 4) + offset > USN_BUFFER_SIZE) {
       // We've reached the end of the buffer. Move the record to the front,

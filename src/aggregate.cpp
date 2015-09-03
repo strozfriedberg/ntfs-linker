@@ -20,7 +20,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
   // Output log events until the log event is a create, so we can compare timestamps properly.
   EventLNIS log(sqliteHelper.EventLogSelect, EventTypes::CREATE);
   int order = 0;
-  out << Event::getColumnHeaders() << std::endl;
+  out << Event::getColumnHeaders();
   order = log.advance(order, records, out, false);
 
   while (u == SQLITE_ROW && log.hasMore()) {
@@ -64,7 +64,7 @@ void Event::init(sqlite3_stmt* stmt) {
   IsEmbedded     = sqlite3_column_int(stmt, ++i);
 
   if (PreviousParent == Parent)
-    PreviousParent = 0;
+    PreviousParent = -1;
   if (PreviousName == Name)
     PreviousName = "";
   IsAnchor = false;
@@ -78,39 +78,39 @@ Event::Event() {
 std::string Event::getColumnHeaders() {
   std::stringstream ss;
   ss << "Order\t"
-     << "MFTRecNo\t"
-     << "ParRecNo\t"
-     << "PreviousParRecNo\t"
+     << "MFT Record Number\t"
+     << "Parent Record Number\t"
+     << "Previous Parent Record Number\t"
      << "USN_LSN\t"
      << "Timestamp\t"
-     << "FileName\t"
-     << "PreviousFileName\t"
+     << "Filename\t"
+     << "Previous Filename\t"
      << "Path\t"
-     << "ParPath\t"
-     << "PreviousParPath\t"
-     << "EventType\t"
-     << "EventSource\t"
+     << "Parent Path\t"
+     << "Previous Parent Path\t"
+     << "Type\t"
+     << "Source\t"
      << "IsAnchor\t"
-     << "IsEmbedded\t";
+     << "IsEmbedded" << std::endl;
   return ss.str();
 }
 
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
-  out << order                                                             << "\t"
-      << Record                                                            << "\t"
-      << Parent                                                            << "\t"
-      << PreviousParent                                                    << "\t"
-      << UsnLsn                                                            << "\t"
-      << Timestamp                                                         << "\t"
-      << Name                                                              << "\t"
-      << PreviousName                                                      << "\t"
-      << getFullPath(records, Record)                                      << "\t"
-      << getFullPath(records, Parent)                                      << "\t"
-      << (PreviousParent == 0 ? "" : getFullPath(records, PreviousParent)) << "\t"
-      << static_cast<EventTypes>(Type)                                     << "\t"
-      << static_cast<EventSources>(Source)                                 << "\t"
-      << IsAnchor                                                          << "\t"
-      << IsEmbedded                                                        << std::endl;
+  out << order                                                              << "\t"
+      << (Record == -1 ? "" : std::to_string(Record))                       << "\t"
+      << (Parent == -1 ? "" : std::to_string(Parent))                       << "\t"
+      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))       << "\t"
+      << UsnLsn                                                             << "\t"
+      << (IsAnchor? Timestamp : "")                                         << "\t"
+      << Name                                                               << "\t"
+      << PreviousName                                                       << "\t"
+      << (Record == -1 ? "" : getFullPath(records, Record))                 << "\t"
+      << (Parent == -1 ? "" : getFullPath(records, Parent))                 << "\t"
+      << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent)) << "\t"
+      << static_cast<EventTypes>(Type)                                      << "\t"
+      << static_cast<EventSources>(Source)                                  << "\t"
+      << IsAnchor                                                           << "\t"
+      << IsEmbedded                                                         << std::endl;
 }
 
 void Event::updateRecords(std::vector<File>& records) {
