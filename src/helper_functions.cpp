@@ -15,21 +15,6 @@
 #include "utf8.h"
 #include "helper_functions.h"
 
-
-/*
-Returns the first SIZE characters as a hex string.
-*/
-std::string byte_to_str(char* bytes, int size) {
-  char const hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-  std::string str;
-  for(int i = 0; i < size; i++) {
-    const char ch = bytes[i];
-    str.append(&hex[(ch & 0xF0) >> 4], 1);
-    str.append(&hex[ch & 0x0F], 1);
-  }
-  return str;
-}
-
 /*
 Returns the first SIZE bytes of the character array as a long long
 If the result is too large to fit into a long long then overflow will occur
@@ -76,7 +61,7 @@ std::string filetime_to_iso_8601(unsigned long long t) {
   if (!strftime(str, 20, "%Y-%m-%d %H:%M:%S", date))
     return "";
   std::stringstream ss;
-  ss << str << " ";
+  ss << str << ".";
   ss << std::setw(7) << std::setfill('0') << (t % 10000000);
   return ss.str();
 }
@@ -105,33 +90,6 @@ std::string mbcatos(const char* arr, unsigned long long len) {
 }
 
 /*
-Unpacks the flag meaning from standard information attribute and file information attribute
-The same flags are used for both sia flags and fna flags.
-In order returned, flag meaning is:
-Read only, Hidden, System, Archive, Device, Normal, Temporary, Sparse File, Reparse Point, Compressed, Offline, Not Indexed, Encrypted
-*/
-std::string getFlagMeaning(int flags) {
-  std::stringstream ss;
-  ss << (flags & 0x1) << ","<< (flags & 0x2) << "," <<(flags & 0x4) << "," << (flags & 0x20) << ","
-    << (flags & 0x40) << "," << (flags & 0x80) << "," << (flags & 0x100) << "," << (flags & 0x200) << ","
-    << (flags & 0x400) << "," << (flags & 0x800) << "," << (flags & 0x1000) << "," << (flags & 0x2000)
-    << (flags & 0x4000);
-  return ss.str();
-}
-
-int max(int a, int b) {
-  return a > b? a: b;
-}
-
-/*
-writes the buffer to the stream
-*/
-void mem_dump(char* buffer, int length, std::ostream& output) {
-  for(int i = 0; i < length; i++)
-    output << buffer[i];
-}
-
-/*
 Uses the map of file records to construct the full file path.
 If a file record is not present in the map then the empty stry "" is returned
 */
@@ -153,17 +111,6 @@ std::string getFullPath(const std::vector<File>& records, unsigned int record, s
 std::string getFullPath(const std::vector<File>& records, unsigned int recordNo) {
   std::vector<unsigned int> stack;
   return getFullPath(records, recordNo, stack);
-}
-
-/*
-32-bit and 64-bit windows versions both define _WIN32
-*/
-bool isUnix() {
-#ifdef _WIN32
-  return false;
-#else
-  return true;
-#endif
 }
 
 /*

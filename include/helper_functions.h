@@ -15,27 +15,15 @@
 
 static const std::string VERSION = __VERSION;
 
-std::string byte_to_str(char* bytes, int size);
-
 unsigned long long hex_to_long(const char* arr, int size);
 
 long long filetime_to_unixtime(long long t);
-
-std::wstring string_to_wstring(const std::string &str);
 
 std::string filetime_to_iso_8601(unsigned long long t);
 
 std::string mbcatos(const char* arr, unsigned long long len);
 
-std::string getFlagMeaning(int flags);
-
-int max(int a, int b);
-
-void mem_dump(char* buffer, int length, std::ostream& output = std::cout);
-
 std::string getFullPath(const std::vector<File>& records, unsigned int recordNo);
-
-bool isUnix();
 
 void prep_ofstream(std::ofstream& out, const std::string& name, bool overwrite);
 

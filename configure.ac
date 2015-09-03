@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-m4_define([ntfs_linker_version], [0.0.2])
+m4_define([ntfs_linker_version], [0.0.3])
 AC_INIT([ntfs-linker], [ntfs_linker_version], [zweger@strozfriedberg.com])
  
 AC_CONFIG_AUX_DIR([config])
