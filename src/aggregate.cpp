@@ -50,19 +50,26 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
   return;
 }
 
+std::string textToString(const unsigned char* text) {
+  return text == NULL ? "" : std::string(reinterpret_cast<const char*>(text));
+}
+
 void Event::init(sqlite3_stmt* stmt) {
   int i = -1;
   Record         = sqlite3_column_int64(stmt, ++i);
   Parent         = sqlite3_column_int64(stmt, ++i);
   PreviousParent = sqlite3_column_int64(stmt, ++i);
   UsnLsn         = sqlite3_column_int64(stmt, ++i);
-  Timestamp      = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
-  Name           = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
-  PreviousName   = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, ++i)));
+  Timestamp      = textToString(sqlite3_column_text(stmt, ++i));
+  Name           = textToString(sqlite3_column_text(stmt, ++i));
+  PreviousName   = textToString(sqlite3_column_text(stmt, ++i));
   Type           = sqlite3_column_int(stmt, ++i);
   Source         = sqlite3_column_int(stmt, ++i);
   IsEmbedded     = sqlite3_column_int(stmt, ++i);
   Offset         = sqlite3_column_int64(stmt, ++i);
+  Created        = textToString(sqlite3_column_text(stmt, ++i));
+  Modified       = textToString(sqlite3_column_text(stmt, ++i));
+  Comment        = textToString(sqlite3_column_text(stmt, ++i));
 
   if (PreviousParent == Parent)
     PreviousParent = -1;
@@ -93,26 +100,32 @@ std::string Event::getColumnHeaders() {
      << "Old Parent Record\t"
      << "Anchored\t"
      << "Offset\t"
+     << "Created\t"
+     << "Modified\t"
+     << "Comment\t"
      << std::endl;
   return ss.str();
 }
 
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
-  out << order                                                                         << "\t"
-      << (IsAnchor ? Timestamp : "")                                                   << "\t"
-      << (IsEmbedded ? EventSources::EMBEDDED_USN : static_cast<EventSources>(Source)) << "\t"
-      << static_cast<EventTypes>(Type)                                                 << "\t"
-      << Name                                                                          << "\t"
-      << (Parent == -1 ? "" : getFullPath(records, Parent))                            << "\t"
-      << (Record == -1 ? "" : getFullPath(records, Record))                            << "\t"
-      << (Record == -1 ? "" : std::to_string(Record))                                  << "\t"
-      << (Parent == -1 ? "" : std::to_string(Parent))                                  << "\t"
-      << UsnLsn                                                                        << "\t"
-      << PreviousName                                                                  << "\t"
-      << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent))            << "\t"
-      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))                  << "\t"
-      << IsAnchor                                                                      << "\t"
-      << Offset                                                                        << "\t"
+  out << order                                                                          << "\t"
+       << (IsAnchor ? Timestamp : "")                                                   << "\t"
+       << (IsEmbedded ? EventSources::EMBEDDED_USN : static_cast<EventSources>(Source)) << "\t"
+       << static_cast<EventTypes>(Type)                                                 << "\t"
+       << Name                                                                          << "\t"
+       << (Parent == -1 ? "" : getFullPath(records, Parent))                            << "\t"
+       << (Record == -1 ? "" : getFullPath(records, Record))                            << "\t"
+       << (Record == -1 ? "" : std::to_string(Record))                                  << "\t"
+       << (Parent == -1 ? "" : std::to_string(Parent))                                  << "\t"
+       << UsnLsn                                                                        << "\t"
+       << PreviousName                                                                  << "\t"
+       << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent))            << "\t"
+       << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))                  << "\t"
+       << IsAnchor                                                                      << "\t"
+       << Offset                                                                        << "\t"
+       << Created                                                                       << "\t"
+       << Modified                                                                      << "\t"
+       << Comment                                                                       << "\t"
       << std::endl;
 }
 

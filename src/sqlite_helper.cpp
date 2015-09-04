@@ -103,6 +103,9 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "EventSource int, " \
                          "IsEmbedded int, " \
                          "Offset int, " \
+                         "Created text, " \
+                         "Modified text, " \
+                         "Comment text, " \
                          "UNIQUE(USN_LSN, EventSource));",
                      0, 0, 0);
   prepareStatements();
@@ -132,7 +135,7 @@ void SQLiteHelper::prepareStatements() {
   std::string mftInsert = "insert into mft values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string eventSelect = "select * from events where EventSource=? order by OFFSET desc";
 
   rc |= prepareStatement(&MftInsert, mftInsert);

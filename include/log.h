@@ -37,7 +37,7 @@ class LogData {
 public:
   int64_t Record, Parent, PreviousParent, Offset;
   uint64_t Lsn;
-  std::string Name, PreviousName, Timestamp;
+  std::string Name, PreviousName, Timestamp, Created, Modified, Comment;
   std::vector<int> RedoOps, UndoOps;
 
   void clearFields();

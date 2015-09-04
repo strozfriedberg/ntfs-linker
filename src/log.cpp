@@ -323,6 +323,16 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
     MFTRecord mftRec(redo_data, rec.redo_length);
     Timestamp = filetime_to_iso_8601(mftRec.Sia.Created);
     Parent = mftRec.Fna.Parent;
+
+    Created = filetime_to_iso_8601(mftRec.Sia.Created);
+    Modified = filetime_to_iso_8601(mftRec.Sia.Modified);
+    std::stringstream commentSS;
+    if (Created != filetime_to_iso_8601(mftRec.Fna.Created))
+      commentSS << "Creates don't match, ";
+    if (Modified != filetime_to_iso_8601(mftRec.Fna.Modified))
+      commentSS << "Modifies don't match";
+    Comment = commentSS.str();
+
     if (compareNames(Name, mftRec.Fna.Name))
       Name = mftRec.Fna.Name;
   }
@@ -369,6 +379,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
     // Add index entry root/AddIndexEntryAllocation operation
     // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
     // for additional info about Index Record structure ("The header part")
+    // TODO REFACTOR MAKE THIS ITS OWN CLASS
     if (rec.redo_length > 0x52) {
       Record = hex_to_long(redo_data, 6);
       Parent = hex_to_long(redo_data + 0x10, 6);
@@ -400,6 +411,9 @@ void LogData::clearFields() {
   Name = "";
   PreviousName = "";
   Offset = -1;
+  Created = "";
+  Modified = "";
+  Comment = "";
 }
 
 /*
@@ -444,6 +458,9 @@ void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, ++i, EventSources::LOG);
   sqlite3_bind_int64(stmt, ++i, 0);  // Not embedded
   sqlite3_bind_int64(stmt, ++i, Offset);
+  sqlite3_bind_text (stmt, ++i, Created.c_str()     , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Modified.c_str()    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Comment.c_str()     , -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
