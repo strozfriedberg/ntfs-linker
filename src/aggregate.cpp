@@ -62,6 +62,7 @@ void Event::init(sqlite3_stmt* stmt) {
   Type           = sqlite3_column_int(stmt, ++i);
   Source         = sqlite3_column_int(stmt, ++i);
   IsEmbedded     = sqlite3_column_int(stmt, ++i);
+  Offset         = sqlite3_column_int(stmt, ++i);
 
   if (PreviousParent == Parent)
     PreviousParent = -1;
@@ -91,6 +92,7 @@ std::string Event::getColumnHeaders() {
      << "Old Folder\t"
      << "Old Parent Record\t"
      << "Anchored\t"
+     << "Offset\t"
      << std::endl;
   return ss.str();
 }
@@ -110,6 +112,7 @@ void Event::write(int order, std::ostream& out, std::vector<File>& records) {
       << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent)) << "\t"
       << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))       << "\t"
       << IsAnchor                                                           << "\t"
+      << Offset                                                             << "\t"
       << std::endl;
 }
 

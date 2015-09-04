@@ -130,9 +130,9 @@ int SQLiteHelper::prepareStatement(sqlite3_stmt **stmt, std::string& sql) {
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
   std::string mftInsert = "insert into mft values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string eventSelect = "select * from events where EventSource=? order by USN_LSN desc";
 
   rc |= prepareStatement(&MftInsert, mftInsert);

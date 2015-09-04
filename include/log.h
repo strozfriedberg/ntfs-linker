@@ -20,13 +20,13 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
 
 class LogRecord {
 public:
-  uint64_t cur_lsn, prev_lsn, undo_lsn;
+  uint64_t cur_lsn, prev_lsn, undo_lsn, Offset;
   unsigned int client_id, record_type, flags, redo_op, undo_op, redo_offset, redo_length, undo_offset, undo_length;
   unsigned int target_attr, lcns_to_follow, record_offset, attribute_offset, mft_cluster_index, target_vcn, target_lcn;
   unsigned int client_data_length;
   char* data;
 
-  int init(char* buffer);
+  int init(char* buffer, uint64_t offset);
   void clearFields();
   void insert(sqlite3_stmt* stmt);
   static std::string getColumnHeaders();
@@ -35,13 +35,13 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
-  int64_t Record, Parent, PreviousParent;
+  int64_t Record, Parent, PreviousParent, Offset;
   uint64_t Lsn;
   std::string Name, PreviousName, Timestamp;
   std::vector<int> RedoOps, UndoOps;
 
   void clearFields();
-  void processLogRecord(LogRecord& rec, std::vector<File>& records, SQLiteHelper& sqliteHelper);
+  void processLogRecord(LogRecord& rec, std::vector<File>& records, SQLiteHelper& sqliteHelper, uint64_t fileOffset);
   std::string pickName(std::string a, std::string b);
   std::string toCreateString(std::vector<File>& records);
   std::string toDeleteString(std::vector<File>& records);

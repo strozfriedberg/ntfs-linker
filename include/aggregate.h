@@ -17,7 +17,7 @@ public:
   void updateRecords(std::vector<File>& records);
   static std::string getColumnHeaders();
 
-  int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source;
+  int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset;
   std::string Timestamp, Name, PreviousName;
   bool IsAnchor, IsEmbedded;
 };
