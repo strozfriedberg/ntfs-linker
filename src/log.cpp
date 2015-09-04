@@ -74,7 +74,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   uint64_t end = input.tellg();
   ProgressBar status(end);
   uint64_t start = 0x4000;
-  input.seekg(start);
+  input.seekg(start, std::ios::beg);
   input.read(buffer, 4096);
   doFixup(buffer, 4096, 512);
 
@@ -111,10 +111,11 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
 
     //parse log record
     while(offset + 0x30 <= buffer_size) {
+      int64_t cur_offset = static_cast<long int>(input.tellg()) - buffer_size + offset - adjust;
       if (transactions.Offset == -1)
-        transactions.Offset = records_processed * 4096 + offset - adjust;
+        transactions.Offset = cur_offset;
       LogRecord rec;
-      int rtnVal = rec.init(buffer + offset, records_processed * 4096 + offset - adjust);
+      int rtnVal = rec.init(buffer + offset, cur_offset);
       if(rtnVal == -1) {
         split_record = true;
         length = rec.client_data_length + 0x30;
@@ -132,7 +133,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       output << rec;
       rec.insert(sqliteHelper.LogInsert);
 
-      transactions.processLogRecord(rec, records, sqliteHelper, records_processed * 4096 + offset - adjust);
+      transactions.processLogRecord(rec, records, sqliteHelper, cur_offset);
       if(transactions.isTransactionOver()) {
         if(transactions.isCreateEvent()) {
           transactions.insertEvent(EventTypes::CREATE, sqliteHelper.EventInsert);
@@ -459,7 +460,7 @@ void LogRecord::insert(sqlite3_stmt* stmt) {
   sqlite3_bind_text (stmt, ++i, decodeLogFileOpCode(undo_op).c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int  (stmt, ++i, target_attr);
   sqlite3_bind_int  (stmt, ++i, mft_cluster_index);
-  sqlite3_bind_int  (stmt, ++i, Offset);
+  sqlite3_bind_int64(stmt, ++i, Offset);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

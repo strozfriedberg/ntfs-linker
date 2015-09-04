@@ -62,7 +62,7 @@ void Event::init(sqlite3_stmt* stmt) {
   Type           = sqlite3_column_int(stmt, ++i);
   Source         = sqlite3_column_int(stmt, ++i);
   IsEmbedded     = sqlite3_column_int(stmt, ++i);
-  Offset         = sqlite3_column_int(stmt, ++i);
+  Offset         = sqlite3_column_int64(stmt, ++i);
 
   if (PreviousParent == Parent)
     PreviousParent = -1;
