@@ -98,21 +98,21 @@ std::string Event::getColumnHeaders() {
 }
 
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
-  out << order                                                              << "\t"
-      << (IsAnchor? Timestamp : "")                                         << "\t"
-      << static_cast<EventSources>(Source)                                  << "\t"
-      << static_cast<EventTypes>(Type)                                      << "\t"
-      << Name                                                               << "\t"
-      << (Parent == -1 ? "" : getFullPath(records, Parent))                 << "\t"
-      << (Record == -1 ? "" : getFullPath(records, Record))                 << "\t"
-      << (Record == -1 ? "" : std::to_string(Record))                       << "\t"
-      << (Parent == -1 ? "" : std::to_string(Parent))                       << "\t"
-      << UsnLsn                                                             << "\t"
-      << PreviousName                                                       << "\t"
-      << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent)) << "\t"
-      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))       << "\t"
-      << IsAnchor                                                           << "\t"
-      << Offset                                                             << "\t"
+  out << order                                                                         << "\t"
+      << (IsAnchor ? Timestamp : "")                                                   << "\t"
+      << (IsEmbedded ? EventSources::EMBEDDED_USN : static_cast<EventSources>(Source)) << "\t"
+      << static_cast<EventTypes>(Type)                                                 << "\t"
+      << Name                                                                          << "\t"
+      << (Parent == -1 ? "" : getFullPath(records, Parent))                            << "\t"
+      << (Record == -1 ? "" : getFullPath(records, Record))                            << "\t"
+      << (Record == -1 ? "" : std::to_string(Record))                                  << "\t"
+      << (Parent == -1 ? "" : std::to_string(Parent))                                  << "\t"
+      << UsnLsn                                                                        << "\t"
+      << PreviousName                                                                  << "\t"
+      << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent))            << "\t"
+      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))                  << "\t"
+      << IsAnchor                                                                      << "\t"
+      << Offset                                                                        << "\t"
       << std::endl;
 }
 
