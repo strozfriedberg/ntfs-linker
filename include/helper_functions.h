@@ -29,14 +29,15 @@ void prep_ofstream(std::ofstream& out, const std::string& name, bool overwrite);
 
 enum EventSources: unsigned int {
   USN = 0,
-  LOG = 1
+  LOG = 1,
+  EMBEDDED_USN = 2,
 };
 
 enum EventTypes: unsigned int {
   CREATE = 0,
   DELETE = 1,
   RENAME = 2,
-  MOVE = 3
+  MOVE = 3,
 };
 
 std::ostream& operator<<(std::ostream& out, EventTypes e);

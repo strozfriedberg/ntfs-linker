@@ -77,40 +77,40 @@ Event::Event() {
 
 std::string Event::getColumnHeaders() {
   std::stringstream ss;
-  ss << "Order\t"
-     << "MFT Record Number\t"
-     << "Parent Record Number\t"
-     << "Previous Parent Record Number\t"
-     << "USN_LSN\t"
+  ss << "Index\t"
      << "Timestamp\t"
-     << "Filename\t"
-     << "Previous Filename\t"
-     << "Path\t"
-     << "Parent Path\t"
-     << "Previous Parent Path\t"
-     << "Type\t"
      << "Source\t"
-     << "IsAnchor\t"
-     << "IsEmbedded" << std::endl;
+     << "Type\t"
+     << "File Name\t"
+     << "Folder\t"
+     << "Full Path\t"
+     << "MFT Record\t"
+     << "Parent MFT Record\t"
+     << "USN/LSN\t"
+     << "Old Parent Record\t"
+     << "Old File Name\t"
+     << "Old Folder\t"
+     << "Anchored\t"
+     << std::endl;
   return ss.str();
 }
 
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
   out << order                                                              << "\t"
+      << (IsAnchor? Timestamp : "")                                         << "\t"
+      << static_cast<EventSources>(Source)                                  << "\t"
+      << static_cast<EventTypes>(Type)                                      << "\t"
+      << Name                                                               << "\t"
+      << (Parent == -1 ? "" : getFullPath(records, Parent))                 << "\t"
+      << (Record == -1 ? "" : getFullPath(records, Record))                 << "\t"
       << (Record == -1 ? "" : std::to_string(Record))                       << "\t"
       << (Parent == -1 ? "" : std::to_string(Parent))                       << "\t"
-      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))       << "\t"
       << UsnLsn                                                             << "\t"
-      << (IsAnchor? Timestamp : "")                                         << "\t"
-      << Name                                                               << "\t"
+      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))       << "\t"
       << PreviousName                                                       << "\t"
-      << (Record == -1 ? "" : getFullPath(records, Record))                 << "\t"
-      << (Parent == -1 ? "" : getFullPath(records, Parent))                 << "\t"
       << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent)) << "\t"
-      << static_cast<EventTypes>(Type)                                      << "\t"
-      << static_cast<EventSources>(Source)                                  << "\t"
       << IsAnchor                                                           << "\t"
-      << IsEmbedded                                                         << std::endl;
+      << std::endl;
 }
 
 void Event::updateRecords(std::vector<File>& records) {

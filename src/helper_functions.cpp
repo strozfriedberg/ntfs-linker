@@ -151,6 +151,8 @@ std::ostream& operator<<(std::ostream& out, EventSources e) {
       return out << "$UsnJrnl/$J";
     case EventSources::LOG:
       return out << "$LogFile";
+    case EventSources::EMBEDDED_USN:
+      return out << "$UsnJrnl entry in $LogFile";
     default:
       return out << "N/A";
   }
