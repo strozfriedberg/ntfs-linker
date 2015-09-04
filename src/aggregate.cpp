@@ -87,9 +87,9 @@ std::string Event::getColumnHeaders() {
      << "MFT Record\t"
      << "Parent MFT Record\t"
      << "USN/LSN\t"
-     << "Old Parent Record\t"
      << "Old File Name\t"
      << "Old Folder\t"
+     << "Old Parent Record\t"
      << "Anchored\t"
      << std::endl;
   return ss.str();
@@ -106,9 +106,9 @@ void Event::write(int order, std::ostream& out, std::vector<File>& records) {
       << (Record == -1 ? "" : std::to_string(Record))                       << "\t"
       << (Parent == -1 ? "" : std::to_string(Parent))                       << "\t"
       << UsnLsn                                                             << "\t"
-      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))       << "\t"
       << PreviousName                                                       << "\t"
       << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent)) << "\t"
+      << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))       << "\t"
       << IsAnchor                                                           << "\t"
       << std::endl;
 }
