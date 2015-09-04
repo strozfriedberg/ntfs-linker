@@ -15,7 +15,9 @@ std::string getUSNColumnHeaders() {
      << "Reason\t"
      << "Filename\t"
      << "Path\t"
-     << "Parent Path" << std::endl;
+     << "Parent Path\t"
+     << "File Offset"
+     << std::endl;
   return ss.str();
 }
 
@@ -105,6 +107,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
   output << getUSNColumnHeaders();
 
   unsigned int offset = 0;
+  unsigned int totalOffset = 0;
 
   //scan through the $USNJrnl one record at a time. Each record is variable length.
   bool done = false;
@@ -116,6 +119,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       // then read to fill out the rest of the buffer
       memmove(buffer, buffer + offset, USN_BUFFER_SIZE - offset);
       input.read(buffer + USN_BUFFER_SIZE - offset, offset);
+      totalOffset += offset;
       offset = 0;
     }
 
@@ -134,7 +138,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     records_processed++;
 
-    UsnRecord rec(buffer + offset);
+    UsnRecord rec(buffer + offset, offset + totalOffset);
     output << rec.toString(records);
     rec.insert(sqliteHelper.UsnInsert, records);
 
@@ -165,7 +169,9 @@ void UsnRecord::update(UsnRecord rec) {
     }
 }
 
-UsnRecord::UsnRecord(const char* buffer, int len, bool isEmbedded) : IsEmbedded(isEmbedded) {
+UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, int len, bool isEmbedded) :
+  FileOffset(fileOffset),
+  IsEmbedded(isEmbedded) {
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
     PreviousParent                   = 0;
@@ -201,6 +207,7 @@ void UsnRecord::clearFields() {
   Reason          = 0;
   Timestamp       = "";
   Usn             = 0;
+  FileOffset      = 0;
 }
 
 UsnRecord::UsnRecord() {
@@ -217,7 +224,9 @@ std::string UsnRecord::toString(const std::vector<File>& records) {
      << getReasonString()            << "\t"
      << Name                         << "\t"
      << getFullPath(records, Record) << "\t"
-     << getFullPath(records, Parent) << std::endl;
+     << getFullPath(records, Parent) << "\t"
+     << FileOffset
+     << std::endl;
   return ss.str();
 }
 
@@ -233,6 +242,7 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, ++i, type);
   sqlite3_bind_int64(stmt, ++i, EventSources::USN);
   sqlite3_bind_int64(stmt, ++i, IsEmbedded);
+  sqlite3_bind_int64(stmt, ++i, FileOffset);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -248,6 +258,7 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_bind_text(stmt , ++i, Name.c_str()                        , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt , ++i, getFullPath(records, Record).c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt , ++i, getFullPath(records, Parent).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int64(stmt, ++i, FileOffset);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

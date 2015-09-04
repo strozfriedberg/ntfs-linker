@@ -77,7 +77,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "RedoOP text, " \
                          "UndoOP text, " \
                          "TargetAttribute int, " \
-                         "MFTClusterIndex int);",
+                         "MFTClusterIndex int, " \
+                         "Offset int);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists usn (" \
                          "MFTRecNo int, " \
@@ -87,7 +88,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "Reason text, " \
                          "FileName text, " \
                          "PossiblePath text, " \
-                         "PossibleParPath text);",
+                         "PossibleParPath text, " \
+                         "Offset int);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists events(" \
                          "MFTRecNo int, " \
@@ -100,6 +102,7 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "EventType int, " \
                          "EventSource int, " \
                          "IsEmbedded int, " \
+                         "Offset int, " \
                          "UNIQUE(USN_LSN, EventSource));",
                      0, 0, 0);
   prepareStatements();
