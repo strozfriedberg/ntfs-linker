@@ -199,11 +199,11 @@ void UsnRecord::clearFields() {
 
   Name            = "";
   Reference       = 0;
-  Record          = 0;
+  Record          = -1;
   ParentReference = 0;
-  Parent          = 0;
+  Parent          = -1;
   PreviousName    = "";
-  PreviousParent  = 0;
+  PreviousParent  = -1;
   Reason          = 0;
   Timestamp       = "";
   Usn             = 0;
