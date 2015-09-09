@@ -30,8 +30,8 @@ public:
   void insert(sqlite3_stmt* stmt, const std::vector<File>& records);
   void insertEvent(unsigned int type, sqlite3_stmt* stmt);
 
-  int64_t Reference, ParentReference, Usn, FileOffset;
-  uint64_t Record, Parent, PreviousParent;
+  uint64_t Reference, ParentReference, Usn, FileOffset;
+  int64_t Record, Parent, PreviousParent;
   unsigned int Reason;
   bool IsEmbedded;
   std::string Name, PreviousName, Timestamp;
