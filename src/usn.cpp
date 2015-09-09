@@ -174,7 +174,7 @@ UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, int len, bool isEm
   IsEmbedded(isEmbedded) {
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
-    PreviousParent                   = 0;
+    PreviousParent                   = -1;
     uint64_t record_length = hex_to_long(buffer, 4);
     Record                           = hex_to_long(buffer + 0x8, 6);
     Reference                        = hex_to_long(buffer + 0x8, 8);
@@ -278,6 +278,6 @@ void UsnRecord::checkTypeAndInsert(sqlite3_stmt* stmt) {
     insertEvent(EventTypes::RENAME, stmt);
   if (Parent != PreviousParent
       && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME))
-      && PreviousParent != 0)
+      && PreviousParent != -1)
     insertEvent(EventTypes::MOVE, stmt);
 }
