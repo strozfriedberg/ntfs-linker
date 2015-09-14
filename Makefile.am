@@ -26,5 +26,7 @@ TESTS = $(check_PROGRAMS)
  
 test_test_SOURCES = \
 	test/test.cpp \
-	test/test_lnis.cpp
+	test/test_lnis.cpp \
+	test/test_helper_functions.cpp \
+	src/helper_functions.cpp
  

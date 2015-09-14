@@ -19,7 +19,7 @@ std::ostream& operator<<(std::ostream& out, std::list<int> list) {
   return out;
 }
 
-SCOPE_TEST(testVarintEncode) {
+SCOPE_TEST(testLNIS) {
   std::vector<std::vector<int>> sequences { {10, 9, 9, 8, 2, 1, 8, 7, 6, 5},
                                {8, 5, 9, 2, 1, 4, 3, 6, 2} };
   std::vector<std::list<int>> expected { { 0, 1, 2, 3, 6, 7, 8, 9},
