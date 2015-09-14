@@ -59,6 +59,45 @@ if test "x$ax_cv_boost_filesystem" != "xyes"; then
   AC_MSG_ERROR([Failed to find Boost filesystem library.])
 fi
 
+
+###############################################################################
+# Scope test framework
+AC_ARG_WITH([scope],
+  [AS_HELP_STRING([--with-scope=ARG],
+    [use Scope headers from the specified location])],
+  [SCOPE_PATH="$withval"],
+  [SCOPE_PATH="vendors/scope"])
+
+if test "x$with_scope" != "xno"; then
+  # test Scope without adding its path to CPPFLAGS generally
+  SCOPE_CPPFLAGS="-isystem `realpath $SCOPE_PATH`"
+  CPPFLAGS_saved="$CPPFLAGS"
+  CPPFLAGS="$SCOPE_CPPFLAGS"
+  export CPPFLAGS
+
+  AC_CHECK_HEADERS([scope/test.h],[scope_ok="yes"])
+
+  CPPFLAGS="$CPPFLAGS_saved"
+
+  if test "x$scope_ok" = "xyes"; then
+    AC_DEFINE(HAVE_SCOPE,1,[Define to 1 if Scope test framework is available.])
+    AC_SUBST([SCOPE_CPPFLAGS])
+  fi
+fi
+
+# Tell the user why not if he won't be able to compile the tests
+if test "x$scope_ok" != "xyes"; then
+  AC_MSG_WARN([])
+  AC_MSG_WARN([You will be unable to compile and run the tests because:])
+  AC_MSG_WARN([])
+  if test "x$scope_ok" != "xyes"; then
+    AC_MSG_WARN([  * Scope test framework is unavailable])
+  fi
+  AC_MSG_WARN([])
+fi
+###############################################################################
+
+
 # Ensure that we statically link everything which is not a system lib;
 # -all-static includes libstdc++ and libgcc, which are excluded by
 # -static.
