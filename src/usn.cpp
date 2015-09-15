@@ -1,5 +1,7 @@
-#include "helper_functions.h"
 #include <sqlite3.h>
+#include <algorithm>
+
+#include "helper_functions.h"
 #include "usn.h"
 #include "progress.h"
 
@@ -20,8 +22,6 @@ std::string getUSNColumnHeaders() {
      << std::endl;
   return ss.str();
 }
-
-const unsigned int USN_BUFFER_SIZE = 65536;
 
 /*
 Decodes the Usn reason code
@@ -55,7 +55,7 @@ std::string UsnRecord::getReasonString() {
   return ss.str();
 }
 
-std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=false) {
+std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
   /**
    * Handle sparse $J file.
    * Seeks to end, then advances backwards until an all zero block is found
@@ -72,9 +72,10 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
         done = true;
         stream.clear();
         stream.seekg(0, std::ios::beg);
+        stream.read(buffer, std::min(USN_BUFFER_SIZE, static_cast<unsigned int>(end - stream.tellg())));
       }
       else {
-        stream.read(buffer, USN_BUFFER_SIZE);
+        stream.read(buffer, std::min(USN_BUFFER_SIZE, static_cast<unsigned int>(end - stream.tellg())));
         done = true;
         for (unsigned int i = 0; i < USN_BUFFER_SIZE && done; i++) {
           if (buffer[i] != 0)
@@ -85,7 +86,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
   }
   else {
     stream.seekg(0, std::ios::beg);
-    stream.read(buffer, USN_BUFFER_SIZE);
+    stream.read(buffer, std::min(USN_BUFFER_SIZE, static_cast<unsigned int>(end - stream.tellg())));
   }
   return end;
 }

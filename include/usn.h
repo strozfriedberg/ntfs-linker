@@ -7,7 +7,11 @@
 
 #pragma once
 
+const unsigned int USN_BUFFER_SIZE = 65536;
+
 std::string getUSNColumnHeaders();
+
+std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=false);
 
 void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input = std::cin, std::ostream& output = std::cout);
 
