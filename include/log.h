@@ -1,12 +1,12 @@
+#pragma once
+
 #include "file.h"
-#include "helper_functions.h"
 #include "sqlite_helper.h"
 
-#include <sqlite3.h>
 #include <iostream>
+#include <string>
 #include <vector>
 
-#pragma once
 /*
 returns the meaning of the operation code
 */

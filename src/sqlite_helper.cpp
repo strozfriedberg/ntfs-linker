@@ -1,8 +1,8 @@
-#include "sqlite_helper.h"
 #include "aggregate.h"
+#include "sqlite_helper.h"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 int busyHandler(__attribute__((unused)) void* foo, __attribute__((unused)) int num) {
   char input;

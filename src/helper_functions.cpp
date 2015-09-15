@@ -1,19 +1,16 @@
+#include "file.h"
+#include "utf8.h"
+#include "helper_functions.h"
 
+#include <algorithm>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <map>
-#include <new>
 #include <sstream>
-#include <stdlib.h>
-#include <string.h>
 #include <string>
 #include <vector>
-
-#include "file.h"
-#include "utf8.h"
-#include "helper_functions.h"
 
 /*
 Returns the first SIZE bytes of the character array as a int64_t

@@ -1,9 +1,8 @@
-#include <cstdio>
-#include <ctime>
+#include "progress.h"
+
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-#include "progress.h"
 
 void ProgressBar::addToDo(uint64_t x) {
   toDo += x;

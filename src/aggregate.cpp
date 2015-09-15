@@ -1,15 +1,13 @@
+#include "aggregate.h"
 #include "file.h"
 #include "helper_functions.h"
-#include "aggregate.h"
 #include "sqlite_helper.h"
 
 #include <fstream>
-#include <vector>
-#include <list>
-#include <string>
-#include <sstream>
-
 #include <sqlite3.h>
+#include <sstream>
+#include <string>
+#include <vector>
 
 void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out) {
   int u;

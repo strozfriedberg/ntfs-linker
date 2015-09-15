@@ -1,5 +1,6 @@
-#include <string>
 #pragma once
+
+#include <string>
 
 /*
 Represents a file. A map of record numbers to these file objects can be used to reconstruct the full path

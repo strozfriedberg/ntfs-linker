@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include "helper_functions.h"
 #include "mft.h"
 #include "file.h"

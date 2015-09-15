@@ -1,13 +1,12 @@
-#include "helper_functions.h"
+#include "aggregate.h"
 #include "file.h"
 #include "log.h"
 #include "mft.h"
 #include "usn.h"
-#include "aggregate.h"
 
-#include <sqlite3.h>
-#include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
+#include <sqlite3.h>
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;

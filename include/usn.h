@@ -1,11 +1,10 @@
+#pragma once
+
 #include "file.h"
 #include "sqlite_helper.h"
 
-#include <sqlite3.h>
-#include <map>
 #include <iostream>
-
-#pragma once
+#include <string>
 
 const unsigned int USN_BUFFER_SIZE = 65536;
 

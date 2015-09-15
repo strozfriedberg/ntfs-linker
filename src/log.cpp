@@ -1,5 +1,3 @@
-#include <iterator>
-
 #include "log.h"
 #include "helper_functions.h"
 #include "mft.h"
@@ -7,9 +5,9 @@
 #include "sqlite_helper.h"
 #include "usn.h"
 
-/*
-Decodes the LogFile Op code
-*/
+#include <cstring>
+#include <iomanip>
+#include <sstream>
 
 int ceilingDivide(int n, int m) {
   // Returns ceil(n/m), without using clunky FP arithmetic
@@ -17,6 +15,9 @@ int ceilingDivide(int n, int m) {
 
 }
 
+/*
+Decodes the LogFile Op code
+*/
 std::string decodeLogFileOpCode(int op) {
   switch(op) {
     case LogOps::NOOP                               : return "Noop";
@@ -101,7 +102,6 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
     unsigned int length;
     update_seq_offset = hex_to_long(buffer + 0x4, 2);
     update_seq_count = hex_to_long(buffer + 0x6, 2);
-    // Equivalent to 8*ceil(update_seq_count/4)
     offset = update_seq_offset + ceilingDivide(update_seq_count, 4) * 8;
     next_record_offset = hex_to_long(buffer + 0x18, 2);
     if(parseError) { //initialize the offset on the "first" record processed

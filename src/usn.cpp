@@ -1,9 +1,10 @@
-#include <sqlite3.h>
-#include <algorithm>
-
 #include "helper_functions.h"
-#include "usn.h"
 #include "progress.h"
+#include "usn.h"
+
+#include <cstring>
+#include <sqlite3.h>
+#include <sstream>
 
 /*
 Returns the column names used for the Usn CSV file
@@ -26,7 +27,7 @@ std::string getUSNColumnHeaders() {
 /*
 Decodes the Usn reason code
 Usn uses a bit packing scheme to store reason codes.
-Typically, as operations are performed on a file these reason codes are combined (&)
+Typically, as operations are performed on a file these reason codes are combined (|)
 */
 std::string UsnRecord::getReasonString() {
   std::stringstream ss;

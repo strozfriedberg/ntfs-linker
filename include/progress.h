@@ -1,4 +1,6 @@
-#include <ctime>
+#pragma once
+
+#include <cstdint>
 
 class ProgressBar {
 private:

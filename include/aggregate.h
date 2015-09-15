@@ -1,13 +1,13 @@
+#pragma once
+
 #include "file.h"
 #include "helper_functions.h"
 #include "sqlite_helper.h"
 
 #include <fstream>
-#include <sqlite3.h>
-#include <map>
-#include <vector>
 #include <list>
-#pragma once
+#include <sqlite3.h>
+#include <vector>
 
 class Event {
 public:

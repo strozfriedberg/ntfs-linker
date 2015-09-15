@@ -1,12 +1,10 @@
+#pragma once
+
 #include "file.h"
 #include "sqlite_helper.h"
 
-#include <sqlite3.h>
 #include <iostream>
 #include <string>
-#include <map>
-
-#pragma once
 
 /*
 Returns the column headers used in the MFT csv file

@@ -1,17 +1,11 @@
-#include <algorithm>
-#include <ctime>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <map>
-#include <new>
-#include <stdlib.h>
-#include <sstream>
-#include <string>
-#include <string.h>
+#pragma once
 
 #include "file.h"
-#pragma once
+
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
 static const std::string VERSION = __VERSION;
 

@@ -1,4 +1,5 @@
 #include <scope/test.h>
+#include <cstring>
 
 #include "helper_functions.h"
 
