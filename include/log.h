@@ -26,7 +26,7 @@ public:
   unsigned int ClientDataLength;
   char* Data;
 
-  int init(char* buffer, uint64_t offset);
+  int init(char* buffer, uint64_t offset, bool prev_has_next);
   void clearFields();
   void insert(sqlite3_stmt* stmt);
   static std::string getColumnHeaders();

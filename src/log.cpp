@@ -64,6 +64,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   bool parseError = true;
   int records_processed = 3;
   int adjust = 0;
+  bool prev_has_next = true;
 
   /*Skip past the junk at the beginning of the file
   The first two pages (0x0000 - 0x2000) are restart pages
@@ -115,15 +116,14 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       if (transactions.Offset == -1)
         transactions.Offset = cur_offset;
       LogRecord rec;
-      int rtnVal = rec.init(buffer + offset, cur_offset);
+      int rtnVal = rec.init(buffer + offset, cur_offset, prev_has_next);
+      prev_has_next = rec.LcnsToFollow;
       if(rtnVal == -1) {
         split_record = true;
         length = rec.ClientDataLength + 0x30;
         break;
       } else if(rtnVal < 0) {
         length = rec.ClientDataLength + 0x30;
-        std::cerr << " at " << records_processed << " " << offset - adjust << std::endl;
-        std::cerr << "Some records will be skipped to recover." << std::endl;
         parseError = true;
         break;
       } else {
@@ -232,7 +232,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   delete [] buffer;
 }
 
-int LogRecord::init(char* buffer, uint64_t offset) {
+int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
   Data = buffer;
   Offset = offset;
   CurrentLsn = hex_to_long(buffer, 8);
@@ -252,13 +252,16 @@ int LogRecord::init(char* buffer, uint64_t offset) {
   horribly wrong. Most likely cause is that the parser offset became misplaced and tried to
   parse the wrong bits of the records.
   */
-  if(RecordType == 0) {
+  if(RecordType == 0 && prev_has_next) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
     std::cerr << "Invalid record type: " << RecordType;
     if(RecordType == 0) {
       return -2;
     }
     exit(0);
+  }
+  else if (RecordType == 0) {
+    return -2;
   }
 
   /*
