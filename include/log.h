@@ -20,11 +20,11 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
 
 class LogRecord {
 public:
-  uint64_t cur_lsn, prev_lsn, undo_lsn, Offset;
-  unsigned int client_id, record_type, flags, redo_op, undo_op, redo_offset, redo_length, undo_offset, undo_length;
-  unsigned int target_attr, lcns_to_follow, record_offset, attribute_offset, mft_cluster_index, target_vcn, target_lcn;
-  unsigned int client_data_length;
-  char* data;
+  uint64_t CurrentLsn, PreviousLsn, UndoLsn, Offset;
+  unsigned int ClientId, RecordType, Flags, RedoOp, UndoOp, RedoOffset, RedoLength, UndoOffset, UndoLength;
+  unsigned int TargetAttribute, LcnsToFollow, RecordOffset, AttributeOffset, MftClusterIndex, TargetVcn, TargetLcn;
+  unsigned int ClientDataLength;
+  char* Data;
 
   int init(char* buffer, uint64_t offset);
   void clearFields();

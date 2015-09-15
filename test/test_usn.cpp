@@ -19,7 +19,7 @@ void advanceStream(bool runSparse, bool isSparse) {
   SCOPE_ASSERT(ss.tellg() <= 10 * USN_BUFFER_SIZE);
 }
 
-SCOPE_TEST(testAdvanceSparse) {
+SCOPE_TEST(testAdvancing) {
   for(int i = 0; i < 4; i++)
     advanceStream(i&1, i&2);
 }

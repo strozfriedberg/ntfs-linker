@@ -176,7 +176,7 @@ UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, int len, bool isEm
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
     PreviousParent                   = -1;
-    uint64_t record_length = hex_to_long(buffer, 4);
+    uint64_t record_length           = hex_to_long(buffer, 4);
     Record                           = hex_to_long(buffer + 0x8, 6);
     Reference                        = hex_to_long(buffer + 0x8, 8);
     Parent                           = hex_to_long(buffer + 0x10, 6);

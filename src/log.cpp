@@ -118,10 +118,10 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       int rtnVal = rec.init(buffer + offset, cur_offset);
       if(rtnVal == -1) {
         split_record = true;
-        length = rec.client_data_length + 0x30;
+        length = rec.ClientDataLength + 0x30;
         break;
       } else if(rtnVal < 0) {
-        length = rec.client_data_length + 0x30;
+        length = rec.ClientDataLength + 0x30;
         std::cerr << " at " << records_processed << " " << offset - adjust << std::endl;
         std::cerr << "Some records will be skipped to recover." << std::endl;
         parseError = true;
@@ -233,16 +233,16 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
 }
 
 int LogRecord::init(char* buffer, uint64_t offset) {
-  data = buffer;
+  Data = buffer;
   Offset = offset;
-  cur_lsn = hex_to_long(buffer, 8);
-  prev_lsn = hex_to_long(buffer + 0x8, 8);
-  undo_lsn = hex_to_long(buffer + 0x10, 8);
+  CurrentLsn = hex_to_long(buffer, 8);
+  PreviousLsn = hex_to_long(buffer + 0x8, 8);
+  UndoLsn = hex_to_long(buffer + 0x10, 8);
 
-  client_data_length = hex_to_long(buffer + 0x18, 4);
+  ClientDataLength = hex_to_long(buffer + 0x18, 4);
 
-  client_id = hex_to_long(buffer + 0x1C, 4);
-  record_type = hex_to_long(buffer + 0x20, 4);
+  ClientId = hex_to_long(buffer + 0x1C, 4);
+  RecordType = hex_to_long(buffer + 0x20, 4);
 
   /*
   Not particularly a concern. Sometimes there is extra slack space at the end of a page.
@@ -252,10 +252,10 @@ int LogRecord::init(char* buffer, uint64_t offset) {
   horribly wrong. Most likely cause is that the parser offset became misplaced and tried to
   parse the wrong bits of the records.
   */
-  if(record_type == 0) {
+  if(RecordType == 0) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "Invalid record type: " << record_type;
-    if(record_type == 0) {
+    std::cerr << "Invalid record type: " << RecordType;
+    if(RecordType == 0) {
       return -2;
     }
     exit(0);
@@ -265,8 +265,8 @@ int LogRecord::init(char* buffer, uint64_t offset) {
   A flag on a record means that at least part of the record is on the next page.
   We do some fancy switcheroo stuff at the bottom of the loop to compensate.
   */
-  flags = hex_to_long(buffer + 0x28, 2);
-  if(flags == 1) {
+  Flags = hex_to_long(buffer + 0x28, 2);
+  if(Flags == 1) {
     return -1;
   }
 
@@ -274,53 +274,53 @@ int LogRecord::init(char* buffer, uint64_t offset) {
   If we're reading invalid op codes then chances are something went horribly wrong.
   We end the process before it can implode.
   */
-  redo_op = hex_to_long(buffer + 0x30, 2);
-  undo_op = hex_to_long(buffer + 0x32, 2);
-  if(redo_op > 0x21 || undo_op > 0x21) {
+  RedoOp = hex_to_long(buffer + 0x30, 2);
+  UndoOp = hex_to_long(buffer + 0x32, 2);
+  if(RedoOp > 0x21 || UndoOp > 0x21) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "\rInvalid op code: " << std::hex << redo_op << " " << undo_op;
+    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp;
     return -2;
   }
-  redo_offset = hex_to_long(buffer + 0x34, 2);
-  redo_length = hex_to_long(buffer + 0x36, 2);
-  undo_offset = hex_to_long(buffer + 0x38, 2);
-  undo_length = hex_to_long(buffer + 0x3a, 2);
-  target_attr = hex_to_long(buffer + 0x3c, 2);
-  lcns_to_follow = hex_to_long(buffer + 0x3e, 2);
+  RedoOffset = hex_to_long(buffer + 0x34, 2);
+  RedoLength = hex_to_long(buffer + 0x36, 2);
+  UndoOffset = hex_to_long(buffer + 0x38, 2);
+  UndoLength = hex_to_long(buffer + 0x3a, 2);
+  TargetAttribute = hex_to_long(buffer + 0x3c, 2);
+  LcnsToFollow = hex_to_long(buffer + 0x3e, 2);
 
-  record_offset = hex_to_long(buffer + 0x40, 2);
-  attribute_offset = hex_to_long(buffer + 0x42, 2);
-  mft_cluster_index = hex_to_long(buffer + 0x44, 2);
-  target_vcn = hex_to_long(buffer + 0x48, 4);
+  RecordOffset = hex_to_long(buffer + 0x40, 2);
+  AttributeOffset = hex_to_long(buffer + 0x42, 2);
+  MftClusterIndex = hex_to_long(buffer + 0x44, 2);
+  TargetVcn = hex_to_long(buffer + 0x48, 4);
 
-  target_lcn = hex_to_long(buffer + 0x50, 4);
+  TargetLcn = hex_to_long(buffer + 0x50, 4);
 
   /*
-  The length given by client_data_length is actually 0x30 less than the length of the record.
+  The length given by ClientDataLength is actually 0x30 less than the length of the record.
   */
 
-  return 0x30 + client_data_length;
+  return 0x30 + ClientDataLength;
 
 }
 
 void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLiteHelper& sqliteHelper, uint64_t fileOffset) {
   if(Lsn == 0) {
-    Lsn = rec.cur_lsn;
+    Lsn = rec.CurrentLsn;
   }
-  RedoOps.push_back(rec.redo_op);
-  UndoOps.push_back(rec.undo_op);
+  RedoOps.push_back(rec.RedoOp);
+  UndoOps.push_back(rec.UndoOp);
 
-  char *redo_data = rec.data + 0x30 + rec.redo_offset;
-  char *undo_data = rec.data + 0x30 + rec.undo_offset;
+  char *redo_data = rec.Data + 0x30 + rec.RedoOffset;
+  char *undo_data = rec.Data + 0x30 + rec.UndoOffset;
   //pull data from necessary opcodes to save for transaction runs
-  if(rec.redo_op == LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP && rec.undo_op == LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP) {
-    if(rec.redo_length >= 4)
+  if(rec.RedoOp == LogOps::SET_BITS_IN_NONRESIDENT_BIT_MAP && rec.UndoOp == LogOps::CLEAR_BITS_IN_NONRESIDENT_BIT_MAP) {
+    if(rec.RedoLength >= 4)
       Record = hex_to_long(redo_data, 4);
   }
-  else if(rec.redo_op == LogOps::INITIALIZE_FILE_RECORD_SEGMENT && rec.undo_op == LogOps::NOOP) {
+  else if(rec.RedoOp == LogOps::INITIALIZE_FILE_RECORD_SEGMENT && rec.UndoOp == LogOps::NOOP) {
     //parse MFT record from redo op for create time, file name, parent dir
     //need to check for possible second MFT attribute header
-    MFTRecord mftRec(redo_data, rec.redo_length);
+    MFTRecord mftRec(redo_data, rec.RedoLength);
     Timestamp = filetime_to_iso_8601(mftRec.Sia.Created);
     Parent = mftRec.Fna.Parent;
 
@@ -336,7 +336,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
     if (compareNames(Name, mftRec.Fna.Name))
       Name = mftRec.Fna.Name;
   }
-  else if(rec.redo_op == LogOps::DELETE_ATTRIBUTE && rec.undo_op == LogOps::CREATE_ATTRIBUTE) {
+  else if(rec.RedoOp == LogOps::DELETE_ATTRIBUTE && rec.UndoOp == LogOps::CREATE_ATTRIBUTE) {
     //get the name before
     //from file attribute with header, undo op
     uint64_t type_id = hex_to_long(undo_data, 4);
@@ -349,7 +349,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
         PreviousName = fna.Name;
     }
   }
-  else if(rec.redo_op == LogOps::CREATE_ATTRIBUTE && rec.undo_op == LogOps::DELETE_ATTRIBUTE) {
+  else if(rec.RedoOp == LogOps::CREATE_ATTRIBUTE && rec.UndoOp == LogOps::DELETE_ATTRIBUTE) {
     //get the name after
     //from file attribute with header, redo op
     //prev_name =
@@ -364,8 +364,8 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
         Name = fna.Name;
     }
   }
-  else if((rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::ADD_INDEX_ENTRY_ROOT)) {
-    if(rec.undo_length > 0x42) {
+  else if((rec.RedoOp == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.UndoOp == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.RedoOp == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.UndoOp == LogOps::ADD_INDEX_ENTRY_ROOT)) {
+    if(rec.UndoLength > 0x42) {
       // Delete or rename
       FNAttribute fna(undo_data + 0x10);
       Parent = fna.Parent;
@@ -375,12 +375,12 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
     }
 
   }
-  else if ((rec.redo_op == LogOps::ADD_INDEX_ENTRY_ALLOCATION && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ALLOCATION) || (rec.redo_op == LogOps::ADD_INDEX_ENTRY_ROOT && rec.undo_op == LogOps::DELETE_INDEX_ENTRY_ROOT)) {
+  else if ((rec.RedoOp == LogOps::ADD_INDEX_ENTRY_ALLOCATION && rec.UndoOp == LogOps::DELETE_INDEX_ENTRY_ALLOCATION) || (rec.RedoOp == LogOps::ADD_INDEX_ENTRY_ROOT && rec.UndoOp == LogOps::DELETE_INDEX_ENTRY_ROOT)) {
     // Add index entry root/AddIndexEntryAllocation operation
     // See https://flatcap.org/linux-ntfs/ntfs/concepts/index_record.html
     // for additional info about Index Record structure ("The header part")
     // TODO REFACTOR MAKE THIS ITS OWN CLASS
-    if (rec.redo_length > 0x52) {
+    if (rec.RedoLength > 0x52) {
       Record = hex_to_long(redo_data, 6);
       Parent = hex_to_long(redo_data + 0x10, 6);
       Timestamp = filetime_to_iso_8601(hex_to_long(redo_data + 0x18, 8));
@@ -391,9 +391,9 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
         Name = new_name;
     }
   }
-  else if (rec.redo_op == LogOps::UPDATE_NONRESIDENT_VALUE && rec.undo_op == LogOps::NOOP) {
+  else if (rec.RedoOp == LogOps::UPDATE_NONRESIDENT_VALUE && rec.UndoOp == LogOps::NOOP) {
     // Embedded $UsnJrnl/$J record
-    UsnRecord usnRecord(redo_data, fileOffset + 0x30 + rec.redo_offset, rec.redo_length, true);
+    UsnRecord usnRecord(redo_data, fileOffset + 0x30 + rec.RedoOffset, rec.RedoLength, true);
     usnRecord.insert(sqliteHelper.UsnInsert, records);
     usnRecord.checkTypeAndInsert(sqliteHelper.EventInsert);
 
@@ -468,15 +468,15 @@ void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
 
 void LogRecord::insert(sqlite3_stmt* stmt) {
   int i = 0;
-  sqlite3_bind_int64(stmt, ++i, cur_lsn);
-  sqlite3_bind_int64(stmt, ++i, prev_lsn);
-  sqlite3_bind_int64(stmt, ++i, undo_lsn);
-  sqlite3_bind_int  (stmt, ++i, client_id);
-  sqlite3_bind_int  (stmt, ++i, record_type);
-  sqlite3_bind_text (stmt, ++i, decodeLogFileOpCode(redo_op).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, decodeLogFileOpCode(undo_op).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int  (stmt, ++i, target_attr);
-  sqlite3_bind_int  (stmt, ++i, mft_cluster_index);
+  sqlite3_bind_int64(stmt, ++i, CurrentLsn);
+  sqlite3_bind_int64(stmt, ++i, PreviousLsn);
+  sqlite3_bind_int64(stmt, ++i, UndoLsn);
+  sqlite3_bind_int  (stmt, ++i, ClientId);
+  sqlite3_bind_int  (stmt, ++i, RecordType);
+  sqlite3_bind_text (stmt, ++i, decodeLogFileOpCode(RedoOp).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, decodeLogFileOpCode(UndoOp).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int  (stmt, ++i, TargetAttribute);
+  sqlite3_bind_int  (stmt, ++i, MftClusterIndex);
   sqlite3_bind_int64(stmt, ++i, Offset);
 
   sqlite3_step(stmt);
@@ -502,17 +502,17 @@ std::string LogRecord::getColumnHeaders() {
 }
 
 std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {
-  out << rec.cur_lsn << "\t"
-      << rec.prev_lsn << "\t"
-      << rec.undo_lsn << "\t"
-      << rec.client_id << "\t"
-      << rec.record_type << "\t"
-      << decodeLogFileOpCode(rec.redo_op) << "\t"
-      << decodeLogFileOpCode(rec.undo_op) << "\t"
-      << rec.target_attr << "\t"
-      << rec.mft_cluster_index << "\t"
-      << rec.target_vcn << "\t"
-      << rec.target_lcn << "\t"
+  out << rec.CurrentLsn << "\t"
+      << rec.PreviousLsn << "\t"
+      << rec.UndoLsn << "\t"
+      << rec.ClientId << "\t"
+      << rec.RecordType << "\t"
+      << decodeLogFileOpCode(rec.RedoOp) << "\t"
+      << decodeLogFileOpCode(rec.UndoOp) << "\t"
+      << rec.TargetAttribute << "\t"
+      << rec.MftClusterIndex << "\t"
+      << rec.TargetVcn << "\t"
+      << rec.TargetLcn << "\t"
       << rec.Offset << "\t"
       << std::endl;
   return out;
