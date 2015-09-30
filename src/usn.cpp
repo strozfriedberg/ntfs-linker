@@ -11,16 +11,15 @@ Returns the column names used for the Usn CSV file
 */
 std::string getUSNColumnHeaders() {
   std::stringstream ss;
-  ss << "MFT Record Number\t"
-     << "Parent Record Number\t"
-     << "Usn\t"
-     << "Timestamp\t"
-     << "Reason\t"
-     << "Filename\t"
-     << "Path\t"
-     << "Parent Path\t"
-     << "File Offset"
-     << std::endl;
+  ss << "MFT Record Number"    << "\t"
+     << "Parent Record Number" << "\t"
+     << "Usn"                  << "\t"
+     << "Timestamp"            << "\t"
+     << "Reason"               << "\t"
+     << "Filename"             << "\t"
+     << "Path"                 << "\t"
+     << "Parent Path"          << "\t"
+     << "File Offset"          << std::endl;
   return ss.str();
 }
 
@@ -227,8 +226,7 @@ std::string UsnRecord::toString(const std::vector<File>& records) {
      << Name                         << "\t"
      << getFullPath(records, Record) << "\t"
      << getFullPath(records, Parent) << "\t"
-     << FileOffset
-     << std::endl;
+     << FileOffset                   << std::endl;
   return ss.str();
 }
 

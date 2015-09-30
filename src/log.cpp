@@ -488,36 +488,34 @@ void LogRecord::insert(sqlite3_stmt* stmt) {
 
 std::string LogRecord::getColumnHeaders() {
   std::stringstream ss;
-  ss << "Current Lsn\t"
-     << "Previous Lsn\t"
-     << "Undo Lsn\t"
-     << "Client ID\t"
-     << "Record Type\t"
-     << "Redo Op\t"
-     << "Undo Op\t"
-     << "Target Attribute\t"
-     << "MFT Cluster Index\t"
-     << "Target VCN\t"
-     << "Target LCN\t"
-     << "Offset\t"
-     << std::endl;
+  ss << "Current Lsn"       << "\t"
+     << "Previous Lsn"      << "\t"
+     << "Undo Lsn"          << "\t"
+     << "Client ID"         << "\t"
+     << "Record Type"       << "\t"
+     << "Redo Op"           << "\t"
+     << "Undo Op"           << "\t"
+     << "Target Attribute"  << "\t"
+     << "MFT Cluster Index" << "\t"
+     << "Target VCN"        << "\t"
+     << "Target LCN"        << "\t"
+     << "Offset"            << std::endl;
   return ss.str();
 }
 
 std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {
-  out << rec.CurrentLsn << "\t"
-      << rec.PreviousLsn << "\t"
-      << rec.UndoLsn << "\t"
-      << rec.ClientId << "\t"
-      << rec.RecordType << "\t"
+  out << rec.CurrentLsn                  << "\t"
+      << rec.PreviousLsn                 << "\t"
+      << rec.UndoLsn                     << "\t"
+      << rec.ClientId                    << "\t"
+      << rec.RecordType                  << "\t"
       << decodeLogFileOpCode(rec.RedoOp) << "\t"
       << decodeLogFileOpCode(rec.UndoOp) << "\t"
-      << rec.TargetAttribute << "\t"
-      << rec.MftClusterIndex << "\t"
-      << rec.TargetVcn << "\t"
-      << rec.TargetLcn << "\t"
-      << rec.Offset << "\t"
-      << std::endl;
+      << rec.TargetAttribute             << "\t"
+      << rec.MftClusterIndex             << "\t"
+      << rec.TargetVcn                   << "\t"
+      << rec.TargetLcn                   << "\t"
+      << rec.Offset                      << std::endl;
   return out;
 }
 
