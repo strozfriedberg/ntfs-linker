@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <tsk/libtsk.h>
 
 static const std::string VERSION = __VERSION;
 
