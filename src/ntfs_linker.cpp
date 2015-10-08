@@ -3,7 +3,7 @@
 #include "log.h"
 #include "mft.h"
 #include "usn.h"
-#include "walkers.h"
+#include "vss_handler.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
