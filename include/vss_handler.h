@@ -40,6 +40,7 @@ class VShadowTskVolumeShim {
     void close(TSK_IMG_INFO* img) { (void)img; }
     void imgstat(TSK_IMG_INFO* img, FILE* file) { (void)img; (void) file; }
     ssize_t read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len);
+    void getTskImgInfo(TSK_IMG_INFO* img);
   private:
     libvshadow_store_t* Store;
 };
