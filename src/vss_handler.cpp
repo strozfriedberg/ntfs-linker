@@ -1,6 +1,7 @@
 #include "vss_handler.h"
 
 #include <libbfio.h>
+#include <libvshadow.h>
 #include <tsk/libtsk.h>
 
 TskVolumeBfioShim* globalShim;
@@ -27,27 +28,31 @@ int shim_get_size_wrapper(intptr_t *io_handle, size64_t *size, libbfio_error_t *
   { return globalShim->get_size(io_handle, size, error); }
 
 TSK_FILTER_ENUM VolumeWalker::filterVol(const TSK_VS_PART_INFO* part) {
+  int rtnVal;
   TskVolumeBfioShim shim(part->vs->img_info, part);
 
   libbfio_handle_t* handle = NULL;
   intptr_t tag = part->tag;
   intptr_t* io_handle = &tag;
 
-  int rtnVal = libbfio_handle_initialize(&handle,
-                                         io_handle,
-                                         &shim_free_wrapper,
-                                         &shim_clone_wrapper,
-                                         &shim_open_wrapper,
-                                         &shim_close_wrapper,
-                                         &shim_read_wrapper,
-                                         &shim_write_wrapper,
-                                         &shim_seek_offset_wrapper,
-                                         &shim_exists_wrapper,
-                                         &shim_is_open_wrapper,
-                                         &shim_get_size_wrapper,
-                                         0,
-                                         NULL);
-  (void)rtnVal;
+  rtnVal = libbfio_handle_initialize(&handle,
+                                     io_handle,
+                                     &shim_free_wrapper,
+                                     &shim_clone_wrapper,
+                                     &shim_open_wrapper,
+                                     &shim_close_wrapper,
+                                     &shim_read_wrapper,
+                                     &shim_write_wrapper,
+                                     &shim_seek_offset_wrapper,
+                                     &shim_exists_wrapper,
+                                     &shim_is_open_wrapper,
+                                     &shim_get_size_wrapper,
+                                     0,
+                                     NULL);
+  if (rtnVal == 1) {
+    libvshadow_volume_t volume;
+    rtnVal = libvshadow_volume_open_file_io_handle(&volume, handle, 0, NULL);
+  }
   return TSK_FILTER_SKIP;
 }
 
