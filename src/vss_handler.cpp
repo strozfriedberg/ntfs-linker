@@ -30,6 +30,7 @@ int shim_get_size_wrapper(intptr_t *io_handle, size64_t *size, libbfio_error_t *
 TSK_FILTER_ENUM VolumeWalker::filterVol(const TSK_VS_PART_INFO* part) {
   int rtnVal;
   TskVolumeBfioShim shim(part->vs->img_info, part);
+  globalShim = &shim;
 
   libbfio_handle_t* handle = NULL;
   intptr_t tag = part->tag;
