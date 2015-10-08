@@ -2,6 +2,7 @@
 
 #include <tsk/libtsk.h>
 #include <libbfio.h>
+#include <libvshadow.h>
 
 const int VSS_HANDLE_MAGIC = 0xBEEF;
 
@@ -31,4 +32,14 @@ class TskVolumeBfioShim {
     const TSK_VS_PART_INFO* Part;
     off64_t Offset;
     size64_t Size;
+};
+
+class VShadowTskVolumeShim {
+  public:
+    VShadowTskVolumeShim(libvshadow_store_t* store) : Store(store) {}
+    void close(TSK_IMG_INFO* img) { (void)img; }
+    void imgstat(TSK_IMG_INFO* img, FILE* file) { (void)img; (void) file; }
+    ssize_t read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len);
+  private:
+    libvshadow_store_t* Store;
 };

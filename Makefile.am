@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I m4
  
 AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir)/include/utf8 $(SCOPE_CPPFLAGS) $(NL_CPPFLAGS) $(SQLITE_CPPFLAGS) $(BOOST_CPPFLAGS)
 AM_CXXFLAGS = $(NL_CXXFLAGS) $(SQLITE_CXXFLAGS) $(BOOST_CXXFLAGS)
-AM_LDFLAGS = $(NL_LDFLAGS) $(SQLITE_LDFLAGS) $(BOOST_LDFLAGS) -ltsk -lewf -lz -lbz2
+AM_LDFLAGS = $(NL_LDFLAGS) $(SQLITE_LDFLAGS) $(BOOST_LDFLAGS) -ltsk -lewf -lz -lbz2 -lvshadow
 
 src_common_SOURCES = \
 	src/aggregate.cpp \
