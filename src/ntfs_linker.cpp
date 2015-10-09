@@ -132,6 +132,7 @@ int main(int argc, char** argv) {
       // Run
       if (vm.count("is-image")) {
         opts.isImage = true;
+        imgSegs = vm["input"].as<std::vector<std::string>>();
       }
       else {
         opts.input = imgSegs[0];

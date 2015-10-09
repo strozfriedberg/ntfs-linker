@@ -80,6 +80,8 @@ void write_file(TSK_FS_FILE* file, const char* attr_name, std::string out_name) 
 
 }
 
+// TODO CALL this on TSK_FS_INFO,
+// which means rejiggering the bvtShim to return an FS_INFO
 void copyFiles(TSK_IMG_INFO* img) {
   TSK_FS_INFO* fs = tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
   TSK_FS_FILE mft, usn, log;
@@ -93,14 +95,14 @@ void copyFiles(TSK_IMG_INFO* img) {
   write_file(&log, "", "$LogFile");
 }
 
-
-TSK_FILTER_ENUM VolumeWalker::filterVol(const TSK_VS_PART_INFO* part) {
+TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   int rtnVal;
-  TskVolumeBfioShim tvbShim(part->vs->img_info, part);
+  std::cout << "Filterfs" << std::endl;
+  TskVolumeBfioShim tvbShim(fs);
   globalTVBShim = &tvbShim;
 
   libbfio_handle_t* handle = NULL;
-  intptr_t tag = part->tag;
+  intptr_t tag = fs->tag;
   intptr_t* io_handle = &tag;
 
   rtnVal = libbfio_handle_initialize(&handle,
@@ -117,7 +119,7 @@ TSK_FILTER_ENUM VolumeWalker::filterVol(const TSK_VS_PART_INFO* part) {
                                      &tvb_shim_get_size_wrapper,
                                      0,
                                      NULL);
-  copyFiles(part->vs->img_info);
+  copyFiles(fs->img_info);
 
   if (rtnVal == 1) {
     libvshadow_volume_t volume;
@@ -140,9 +142,19 @@ TSK_FILTER_ENUM VolumeWalker::filterVol(const TSK_VS_PART_INFO* part) {
   return TSK_FILTER_SKIP;
 }
 
+uint8_t VolumeWalker::openImageUtf8(int a_numImg, const char *const a_images[], TSK_IMG_TYPE_ENUM a_imgType, unsigned int a_sSize) {
+  uint8_t rtnVal = TskAuto::openImageUtf8(a_numImg, a_images, a_imgType, a_sSize);
+  if (rtnVal) {
+    std::cout << "TSK Error! Stopping." << std::endl;
+    std::cout << tsk_error_get() << std::endl;
+    exit(1);
+  }
+  return rtnVal;
+}
+
 int TskVolumeBfioShim::free(intptr_t **io_handle, libbfio_error_t ** error) {
   (void)error;
-  if (Part->tag != **io_handle) {
+  if (Fs->tag != **io_handle) {
     return -1;
   }
   return 1;
@@ -158,7 +170,7 @@ int TskVolumeBfioShim::clone(intptr_t **destination_io_handle, intptr_t *source_
 int TskVolumeBfioShim::open(intptr_t *io_handle, int access_flags, libbfio_error_t ** error) {
   (void)error;
   (void)access_flags;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
   return 1;
@@ -166,7 +178,7 @@ int TskVolumeBfioShim::open(intptr_t *io_handle, int access_flags, libbfio_error
 
 int TskVolumeBfioShim::close(intptr_t *io_handle, libbfio_error_t ** error) {
   (void)error;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
   return 1;
@@ -175,10 +187,10 @@ int TskVolumeBfioShim::close(intptr_t *io_handle, libbfio_error_t ** error) {
 
 ssize_t TskVolumeBfioShim::read(intptr_t *io_handle, uint8_t *buffer, size_t size, libbfio_error_t **error) {
   (void)error;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
-  ssize_t rtnVal = tsk_vs_part_read(Part, Offset, reinterpret_cast<char*>(buffer), size);
+  ssize_t rtnVal = tsk_img_read(Fs->img_info, Fs->offset + Offset, reinterpret_cast<char*>(buffer), size);
   if (rtnVal == -1)
     return -1;
   Offset += rtnVal;
@@ -189,7 +201,7 @@ ssize_t TskVolumeBfioShim::write(intptr_t *io_handle, const uint8_t *buffer, siz
   (void)buffer;
   (void)size;
   (void)error;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
   return -1;
@@ -197,7 +209,7 @@ ssize_t TskVolumeBfioShim::write(intptr_t *io_handle, const uint8_t *buffer, siz
 
 ssize_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error) {
   (void)error;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
   switch(whence) {
@@ -219,7 +231,7 @@ ssize_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int 
 
 int TskVolumeBfioShim::exists(intptr_t *io_handle, libbfio_error_t ** error) {
   (void)error;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
   return 1;
@@ -227,7 +239,7 @@ int TskVolumeBfioShim::exists(intptr_t *io_handle, libbfio_error_t ** error) {
 
 int TskVolumeBfioShim::is_open(intptr_t *io_handle, libbfio_error_t ** error) {
   (void)error;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
   return 1;
@@ -236,17 +248,15 @@ int TskVolumeBfioShim::is_open(intptr_t *io_handle, libbfio_error_t ** error) {
 
 int TskVolumeBfioShim::get_size(intptr_t *io_handle, size64_t *size, libbfio_error_t ** error) {
   (void)error;
-  if (Part->tag != *io_handle) {
+  if (Fs->tag != *io_handle) {
     return -1;
   }
   *size = Size;
   return 1;
 }
 
-TskVolumeBfioShim::TskVolumeBfioShim(const TSK_IMG_INFO* img, const TSK_VS_PART_INFO* part):
-  Img(img),
-  Part(part) {
-    Size = Part->len * Img->sector_size;
+TskVolumeBfioShim::TskVolumeBfioShim(const TSK_FS_INFO* fs) : Fs(fs) {
+  Size = Fs->block_count * Fs->block_size;
 }
 
 ssize_t VShadowTskVolumeShim::read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len) {

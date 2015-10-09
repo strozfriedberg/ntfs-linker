@@ -9,13 +9,14 @@ const int VSS_HANDLE_MAGIC = 0xBEEF;
 class VolumeWalker: public TskAuto {
   public:
     VolumeWalker() {}
-    virtual TSK_FILTER_ENUM filterVol(const TSK_VS_PART_INFO*);
+    virtual TSK_FILTER_ENUM filterFs(TSK_FS_INFO* fs);
+    virtual uint8_t openImageUtf8(int, const char *const images[], TSK_IMG_TYPE_ENUM, unsigned int a_ssize);
     virtual TSK_RETVAL_ENUM processFile(TSK_FS_FILE*, const char*) { return TSK_OK; }
 };
 
 class TskVolumeBfioShim {
   public:
-    TskVolumeBfioShim(const TSK_IMG_INFO* img, const TSK_VS_PART_INFO* part);
+    TskVolumeBfioShim(const TSK_FS_INFO* fs);
 
     int free(intptr_t** io_handle, libbfio_error_t **error);
     int clone(intptr_t **destination_io_handle, intptr_t *source_io_handle, libbfio_error_t **error);
@@ -28,8 +29,7 @@ class TskVolumeBfioShim {
     int is_open(intptr_t *io_handle, libbfio_error_t **error);
     int get_size(intptr_t *io_handle, size64_t *size, libbfio_error_t **error);
   private:
-    const TSK_IMG_INFO* Img;
-    const TSK_VS_PART_INFO* Part;
+    const TSK_FS_INFO* Fs;
     off64_t Offset;
     size64_t Size;
 };
