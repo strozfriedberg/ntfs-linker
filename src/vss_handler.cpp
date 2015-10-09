@@ -1,8 +1,12 @@
 #include "vss_handler.h"
+#include "helper_functions.h"
 
 #include <libbfio.h>
 #include <libvshadow.h>
 #include <tsk/libtsk.h>
+
+#include <string>
+#include <fstream>
 
 TskVolumeBfioShim* globalTVBShim;
 VShadowTskVolumeShim* globalVSTVShim;
@@ -35,28 +39,58 @@ void vstv_shim_imgstat(TSK_IMG_INFO* img, FILE* file)
 ssize_t vstv_shim_read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len)
   { return globalVSTVShim->read(img, off, buf, len); }
 
-void initPartFromImg(TSK_IMG_INFO* img, TSK_VS_INFO* vs, TSK_VS_PART_INFO* part, TSK_VS_INFO* baseVol) {
-  vs->block_size = baseVol-> block_size;
-  vs->endian = TSK_BIG_ENDIAN;
-  vs->img_info = img;
-  vs->offset = 0;
-  vs->part_count = 1;
-  vs->part_list = part;
-  vs->tag = VSS_HANDLE_MAGIC;
-  vs->vstype = TSK_VS_TYPE_DBFILLER;
+void write_file(TSK_FS_FILE* file, const char* attr_name, std::string out_name) {
+  uint16_t id = 0;
+  TSK_FS_ATTR_TYPE_ENUM type = TSK_FS_ATTR_TYPE_NOT_FOUND;
+  TSK_OFF_T offset = 0;
+  bool ads = false;
+  if (std::string(attr_name) != "") {
+    TSK_FS_ATTR* attr = file->meta->attr->head;
+    while (attr != NULL) {
+      if (attr->name == attr_name) {
+        id = attr->id;
+        type = attr->type;
+        ads = true;
+        offset = attr->nrd.run->next->offset;
+        break;
+      }
+      attr = attr->next;
+    }
+    if (!ads)
+      return;
+  }
 
-  part->addr = 0;
-  part->desc = const_cast<char*>("");
-  part->flags = TSK_VS_PART_FLAG_ALLOC;
-  part->len = img->size / img->sector_size;
-  part->next = NULL;
-  part->prev = NULL;
-  part->slot_num = 0;
-  part->start = 0;
-  part->table_num = 0;
-  part->tag = VSS_HANDLE_MAGIC;
-  part->vs = vs;
+  std::ofstream out(out_name, std::ios::out | std::ios::binary | std::ios::trunc);
+  const size_t buffer_size = 4096;
+  static char buffer[buffer_size];
+  while (offset < file->meta->size) {
+    ssize_t bytesRead;
+    if (ads) {
+      bytesRead = tsk_fs_file_read_type(file, type, id, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
+    }
+    else {
+      bytesRead = tsk_fs_file_read(file, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
+    }
+    out.write(reinterpret_cast<char*>(&buffer), bytesRead);
+    if (!bytesRead)
+      break;
+  }
+  out.close();
 
+
+}
+
+void copyFiles(TSK_IMG_INFO* img) {
+  TSK_FS_INFO* fs = tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
+  TSK_FS_FILE mft, usn, log;
+
+  tsk_fs_file_open(fs, &mft, "/$MFT");
+  tsk_fs_file_open(fs, &usn, "/$Extend/$UsnJrnl");
+  tsk_fs_file_open(fs, &log, "/$LogFile");
+
+  write_file(&mft, "", "$MFT");
+  write_file(&usn, "$J", "$UsnJrnl");
+  write_file(&log, "", "$LogFile");
 }
 
 
@@ -83,19 +117,25 @@ TSK_FILTER_ENUM VolumeWalker::filterVol(const TSK_VS_PART_INFO* part) {
                                      &tvb_shim_get_size_wrapper,
                                      0,
                                      NULL);
+  copyFiles(part->vs->img_info);
+
   if (rtnVal == 1) {
     libvshadow_volume_t volume;
-    //rtnVal = libvshadow_volume_open_file_io_handle(&volume, handle, 0, NULL);
-    (void)volume;
-    libvshadow_store_t store;
+    libvshadow_volume_open_file_io_handle(&volume, handle, 0, NULL);
 
+    int n;
+    libvshadow_volume_get_number_of_stores(&volume, &n, NULL);
+    for (int i = 0; i < n; i++) {
+      libvshadow_store_t* store;
+      libvshadow_volume_get_store(&volume, i, &store, NULL);
 
-    VShadowTskVolumeShim bvtShim(&store);
-    TSK_IMG_INFO vss_img;
-    bvtShim.getTskImgInfo(&vss_img);
-    TSK_VS_INFO vss_vs;
-    TSK_VS_PART_INFO vss_part;
-    initPartFromImg(&vss_img, &vss_vs, &vss_part, part->vs);
+      VShadowTskVolumeShim bvtShim(store);
+      globalVSTVShim = &bvtShim;
+
+      TSK_IMG_INFO vss_img;
+      bvtShim.getTskImgInfo(&vss_img);
+      copyFiles(&vss_img);
+    }
   }
   return TSK_FILTER_SKIP;
 }

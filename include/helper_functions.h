@@ -1,12 +1,22 @@
 #pragma once
 
 #include "file.h"
+#include "sqlite_helper.h"
 
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 #include <tsk/libtsk.h>
+
+struct IContainer {
+  std::ifstream i_mft, i_usnjrnl, i_logfile;
+};
+
+struct OContainer {
+  std::ofstream o_mft, o_usnjrnl, o_logfile, o_events;
+  SQLiteHelper sqliteHelper;
+};
 
 static const std::string VERSION = __VERSION;
 
