@@ -128,8 +128,10 @@ AC_SUBST([CXXLD])
 
 # collect the flags from everything which might set some
 for lib in EWF VSHADOW SQLITE BFIO TSK BOOST ZLIB; do
-  for var in CPPFLAGS CXXFLAGS LDFLAGS LIBS; do
-    eval NL_$var=\"\$NL_$var \$${lib}_$var\"
+  for var in CPPFLAGS CFLAGS CXXFLAGS LDFLAGS LIBS; do
+    if test -n "$(eval echo \$${lib}_$var)"; then
+      eval NL_$var=\"\$NL_$var \$${lib}_$var\"
+    fi
   done
 done
 
