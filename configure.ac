@@ -16,12 +16,30 @@ AM_PROG_CC_C_O
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 
+NL_CXXFLAGS=
+NL_CPPFLAGS=
+NL_LDFLAGS=
+
 AX_APPEND_COMPILE_FLAGS([-W -Wall -Wextra -Wnon-virtual-dtor -pedantic -pipe -O3 -g], [NL_CXXFLAGS])
 AX_APPEND_LINK_FLAGS([-g -pthread], [NL_LDFLAGS])
 
 AX_APPEND_COMPILE_FLAGS([-pthread -D__VERSION="'\"ntfs_linker_version\"'"], [NL_CPPFLAGS])
 
+# pkg-config doesn't look in /usr/local/lib on some systems
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
+
+PKG_CHECK_MODULES([BFIO], [libbfio])
+PKG_CHECK_MODULES([EWF], [libewf])
 PKG_CHECK_MODULES([SQLITE], [sqlite3])
+PKG_CHECK_MODULES([VSHADOW], [libvshadow])
+
+# zlib is a dependency of libtsk
+PKG_CHECK_MODULES([ZLIB], [zlib])
+
+AX_CHECK_LIBRARY([TSK], [tsk/libtsk.h], [tsk],
+                 [TSK_LIBS=-ltsk],
+                 [AC_MSG_ERROR([Failed to find libtsk])])
+AC_SUBST([TSK_LIBS])
 
 #
 # Boost
@@ -108,9 +126,20 @@ else
 fi
 AC_SUBST([CXXLD])
 
+# collect the flags from everything which might set some
+for lib in EWF VSHADOW SQLITE BFIO TSK BOOST ZLIB; do
+  for var in CPPFLAGS CXXFLAGS LDFLAGS LIBS; do
+    eval NL_$var=\"\$NL_$var \$${lib}_$var\"
+  done
+done
+
+# yay, inconsistent variable naming
+NL_LIBS="$NL_LIBS $BOOST_PROGRAM_OPTIONS_LIB $BOOST_FILESYSTEM_LIB $BOOST_SYSTEM_LIB"
+
 AC_SUBST([NL_CPPFLAGS])
 AC_SUBST([NL_CXXFLAGS])
 AC_SUBST([NL_LDFLAGS])
- 
+AC_SUBST([NL_LIBS])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
