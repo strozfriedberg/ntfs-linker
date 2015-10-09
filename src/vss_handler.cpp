@@ -80,10 +80,7 @@ void write_file(TSK_FS_FILE* file, const char* attr_name, std::string out_name) 
 
 }
 
-// TODO CALL this on TSK_FS_INFO,
-// which means rejiggering the bvtShim to return an FS_INFO
-void copyFiles(TSK_IMG_INFO* img) {
-  TSK_FS_INFO* fs = tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
+void copyFiles(TSK_FS_INFO* fs) {
   TSK_FS_FILE mft, usn, log;
 
   tsk_fs_file_open(fs, &mft, "/$MFT");
@@ -119,7 +116,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
                                      &tvb_shim_get_size_wrapper,
                                      0,
                                      NULL);
-  copyFiles(fs->img_info);
+  copyFiles(fs);
 
   if (rtnVal == 1) {
     libvshadow_volume_t volume;
@@ -135,8 +132,8 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
       globalVSTVShim = &bvtShim;
 
       TSK_IMG_INFO vss_img;
-      bvtShim.getTskImgInfo(&vss_img);
-      copyFiles(&vss_img);
+      TSK_FS_INFO* vss_fs = bvtShim.getTskFsInfo(&vss_img);
+      copyFiles(vss_fs);
     }
   }
   return TSK_FILTER_SKIP;
@@ -265,7 +262,7 @@ ssize_t VShadowTskVolumeShim::read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, 
   return libvshadow_store_read_buffer_at_offset(Store, buf, len, off, NULL);
 }
 
-void VShadowTskVolumeShim::getTskImgInfo(TSK_IMG_INFO* img) {
+TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
   img->close = &vstv_shim_close;
   img->imgstat = &vstv_shim_imgstat;
   img->itype = TSK_IMG_TYPE_EXTERNAL;
@@ -275,4 +272,7 @@ void VShadowTskVolumeShim::getTskImgInfo(TSK_IMG_INFO* img) {
   libvshadow_store_get_size(Store, reinterpret_cast<size64_t*>(&img->size), NULL);
   img->spare_size = 64;
   img->tag = VSS_HANDLE_MAGIC;
+
+  return tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
+
 }
