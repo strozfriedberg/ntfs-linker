@@ -16,10 +16,6 @@ AM_PROG_CC_C_O
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 
-NL_CXXFLAGS=
-NL_CPPFLAGS=
-NL_LDFLAGS=
-
 AX_APPEND_COMPILE_FLAGS([-W -Wall -Wextra -Wnon-virtual-dtor -pedantic -pipe -O3 -g], [NL_CXXFLAGS])
 AX_APPEND_LINK_FLAGS([-g -pthread], [NL_LDFLAGS])
 
@@ -126,12 +122,27 @@ else
 fi
 AC_SUBST([CXXLD])
 
+AC_DEFUN([SF_APPEND], [{
+  if test -n "[$]$1"; then
+    if test -n "$2"; then
+      AS_VAR_APPEND($1, " $2")
+    fi
+  else
+    $1=[$]$2
+  fi
+}])
+
 # collect the flags from everything which might set some
 for lib in EWF VSHADOW SQLITE BFIO TSK BOOST ZLIB; do
-  for var in CPPFLAGS CFLAGS CXXFLAGS LDFLAGS LIBS; do
-    if test -n "$(eval echo \$${lib}_$var)"; then
-      eval NL_$var=\"\$NL_$var \$${lib}_$var\"
-    fi
+  # fold CFLAGS into CXXFLAGS since everything here is C++
+  h="${lib}_CXXFLAGS"
+  t=$(eval echo \"\$${lib}_CFLAGS\")
+  SF_APPEND($h, $t)
+
+  for var in CPPFLAGS CXXFLAGS LDFLAGS LIBS; do
+    h="NL_$var"
+    t=$(eval echo \"\$${lib}_$var\")
+    SF_APPEND($h, $t)
   done
 done
 
