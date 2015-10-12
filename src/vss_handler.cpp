@@ -109,6 +109,7 @@ int copyFiles(TSK_FS_INFO* fs) {
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   int rtnVal;
+  static char errStr[1024];
   std::cout << "Filterfs" << std::endl;
   TskVolumeBfioShim tvbShim(fs);
   globalTVBShim = &tvbShim;
@@ -121,6 +122,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   if (rtnVal)
     return TSK_FILTER_SKIP;
 
+  libbfio_error_t* error;
   rtnVal = libbfio_handle_initialize(&handle,
                                      io_handle,
                                      &tvb_shim_free_wrapper,
@@ -133,13 +135,19 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
                                      &tvb_shim_exists_wrapper,
                                      &tvb_shim_is_open_wrapper,
                                      &tvb_shim_get_size_wrapper,
-                                     0,
-                                     NULL);
+                                     LIBBFIO_FLAG_IO_HANDLE_NON_MANAGED,
+                                     &error);
+  libbfio_error_sprint(error, errStr, 1024);
+  std::cout << errStr << std::endl;
+
 
   if (rtnVal == 1) {
     libvshadow_volume_t volume;
-    libvshadow_volume_open_file_io_handle(&volume, handle, 0, NULL);
+    libvshadow_error_t* error;
+    libvshadow_volume_open_file_io_handle(&volume, handle, LIBVSHADOW_ACCESS_FLAG_READ, &error);
 
+    libvshadow_error_sprint(error, errStr, 1024);
+    std::cout << errStr << std::endl;
     int n;
     libvshadow_volume_get_number_of_stores(&volume, &n, NULL);
     for (int i = 0; i < n; i++) {
