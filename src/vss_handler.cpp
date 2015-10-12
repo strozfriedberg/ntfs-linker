@@ -7,6 +7,7 @@
 
 #include <string>
 #include <fstream>
+#include <tuple>
 
 TskVolumeBfioShim* globalTVBShim;
 VShadowTskVolumeShim* globalVSTVShim;
@@ -39,19 +40,28 @@ void vstv_shim_imgstat(TSK_IMG_INFO* img, FILE* file)
 ssize_t vstv_shim_read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len)
   { return globalVSTVShim->read(img, off, buf, len); }
 
-void write_file(TSK_FS_FILE* file, const char* attr_name, std::string out_name) {
+struct FileCopy{
+
+  FileCopy(std::string in, std::string attr, std::string out) : In(in), Attr(attr), Out(out) {}
+
+  std::string In, Attr, Out;
+  TSK_FS_FILE* File;
+};
+
+void write_file(FileCopy& param) {
+  TSK_FS_FILE* file = param.File;
   uint16_t id = 0;
   TSK_FS_ATTR_TYPE_ENUM type = TSK_FS_ATTR_TYPE_NOT_FOUND;
   TSK_OFF_T offset = 0;
   bool ads = false;
-  if (std::string(attr_name) != "") {
+  if (param.Attr != "") {
     TSK_FS_ATTR* attr = file->meta->attr->head;
     while (attr != NULL) {
-      if (attr->name == attr_name) {
+      if (attr->name && std::string(attr->name) == param.Attr) {
         id = attr->id;
         type = attr->type;
         ads = true;
-        offset = attr->nrd.run->next->offset;
+        offset = attr->nrd.run->next->offset * file->fs_info->block_size;
         break;
       }
       attr = attr->next;
@@ -60,10 +70,10 @@ void write_file(TSK_FS_FILE* file, const char* attr_name, std::string out_name) 
       return;
   }
 
-  std::ofstream out(out_name, std::ios::out | std::ios::binary | std::ios::trunc);
-  const size_t buffer_size = 4096;
+  std::ofstream out(param.Out, std::ios::out | std::ios::binary | std::ios::trunc);
+  const size_t buffer_size = 1048576;
   static char buffer[buffer_size];
-  while (offset < file->meta->size) {
+  while (1) {
     ssize_t bytesRead;
     if (ads) {
       bytesRead = tsk_fs_file_read_type(file, type, id, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
@@ -71,25 +81,30 @@ void write_file(TSK_FS_FILE* file, const char* attr_name, std::string out_name) 
     else {
       bytesRead = tsk_fs_file_read(file, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
     }
-    out.write(reinterpret_cast<char*>(&buffer), bytesRead);
-    if (!bytesRead)
+    if (bytesRead == -1)
       break;
+    std::cout << offset << " " << bytesRead << std::endl;
+    out.write(reinterpret_cast<char*>(&buffer), bytesRead);
+    offset += bytesRead;
   }
   out.close();
-
-
 }
 
-void copyFiles(TSK_FS_INFO* fs) {
-  TSK_FS_FILE mft, usn, log;
+int copyFiles(TSK_FS_INFO* fs) {
+  std::vector<FileCopy> params { FileCopy("/$MFT", "", "MFT_FILE"),
+                                FileCopy("/$LogFile", "", "LOGFILE_FILE"),
+                                FileCopy("/$Extend/$UsnJrnl", "$J", "USNJRNL_FILE")};
+  for (auto it = params.begin(); it != params.end(); ++it) {
+    it->File = tsk_fs_file_open(fs, NULL, it->In.c_str());
+    if (!it->File)
+      return 1;
+  }
 
-  tsk_fs_file_open(fs, &mft, "/$MFT");
-  tsk_fs_file_open(fs, &usn, "/$Extend/$UsnJrnl");
-  tsk_fs_file_open(fs, &log, "/$LogFile");
-
-  write_file(&mft, "", "$MFT");
-  write_file(&usn, "$J", "$UsnJrnl");
-  write_file(&log, "", "$LogFile");
+  for(auto param: params) {
+      write_file(param);
+      tsk_fs_file_close(param.File);
+  }
+  return 0;
 }
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
@@ -101,6 +116,10 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   libbfio_handle_t* handle = NULL;
   intptr_t tag = fs->tag;
   intptr_t* io_handle = &tag;
+
+  rtnVal = copyFiles(fs);
+  if (rtnVal)
+    return TSK_FILTER_SKIP;
 
   rtnVal = libbfio_handle_initialize(&handle,
                                      io_handle,
@@ -116,7 +135,6 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
                                      &tvb_shim_get_size_wrapper,
                                      0,
                                      NULL);
-  copyFiles(fs);
 
   if (rtnVal == 1) {
     libvshadow_volume_t volume;
