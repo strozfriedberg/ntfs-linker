@@ -154,6 +154,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     int n;
     libvshadow_volume_get_number_of_stores(volume, &n, NULL);
     for (int i = 0; i < n; i++) {
+      std::cout << "Processing store " << i << std::endl;
       libvshadow_store_t* store;
       libvshadow_volume_get_store(volume, i, &store, &error);
       libvshadow_error_sprint(error, errStr, 1024);
@@ -165,6 +166,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
       TSK_IMG_INFO vss_img;
       TSK_FS_INFO* vss_fs = bvtShim.getTskFsInfo(&vss_img);
       copyFiles(vss_fs);
+      libvshadow_store_free(&store, &error);
     }
 
     libvshadow_volume_free(&volume, &error);
