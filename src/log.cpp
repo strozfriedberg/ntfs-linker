@@ -57,7 +57,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
+void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
   unsigned int buffer_size = 4096;
   char* buffer = new char[buffer_size];
   bool split_record = false;
@@ -133,7 +133,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       output << rec;
       rec.insert(sqliteHelper.LogInsert);
 
-      transactions.processLogRecord(rec, records, sqliteHelper, cur_offset);
+      transactions.processLogRecord(records, rec, sqliteHelper, cur_offset);
       if(transactions.isTransactionOver()) {
         if(transactions.isCreateEvent()) {
           transactions.insertEvent(EventTypes::CREATE, sqliteHelper.EventInsert);
@@ -306,7 +306,7 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
 
 }
 
-void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLiteHelper& sqliteHelper, uint64_t fileOffset) {
+void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec, SQLiteHelper& sqliteHelper, uint64_t fileOffset) {
   if(Lsn == 0) {
     Lsn = rec.CurrentLsn;
   }
