@@ -142,17 +142,22 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
 
 
   if (rtnVal == 1) {
-    libvshadow_volume_t volume;
+    libvshadow_volume_t* volume;
     libvshadow_error_t* error;
-    libvshadow_volume_open_file_io_handle(&volume, handle, LIBVSHADOW_ACCESS_FLAG_READ, &error);
+    libvshadow_volume_initialize(&volume, &error);
+    libvshadow_error_sprint(error, errStr, 1024);
+    std::cout << errStr << std::endl;
+    libvshadow_volume_open_file_io_handle(volume, handle, LIBVSHADOW_ACCESS_FLAG_READ, &error);
 
     libvshadow_error_sprint(error, errStr, 1024);
     std::cout << errStr << std::endl;
     int n;
-    libvshadow_volume_get_number_of_stores(&volume, &n, NULL);
+    libvshadow_volume_get_number_of_stores(volume, &n, NULL);
     for (int i = 0; i < n; i++) {
       libvshadow_store_t* store;
-      libvshadow_volume_get_store(&volume, i, &store, NULL);
+      libvshadow_volume_get_store(volume, i, &store, &error);
+      libvshadow_error_sprint(error, errStr, 1024);
+      std::cout << errStr << std::endl;
 
       VShadowTskVolumeShim bvtShim(store);
       globalVSTVShim = &bvtShim;
@@ -161,6 +166,8 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
       TSK_FS_INFO* vss_fs = bvtShim.getTskFsInfo(&vss_img);
       copyFiles(vss_fs);
     }
+
+    libvshadow_volume_free(&volume, &error);
   }
   return TSK_FILTER_SKIP;
 }
@@ -217,7 +224,7 @@ ssize_t TskVolumeBfioShim::read(intptr_t *io_handle, uint8_t *buffer, size_t siz
   if (rtnVal == -1)
     return -1;
   Offset += rtnVal;
-  return 1;
+  return rtnVal;
 }
 
 ssize_t TskVolumeBfioShim::write(intptr_t *io_handle, const uint8_t *buffer, size_t size, libbfio_error_t **error) {
