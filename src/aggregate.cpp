@@ -9,10 +9,11 @@
 #include <string>
 #include <vector>
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out) {
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out, unsigned int snapshot) {
   int u;
   Event usn_event;
 
+  sqliteHelper.bindForSelect(snapshot);
   u = sqlite3_step(sqliteHelper.EventUsnSelect);
 
   // Output log events until the log event is a create, so we can compare timestamps properly.

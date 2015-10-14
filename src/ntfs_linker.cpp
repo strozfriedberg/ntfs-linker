@@ -21,6 +21,49 @@ struct Options {
 
 };
 
+class IOContainer {
+public:
+  IOContainer(Options& opts) {
+    fs::path inDir(opts.input);
+
+    IMft.open((inDir / fs::path("$MFT")).string(), std::ios::binary);
+    IUsnJrnl.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
+    ILogFile.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
+
+
+    if(!IMft) {
+      std::cerr << "$MFT File not found." << std::endl;
+      exit(0);
+    }
+    if(!IUsnJrnl) {
+      IUsnJrnl.open((inDir / fs::path("$J")).string(), std::ios::binary);
+      if(!IUsnJrnl) {
+        std::cerr << "$UsnJrnl File not found." << std::endl;
+        exit(0);
+      }
+    }
+    if(!ILogFile) {
+      std::cerr << "$LogFile File not found: " << std::endl;
+      exit(0);
+    }
+    fs::path outDir(opts.outputDir);
+    fs::create_directories(outDir);
+
+    prep_ofstream(OUsnJrnl, (outDir / fs::path("usnjrnl.txt")).string(), opts.overwrite);
+    prep_ofstream(OLogFile, (outDir / fs::path("logfile.txt")).string(), opts.overwrite);
+  }
+  std::ifstream IMft, IUsnJrnl, ILogFile;
+  std::ofstream OUsnJrnl, OLogFile;
+};
+
+typedef std::unique_ptr<IOContainer> IOContainerPtr;
+
+struct IOBundle {
+  std::vector<IOContainerPtr> Containers;
+  SQLiteHelper SqliteHelper;
+  std::ofstream Events;
+};
+
 void printHelp(const po::options_description& desc) {
   std::cout << "ntfs-linker, Copyright (c) Stroz Friedberg, LLC" << std::endl;
   std::cout << "Version " << VERSION << std::endl;
@@ -28,30 +71,16 @@ void printHelp(const po::options_description& desc) {
   std::cout << "Note: this program will also look for files named $J when looking for $UsnJrnl file." << std::endl;
 }
 
-void setupIO(Options& opts, IContainer& iContainer, OContainer& oContainer, std::vector<std::string>& imgSegs) {
+
+void setupIO(Options& opts, IOBundle& ioBundle, std::vector<std::string>& imgSegs) {
+  fs::path outDir(opts.outputDir);
+  prep_ofstream(ioBundle.Events, (outDir / fs::path("events.txt")).string() , opts.overwrite);
   if (!opts.isImage) {
-    fs::path inDir(opts.input);
+    ioBundle.Containers.push_back(IOContainerPtr(new IOContainer(opts)));
 
-    iContainer.i_mft.open((inDir / fs::path("$MFT")).string(), std::ios::binary);
-    iContainer.i_usnjrnl.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
-    iContainer.i_logfile.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
-
-
-    if(!iContainer.i_mft) {
-      std::cerr << "$MFT File not found." << std::endl;
-      exit(0);
-    }
-    if(!iContainer.i_usnjrnl) {
-      iContainer.i_usnjrnl.open((inDir / fs::path("$J")).string(), std::ios::binary);
-      if(!iContainer.i_usnjrnl) {
-        std::cerr << "$UsnJrnl File not found." << std::endl;
-        exit(0);
-      }
-    }
-    if(!iContainer.i_logfile) {
-      std::cerr << "$LogFile File not found: " << std::endl;
-      exit(0);
-    }
+    std::cout << "Setting up DB Connection..." << std::endl;
+    std::string dbName = (outDir / fs::path("ntfs.db")).string();
+    ioBundle.SqliteHelper.init(dbName, opts.overwrite);
   }
   else {
     std::cout << "Copying files out of image..." << std::endl;
@@ -66,36 +95,31 @@ void setupIO(Options& opts, IContainer& iContainer, OContainer& oContainer, std:
     std::cout << "Done copying" << std::endl;
 
   }
-  fs::path outDir(opts.outputDir);
-  fs::create_directories(outDir);
-
-  prep_ofstream(oContainer.o_usnjrnl, (outDir / fs::path("usnjrnl.txt")).string(), opts.overwrite);
-  prep_ofstream(oContainer.o_logfile, (outDir / fs::path("logfile.txt")).string(), opts.overwrite);
-  prep_ofstream(oContainer.o_events , (outDir / fs::path("events.txt")).string() , opts.overwrite);
-
-  std::cout << "Setting up DB Connection..." << std::endl;
-  std::string dbName = (outDir / fs::path("ntfs.db")).string();
-  oContainer.sqliteHelper.init(dbName, opts.overwrite);
 }
 
-int process(IContainer& iContainer, OContainer& oContainer) {
+int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int snapshot) {
   //Set up db connection
 
   std::vector<File> records;
   std::cout << "Creating MFT Map..." << std::endl;
-  parseMFT(records, oContainer.sqliteHelper, iContainer.i_mft, oContainer.o_mft, true);
+  parseMFT(records, container.IMft);
 
   std::cout << "Parsing USNJrnl..." << std::endl;
-  parseUSN(records, oContainer.sqliteHelper, iContainer.i_usnjrnl, oContainer.o_usnjrnl);
+  parseUSN(records, sqliteHelper, container.IUsnJrnl, container.OUsnJrnl, snapshot);
   std::cout << "Parsing LogFile..." << std::endl;
-  parseLog(records, oContainer.sqliteHelper, iContainer.i_logfile, oContainer.o_logfile);
-  oContainer.sqliteHelper.commit();
+  parseLog(records, sqliteHelper, container.ILogFile, container.OLogFile, snapshot);
+  sqliteHelper.commit();
+  return 0;
+}
+
+int processFinalize(IOBundle& bundle, IOContainer& container, unsigned int snapshot) {
+  std::vector<File> records;
+  std::cout << "Creating MFT Map..." << std::endl;
+  parseMFT(records, container.IMft);
 
   std::cout << "Generating unified events output..." << std::endl;
-  outputEvents(records, oContainer.sqliteHelper, oContainer.o_events);
+  outputEvents(records, bundle.SqliteHelper, bundle.Events, snapshot);
 
-  oContainer.sqliteHelper.close();
-  std::cout << "Process complete." << std::endl;
   return 0;
 }
 
@@ -138,10 +162,20 @@ int main(int argc, char** argv) {
         opts.input = imgSegs[0];
       }
 
-      IContainer iContainer;
-      OContainer oContainer;
-      setupIO(opts, iContainer, oContainer, imgSegs);
-      return process(iContainer, oContainer);
+      IOBundle bundle;
+      setupIO(opts, bundle, imgSegs);
+
+      std::vector<IOContainerPtr>::iterator it;
+      std::vector<IOContainerPtr>::reverse_iterator rIt;
+      unsigned int snapshot;
+      for (snapshot = 0, it = bundle.Containers.begin(); it != bundle.Containers.end(); ++it, ++snapshot) {
+        processStep(**it, bundle.SqliteHelper, snapshot);
+      }
+      for (rIt = bundle.Containers.rbegin(); rIt != bundle.Containers.rend(); ++rIt, --snapshot) {
+        processFinalize(bundle, **rIt, snapshot);
+      }
+      bundle.SqliteHelper.close();
+      std::cout << "Process complete." << std::endl;
     }
     else {
       std::cerr << "Error: did not understand arguments" << std::endl;

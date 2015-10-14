@@ -106,6 +106,7 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "Created text, " \
                          "Modified text, " \
                          "Comment text, " \
+                         "Snapshot int, " \
                          "UNIQUE(USN_LSN, EventSource));",
                      0, 0, 0);
   prepareStatements();
@@ -130,13 +131,24 @@ int SQLiteHelper::prepareStatement(sqlite3_stmt **stmt, std::string& sql) {
   return sqlite3_prepare_v2(Db, sql.c_str(), sql.length() + 1, stmt, NULL);
 }
 
+void SQLiteHelper::bindForSelect(unsigned int snapshot) {
+  sqlite3_bind_int64(EventUsnSelect, 1, EventSources::USN);
+  sqlite3_bind_int64(EventLogSelect, 1, EventSources::LOG);
+
+  sqlite3_bind_int(EventUsnSelect, 2, snapshot);
+  sqlite3_bind_int(EventLogSelect, 2, snapshot);
+
+}
+
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
   std::string mftInsert = "insert into mft values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventSelect = "select * from events where EventSource=? order by USN_LSN desc";
+  // Events are processed from the oldest to the newest, so when an event with a conflicting (USN_LSN, EventSource)
+  // comes into play, it should be ignored
+  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string eventSelect = "select * from events where EventSource=? and Snapshot=? order by USN_LSN desc";
 
   rc |= prepareStatement(&MftInsert, mftInsert);
   rc |= prepareStatement(&UsnInsert, usnInsert);
@@ -144,9 +156,6 @@ void SQLiteHelper::prepareStatements() {
   rc |= prepareStatement(&EventInsert, eventInsert);
   rc |= prepareStatement(&EventUsnSelect, eventSelect);
   rc |= prepareStatement(&EventLogSelect, eventSelect);
-
-  sqlite3_bind_int64(EventUsnSelect, 1, EventSources::USN);
-  sqlite3_bind_int64(EventLogSelect, 1, EventSources::LOG);
 
   if (rc) {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;

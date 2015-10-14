@@ -57,7 +57,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
+void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, unsigned int snapshot) {
   unsigned int buffer_size = 4096;
   char* buffer = new char[buffer_size];
   bool split_record = false;
@@ -82,7 +82,7 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
 
   output << LogRecord::getColumnHeaders();
 
-  LogData transactions;
+  LogData transactions(snapshot);
   transactions.clearFields();
 
   //scan through the $LogFile one  page at a time. Each record is 4096 bytes.
@@ -464,6 +464,7 @@ void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text (stmt, ++i, Created.c_str()     , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Modified.c_str()    , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Comment.c_str()     , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int  (stmt, ++i, Snapshot);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

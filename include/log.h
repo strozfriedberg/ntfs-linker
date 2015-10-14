@@ -16,7 +16,7 @@ std::string decodeLogFileOpCode(int op);
 Parses the $LogFile stream input
 Writes output to designated streams
 */
-void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input = std::cin, std::ostream& output = std::cout);
+void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, unsigned int snapshot);
 
 class LogRecord {
 public:
@@ -35,8 +35,10 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
+  LogData(unsigned int snapshot) : Snapshot(snapshot) {}
   int64_t Record, Parent, PreviousParent, Offset;
   uint64_t Lsn;
+  unsigned int Snapshot;
   std::string Name, PreviousName, Timestamp, Created, Modified, Comment;
   std::vector<int> RedoOps, UndoOps;
 

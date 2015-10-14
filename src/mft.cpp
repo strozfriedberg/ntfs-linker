@@ -108,7 +108,7 @@ std::string MFTRecord::toString(std::vector<File>& records) {
   return ss.str();
 }
 
-void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const bool initRecords) {
+void parseMFT(std::vector<File>& records, std::istream& input) {
   char buffer[1024];
 
   bool done = false;
@@ -126,15 +126,9 @@ void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
     input.read(buffer, 1024);
     doFixup(buffer, 1024, 512);
     MFTRecord record(buffer);
-    if (initRecords) {
-      for(int i = record.Record - records.size() + 1; i >= 0; i--)
-        records.push_back(File());
-      records[record.Record] = record.asFile();
-    }
-    else {
-      record.insert(sqliteHelper.MftInsert, records);
-      output << record.toString(records);
-    }
+    for(int i = record.Record - records.size() + 1; i >= 0; i--)
+      records.push_back(File());
+    records[record.Record] = record.asFile();
   }
 
   status.finish();

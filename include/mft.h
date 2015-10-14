@@ -14,7 +14,7 @@ std::string getMFTColumnHeaders();
 /*
 Parses all the MFT records
 */
-void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const bool initRecords);
+void parseMFT(std::vector<File>& records, std::istream& input);
 
 class SIAttribute {
 public:

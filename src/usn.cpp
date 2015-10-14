@@ -95,7 +95,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, unsigned int snapshot) {
   static char buffer[USN_BUFFER_SIZE];
 
   int records_processed = -1;
@@ -139,7 +139,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     records_processed++;
 
-    UsnRecord rec(buffer + offset, offset + totalOffset);
+    UsnRecord rec(buffer + offset, offset + totalOffset, snapshot);
     output << rec.toString(records);
     rec.insert(sqliteHelper.UsnInsert, records);
 
@@ -170,8 +170,9 @@ void UsnRecord::update(UsnRecord rec) {
     }
 }
 
-UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, int len, bool isEmbedded) :
+UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, unsigned int snapshot, int len, bool isEmbedded) :
   FileOffset(fileOffset),
+  Snapshot(snapshot),
   IsEmbedded(isEmbedded) {
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
@@ -262,6 +263,7 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_int  (stmt, ++i, Snapshot);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

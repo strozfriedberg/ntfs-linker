@@ -43,7 +43,7 @@ public:
   bool Started;
 };
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events);
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events, unsigned int snapshot);
 
 template<typename T>
 std::list<int> computeLNIS(std::vector<T>& elements, std::vector<int>& hits) {
