@@ -15,21 +15,17 @@ namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
 struct Options {
-  std::string input;
-  std::string outputDir;
+  fs::path input;
+  fs::path output;
   bool overwrite;
-  bool isImage;
-
 };
 
 class IOContainer {
 public:
   IOContainer(Options& opts) {
-    fs::path inDir(opts.input);
-
-    IMft.open((inDir / fs::path("$MFT")).string(), std::ios::binary);
-    IUsnJrnl.open((inDir / fs::path("$UsnJrnl")).string(), std::ios::binary);
-    ILogFile.open((inDir / fs::path("$LogFile")).string(), std::ios::binary);
+    IMft.open((opts.input / fs::path("$MFT")).string(), std::ios::binary);
+    IUsnJrnl.open((opts.input / fs::path("$UsnJrnl")).string(), std::ios::binary);
+    ILogFile.open((opts.input / fs::path("$LogFile")).string(), std::ios::binary);
 
 
     if(!IMft) {
@@ -37,7 +33,7 @@ public:
       exit(0);
     }
     if(!IUsnJrnl) {
-      IUsnJrnl.open((inDir / fs::path("$J")).string(), std::ios::binary);
+      IUsnJrnl.open((opts.input / fs::path("$J")).string(), std::ios::binary);
       if(!IUsnJrnl) {
         std::cerr << "$UsnJrnl File not found." << std::endl;
         exit(0);
@@ -47,12 +43,11 @@ public:
       std::cerr << "$LogFile File not found: " << std::endl;
       exit(0);
     }
-    fs::path outDir(opts.outputDir);
-    fs::create_directories(outDir);
 
-    prep_ofstream(OUsnJrnl, (outDir / fs::path("usnjrnl.txt")).string(), opts.overwrite);
-    prep_ofstream(OLogFile, (outDir / fs::path("logfile.txt")).string(), opts.overwrite);
+    prep_ofstream(OUsnJrnl, (opts.output / fs::path("usnjrnl.txt")).string(), opts.overwrite);
+    prep_ofstream(OLogFile, (opts.output / fs::path("logfile.txt")).string(), opts.overwrite);
   }
+
   std::ifstream IMft, IUsnJrnl, ILogFile;
   std::ofstream OUsnJrnl, OLogFile;
 };
@@ -74,31 +69,43 @@ void printHelp(const po::options_description& desc) {
 
 
 void setupIO(Options& opts, IOBundle& ioBundle, std::vector<std::string>& imgSegs) {
-  fs::path outDir(opts.outputDir);
-  prep_ofstream(ioBundle.Events, (outDir / fs::path("events.txt")).string() , opts.overwrite);
-  if (!opts.isImage) {
-    ioBundle.Containers.push_back(IOContainerPtr(new IOContainer(opts)));
-
-    std::cout << "Setting up DB Connection..." << std::endl;
-    std::string dbName = (outDir / fs::path("ntfs.db")).string();
-    ioBundle.SqliteHelper.init(dbName, opts.overwrite);
-  }
-  else {
+  fs::create_directories(opts.output);
+  if (imgSegs.size()) {
     std::cout << "Copying files out of image..." << std::endl;
     boost::scoped_array<const char*> segments(new const char*[imgSegs.size()]);
     for (unsigned int i = 0; i < imgSegs.size(); ++i) {
       segments[i] = imgSegs[i].c_str();
     }
-    VolumeWalker walker;
+    VolumeWalker walker(opts.input);
     walker.openImageUtf8(imgSegs.size(), segments.get(), TSK_IMG_TYPE_DETECT, 0);
     walker.findFilesInImg();
-
-    // TODO walker copies files out to VSS-named directories,
-    // make the bundle
 
     std::cout << "Done copying" << std::endl;
 
   }
+
+  std::vector<fs::path> children;
+  std::copy(fs::directory_iterator(opts.input), fs::directory_iterator(), std::back_inserter(children));
+  std::sort(children.begin(), children.end());
+  bool containsDirectories = false;
+  for (auto& child: children) {
+    if (fs::is_directory(child)) {
+      containsDirectories = true;
+      Options vssOpts = opts;
+      vssOpts.input /= child.filename();
+      vssOpts.output /= child.filename();
+      ioBundle.Containers.push_back(IOContainerPtr(new IOContainer(vssOpts)));
+    }
+  }
+
+  if (!containsDirectories) {
+    ioBundle.Containers.push_back(IOContainerPtr(new IOContainer(opts)));
+  }
+
+  prep_ofstream(ioBundle.Events, (opts.output / fs::path("events.txt")).string() , opts.overwrite);
+  std::cout << "Setting up DB Connection..." << std::endl;
+  std::string dbName = (opts.output / fs::path("ntfs.db")).string();
+  ioBundle.SqliteHelper.init(dbName, opts.overwrite);
 }
 
 int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int snapshot) {
@@ -131,20 +138,17 @@ int main(int argc, char** argv) {
   Options opts;
 
   po::options_description desc("Allowed options");
-  po::positional_options_description posOpts;
-  posOpts.add("output-dir", 1);
-  posOpts.add("input", 1);
   desc.add_options()
     ("help", "display help and exit")
-    ("output-dir", po::value<std::string>(&opts.outputDir), "directory in which to dump output files")
-    ("input", po::value<std::vector<std::string>>(), "location of directory containing input files: $MFT, $UsnJrnl, $LogFile, OR ev-files")
-    ("is-image", "specifies that input is actually a list of image segments")
+    ("output", po::value<std::string>(), "directory in which to dump output files")
+    ("input", po::value<std::string>(), "If no image specified, location of directory containing input files: $MFT, $UsnJrnl, $LogFile. Otherwise, root directory in which to dump files extracted from image.")
+    ("image", po::value<std::vector<std::string>>(), "Path to image")
     ("version", "display version number and exit")
     ("overwrite", "overwrite files in the output directory. Default: append");
 
   po::variables_map vm;
   try {
-    po::store(po::command_line_parser(argc, argv).options(desc).positional(posOpts).run(), vm);
+    po::store(po::command_line_parser(argc, argv).options(desc).run(), vm);
     po::notify(vm);
     std::vector<std::string> imgSegs;
 
@@ -156,14 +160,12 @@ int main(int argc, char** argv) {
       printHelp(desc);
     else if (vm.count("version"))
         std::cout << "ntfs_linker version: " << VERSION << std::endl;
-    else if (vm.count("input") && vm.count("output-dir")) {
+    else if (vm.count("input") && vm.count("output")) {
       // Run
-      if (vm.count("is-image")) {
-        opts.isImage = true;
-        imgSegs = vm["input"].as<std::vector<std::string>>();
-      }
-      else {
-        opts.input = imgSegs[0];
+      opts.input = fs::path(vm["input"].as<std::string>());
+      opts.output = fs::path(vm["output"].as<std::string>());
+      if (vm.count("image")) {
+        imgSegs = vm["image"].as<std::vector<std::string>>();
       }
 
       IOBundle bundle;

@@ -5,6 +5,10 @@
 #include <string>
 #include <iostream>
 
+#include <boost/filesystem.hpp>
+
+namespace fs = boost::filesystem;
+
 
 struct FileCopy{
 
@@ -49,21 +53,23 @@ void write_file(FileCopy& param) {
     }
     if (bytesRead == -1)
       break;
-    std::cout << offset << " " << bytesRead << std::endl;
     out.write(reinterpret_cast<char*>(&buffer), bytesRead);
     offset += bytesRead;
   }
   out.close();
 }
 
-int copyFiles(TSK_FS_INFO* fs) {
-  std::vector<FileCopy> params { FileCopy("/$MFT", "", "MFT_FILE"),
-                                FileCopy("/$LogFile", "", "LOGFILE_FILE"),
-                                FileCopy("/$Extend/$UsnJrnl", "$J", "USNJRNL_FILE")};
+int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
+  fs::create_directories(dir);
+  std::vector<FileCopy> params { FileCopy("/$MFT", "", (dir / fs::path("MFT_FILE")).string()),
+                                FileCopy("/$LogFile", "", (dir / fs::path("LOGFILE_FILE")).string()),
+                                FileCopy("/$Extend/$UsnJrnl", "$J", (dir / fs::path("USNJRNL_FILE")).string())};
   for (auto it = params.begin(); it != params.end(); ++it) {
     it->File = tsk_fs_file_open(fs, NULL, it->In.c_str());
-    if (!it->File)
+    if (!it->File) {
+      std::cerr << tsk_error_get() << std::endl;
       return 1;
+    }
   }
 
   for(auto param: params) {
@@ -74,7 +80,7 @@ int copyFiles(TSK_FS_INFO* fs) {
 }
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
-  int rtnVal = copyFiles(fs);
+  int rtnVal = copyFiles(fs, Root / fs::path("base"));
 
   if (rtnVal)
     return TSK_FILTER_SKIP;
@@ -84,7 +90,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     for(int i = 0; i < vShadowVolume.getNumStores(); ++i) {
       std::cout << "Processing store " << i << std::endl;
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
-      copyFiles(snapshot);
+      copyFiles(snapshot, Root / fs::path(std::to_string(i)));
       vShadowVolume.freeSnapshot();
 
     }

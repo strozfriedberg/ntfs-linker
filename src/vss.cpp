@@ -7,6 +7,7 @@
 
 #include <sstream>
 #include <memory>
+#include <iostream>
 
 typedef std::unique_ptr<TskVolumeBfioShim> TskVolumeBfioShimPtr;
 typedef std::unique_ptr<VShadowTskVolumeShim> VshadowTskVolumeShimPtr;
@@ -46,6 +47,7 @@ ssize_t vstv_shim_read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len)
 int TskVolumeBfioShim::free(intptr_t **io_handle, libbfio_error_t ** error) {
   (void)error;
   if (Fs->tag != **io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   return 1;
@@ -62,6 +64,7 @@ int TskVolumeBfioShim::open(intptr_t *io_handle, int access_flags, libbfio_error
   (void)error;
   (void)access_flags;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   return 1;
@@ -70,6 +73,7 @@ int TskVolumeBfioShim::open(intptr_t *io_handle, int access_flags, libbfio_error
 int TskVolumeBfioShim::close(intptr_t *io_handle, libbfio_error_t ** error) {
   (void)error;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   return 1;
@@ -79,11 +83,14 @@ int TskVolumeBfioShim::close(intptr_t *io_handle, libbfio_error_t ** error) {
 ssize_t TskVolumeBfioShim::read(intptr_t *io_handle, uint8_t *buffer, size_t size, libbfio_error_t **error) {
   (void)error;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   ssize_t rtnVal = tsk_img_read(Fs->img_info, Fs->offset + Offset, reinterpret_cast<char*>(buffer), size);
-  if (rtnVal == -1)
+  if (rtnVal == -1) {
+    std::cerr << tsk_error_get() << std::endl;
     return -1;
+  }
   Offset += rtnVal;
   return rtnVal;
 }
@@ -93,6 +100,7 @@ ssize_t TskVolumeBfioShim::write(intptr_t *io_handle, const uint8_t *buffer, siz
   (void)size;
   (void)error;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   return -1;
@@ -101,6 +109,7 @@ ssize_t TskVolumeBfioShim::write(intptr_t *io_handle, const uint8_t *buffer, siz
 ssize_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error) {
   (void)error;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   switch(whence) {
@@ -114,6 +123,7 @@ ssize_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int 
       Offset = Size + offset;
       break;
     default:
+      std::cerr << "Invalid argument to seek" << std::endl;
       return -1;
   }
 
@@ -123,6 +133,7 @@ ssize_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int 
 int TskVolumeBfioShim::exists(intptr_t *io_handle, libbfio_error_t ** error) {
   (void)error;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   return 1;
@@ -131,6 +142,7 @@ int TskVolumeBfioShim::exists(intptr_t *io_handle, libbfio_error_t ** error) {
 int TskVolumeBfioShim::is_open(intptr_t *io_handle, libbfio_error_t ** error) {
   (void)error;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   return 1;
@@ -140,6 +152,7 @@ int TskVolumeBfioShim::is_open(intptr_t *io_handle, libbfio_error_t ** error) {
 int TskVolumeBfioShim::get_size(intptr_t *io_handle, size64_t *size, libbfio_error_t ** error) {
   (void)error;
   if (Fs->tag != *io_handle) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
   }
   *size = Size;
@@ -151,9 +164,15 @@ TskVolumeBfioShim::TskVolumeBfioShim(const TSK_FS_INFO* fs) : Fs(fs) {
 }
 
 ssize_t VShadowTskVolumeShim::read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len) {
-  if (img->tag != VSS_HANDLE_MAGIC)
+  if (img->tag != VSS_HANDLE_MAGIC) {
+    std::cerr << "Invalid tag" << __LINE__ << std::endl;
     return -1;
-  return libvshadow_store_read_buffer_at_offset(Store, buf, len, off, NULL);
+  }
+  ssize_t rtnVal = libvshadow_store_read_buffer_at_offset(Store, buf, len, off, &error);
+  static char errStr[1024];
+  libcerror_error_sprint(error, errStr, 1024);
+  std::cout << errStr << std::endl;
+  return rtnVal;
 }
 
 TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
@@ -167,7 +186,12 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
   img->spare_size = 64;
   img->tag = VSS_HANDLE_MAGIC;
 
-  return tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
+  TSK_FS_INFO* fs = tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
+  if (!fs) {
+    std::cout << tsk_error_get() << std::endl;
+    std::cout << "Error happened!" << std::endl;
+  }
+  return fs;
 
 }
 
@@ -222,7 +246,10 @@ VSS::VSS(TSK_FS_INFO* fs) : NumStores(0) {
   if (rtnVal != 1) {
     throw VSSException(error);
   }
-  libvshadow_volume_get_number_of_stores(Volume, &NumStores, NULL);
+  rtnVal = libvshadow_volume_get_number_of_stores(Volume, &NumStores, &error);
+  if (rtnVal != 1) {
+    throw VSSException(error);
+  }
 }
 
 TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
