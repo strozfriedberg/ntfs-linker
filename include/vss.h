@@ -6,13 +6,8 @@
 
 const int VSS_HANDLE_MAGIC = 0xBEEF;
 
-class VolumeWalker: public TskAuto {
-  public:
-    VolumeWalker() {}
-    virtual TSK_FILTER_ENUM filterFs(TSK_FS_INFO* fs);
-    virtual uint8_t openImageUtf8(int, const char *const images[], TSK_IMG_TYPE_ENUM, unsigned int a_ssize);
-    virtual TSK_RETVAL_ENUM processFile(TSK_FS_FILE*, const char*) { return TSK_OK; }
-};
+TSK_FS_INFO* getVSS(TSK_FS_INFO* base, unsigned int num);
+void closeVSS();
 
 class TskVolumeBfioShim {
   public:
@@ -43,4 +38,19 @@ class VShadowTskVolumeShim {
     TSK_FS_INFO* getTskFsInfo(TSK_IMG_INFO* img);
   private:
     libvshadow_store_t* Store;
+};
+
+class VSS {
+  public:
+    VSS(TSK_FS_INFO* fs);
+    TSK_FS_INFO* getSnapshot(uint8_t n);
+    void freeSnapshot();
+    void free();
+    int getNumStores();
+  private:
+    libvshadow_store_t* Store;
+    libvshadow_volume_t* Volume;
+    TSK_IMG_INFO VssImg;
+    TSK_FS_INFO* VssFs;
+    int NumStores;
 };

@@ -1,16 +1,19 @@
-#include "vss_handler.h"
-#include "helper_functions.h"
+#include "vss.h"
 
 #include <libbfio.h>
 #include <libvshadow.h>
 #include <tsk/libtsk.h>
+#include <libcerror.h>
 
-#include <string>
-#include <fstream>
-#include <tuple>
+#include <sstream>
+#include <memory>
 
-TskVolumeBfioShim* globalTVBShim;
-VShadowTskVolumeShim* globalVSTVShim;
+typedef std::unique_ptr<TskVolumeBfioShim> TskVolumeBfioShimPtr;
+typedef std::unique_ptr<VShadowTskVolumeShim> VshadowTskVolumeShimPtr;
+TskVolumeBfioShimPtr globalTVBShim;
+VshadowTskVolumeShimPtr globalVSTVShim;
+
+libcerror_error_t* error;
 
 int tvb_shim_free_wrapper(intptr_t** io_handle, libbfio_error_t **error)
   { return globalTVBShim->free(io_handle, error); }
@@ -39,150 +42,6 @@ void vstv_shim_imgstat(TSK_IMG_INFO* img, FILE* file)
   { return globalVSTVShim->imgstat(img, file); }
 ssize_t vstv_shim_read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len)
   { return globalVSTVShim->read(img, off, buf, len); }
-
-struct FileCopy{
-
-  FileCopy(std::string in, std::string attr, std::string out) : In(in), Attr(attr), Out(out) {}
-
-  std::string In, Attr, Out;
-  TSK_FS_FILE* File;
-};
-
-void write_file(FileCopy& param) {
-  TSK_FS_FILE* file = param.File;
-  uint16_t id = 0;
-  TSK_FS_ATTR_TYPE_ENUM type = TSK_FS_ATTR_TYPE_NOT_FOUND;
-  TSK_OFF_T offset = 0;
-  bool ads = false;
-  if (param.Attr != "") {
-    TSK_FS_ATTR* attr = file->meta->attr->head;
-    while (attr != NULL) {
-      if (attr->name && std::string(attr->name) == param.Attr) {
-        id = attr->id;
-        type = attr->type;
-        ads = true;
-        offset = attr->nrd.run->next->offset * file->fs_info->block_size;
-        break;
-      }
-      attr = attr->next;
-    }
-    if (!ads)
-      return;
-  }
-
-  std::ofstream out(param.Out, std::ios::out | std::ios::binary | std::ios::trunc);
-  const size_t buffer_size = 1048576;
-  static char buffer[buffer_size];
-  while (1) {
-    ssize_t bytesRead;
-    if (ads) {
-      bytesRead = tsk_fs_file_read_type(file, type, id, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
-    }
-    else {
-      bytesRead = tsk_fs_file_read(file, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
-    }
-    if (bytesRead == -1)
-      break;
-    std::cout << offset << " " << bytesRead << std::endl;
-    out.write(reinterpret_cast<char*>(&buffer), bytesRead);
-    offset += bytesRead;
-  }
-  out.close();
-}
-
-int copyFiles(TSK_FS_INFO* fs) {
-  std::vector<FileCopy> params { FileCopy("/$MFT", "", "MFT_FILE"),
-                                FileCopy("/$LogFile", "", "LOGFILE_FILE"),
-                                FileCopy("/$Extend/$UsnJrnl", "$J", "USNJRNL_FILE")};
-  for (auto it = params.begin(); it != params.end(); ++it) {
-    it->File = tsk_fs_file_open(fs, NULL, it->In.c_str());
-    if (!it->File)
-      return 1;
-  }
-
-  for(auto param: params) {
-      write_file(param);
-      tsk_fs_file_close(param.File);
-  }
-  return 0;
-}
-
-TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
-  int rtnVal;
-  static char errStr[1024];
-  std::cout << "Filterfs" << std::endl;
-  TskVolumeBfioShim tvbShim(fs);
-  globalTVBShim = &tvbShim;
-
-  libbfio_handle_t* handle = NULL;
-  intptr_t tag = fs->tag;
-  intptr_t* io_handle = &tag;
-
-  rtnVal = copyFiles(fs);
-  if (rtnVal)
-    return TSK_FILTER_SKIP;
-
-  libbfio_error_t* error;
-  rtnVal = libbfio_handle_initialize(&handle,
-                                     io_handle,
-                                     &tvb_shim_free_wrapper,
-                                     &tvb_shim_clone_wrapper,
-                                     &tvb_shim_open_wrapper,
-                                     &tvb_shim_close_wrapper,
-                                     &tvb_shim_read_wrapper,
-                                     &tvb_shim_write_wrapper,
-                                     &tvb_shim_seek_offset_wrapper,
-                                     &tvb_shim_exists_wrapper,
-                                     &tvb_shim_is_open_wrapper,
-                                     &tvb_shim_get_size_wrapper,
-                                     LIBBFIO_FLAG_IO_HANDLE_NON_MANAGED,
-                                     &error);
-  libbfio_error_sprint(error, errStr, 1024);
-  std::cout << errStr << std::endl;
-
-
-  if (rtnVal == 1) {
-    libvshadow_volume_t* volume;
-    libvshadow_error_t* error;
-    libvshadow_volume_initialize(&volume, &error);
-    libvshadow_error_sprint(error, errStr, 1024);
-    std::cout << errStr << std::endl;
-    libvshadow_volume_open_file_io_handle(volume, handle, LIBVSHADOW_ACCESS_FLAG_READ, &error);
-
-    libvshadow_error_sprint(error, errStr, 1024);
-    std::cout << errStr << std::endl;
-    int n;
-    libvshadow_volume_get_number_of_stores(volume, &n, NULL);
-    for (int i = 0; i < n; i++) {
-      std::cout << "Processing store " << i << std::endl;
-      libvshadow_store_t* store;
-      libvshadow_volume_get_store(volume, i, &store, &error);
-      libvshadow_error_sprint(error, errStr, 1024);
-      std::cout << errStr << std::endl;
-
-      VShadowTskVolumeShim bvtShim(store);
-      globalVSTVShim = &bvtShim;
-
-      TSK_IMG_INFO vss_img;
-      TSK_FS_INFO* vss_fs = bvtShim.getTskFsInfo(&vss_img);
-      copyFiles(vss_fs);
-      libvshadow_store_free(&store, &error);
-    }
-
-    libvshadow_volume_free(&volume, &error);
-  }
-  return TSK_FILTER_SKIP;
-}
-
-uint8_t VolumeWalker::openImageUtf8(int a_numImg, const char *const a_images[], TSK_IMG_TYPE_ENUM a_imgType, unsigned int a_sSize) {
-  uint8_t rtnVal = TskAuto::openImageUtf8(a_numImg, a_images, a_imgType, a_sSize);
-  if (rtnVal) {
-    std::cout << "TSK Error! Stopping." << std::endl;
-    std::cout << tsk_error_get() << std::endl;
-    exit(1);
-  }
-  return rtnVal;
-}
 
 int TskVolumeBfioShim::free(intptr_t **io_handle, libbfio_error_t ** error) {
   (void)error;
@@ -310,4 +169,93 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
 
   return tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
 
+}
+
+class VSSException : public std::exception {
+  public:
+    VSSException(libcerror_error_t* error) : Error(error) {}
+    virtual const char* what() const throw() {
+      static char errStr[1024];
+      std::stringstream ss;
+      libcerror_error_sprint(Error, errStr, 1024);
+      ss << "VSS Exception: " << errStr;
+      return ss.str().c_str();
+    }
+
+  private:
+    libcerror_error_t* Error;
+};
+
+VSS::VSS(TSK_FS_INFO* fs) : NumStores(0) {
+  int rtnVal;
+  globalTVBShim = TskVolumeBfioShimPtr(new TskVolumeBfioShim(fs));
+  libbfio_handle_t* handle = NULL;
+  intptr_t tag = fs->tag;
+  intptr_t* io_handle = &tag;
+
+  libcerror_error_t* error;
+
+  rtnVal = libbfio_handle_initialize(&handle,
+                                     io_handle,
+                                     &tvb_shim_free_wrapper,
+                                     &tvb_shim_clone_wrapper,
+                                     &tvb_shim_open_wrapper,
+                                     &tvb_shim_close_wrapper,
+                                     &tvb_shim_read_wrapper,
+                                     &tvb_shim_write_wrapper,
+                                     &tvb_shim_seek_offset_wrapper,
+                                     &tvb_shim_exists_wrapper,
+                                     &tvb_shim_is_open_wrapper,
+                                     &tvb_shim_get_size_wrapper,
+                                     LIBBFIO_FLAG_IO_HANDLE_NON_MANAGED,
+                                     &error);
+  if (rtnVal != 1) {
+    throw VSSException(error);
+  }
+
+  rtnVal = libvshadow_volume_initialize(&Volume, &error);
+  if (rtnVal != 1) {
+    throw VSSException(error);
+  }
+
+  rtnVal = libvshadow_volume_open_file_io_handle(Volume, handle, LIBVSHADOW_ACCESS_FLAG_READ, &error);
+  if (rtnVal != 1) {
+    throw VSSException(error);
+  }
+  libvshadow_volume_get_number_of_stores(Volume, &NumStores, NULL);
+}
+
+TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
+  int rtnVal;
+
+  rtnVal = libvshadow_volume_get_store(Volume, n, &Store, &error);
+  if (rtnVal != 1) {
+    throw VSSException(error);
+  }
+
+  globalVSTVShim = VshadowTskVolumeShimPtr(new VShadowTskVolumeShim(Store));
+
+  VssFs = globalVSTVShim -> getTskFsInfo(&VssImg);
+  return VssFs;
+}
+
+void VSS::freeSnapshot() {
+  int rtnVal;
+
+  tsk_fs_close(VssFs);
+
+  rtnVal = libvshadow_store_free(&Store, &error);
+  if (rtnVal != 1)
+    throw VSSException(error);
+}
+
+void VSS::free() {
+  int rtnVal;
+  rtnVal = libvshadow_volume_free(&Volume, &error);
+  if (rtnVal != 1)
+    throw VSSException(error);
+}
+
+int VSS::getNumStores() {
+  return NumStores;
 }

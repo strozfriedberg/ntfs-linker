@@ -28,6 +28,7 @@ PKG_CHECK_MODULES([BFIO], [libbfio])
 PKG_CHECK_MODULES([EWF], [libewf])
 PKG_CHECK_MODULES([SQLITE], [sqlite3])
 PKG_CHECK_MODULES([VSHADOW], [libvshadow])
+PKG_CHECK_MODULES([CERROR], [libcerror])
 
 # zlib is a dependency of libtsk
 PKG_CHECK_MODULES([ZLIB], [zlib])
@@ -133,7 +134,7 @@ AC_DEFUN([SF_APPEND], [{
 }])
 
 # collect the flags from everything which might set some
-for lib in EWF VSHADOW SQLITE BFIO TSK BOOST ZLIB; do
+for lib in EWF VSHADOW SQLITE BFIO TSK BOOST ZLIB CERROR; do
   # fold CFLAGS into CXXFLAGS since everything here is C++
   h="${lib}_CXXFLAGS"
   t=$(eval echo \"\$${lib}_CFLAGS\")

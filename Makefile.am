@@ -11,7 +11,8 @@ src_common_SOURCES = \
 	src/mft.cpp \
 	src/progress.cpp \
 	src/usn.cpp \
-	src/vss_handler.cpp
+	src/vss.cpp \
+	src/walkers.cpp
 
 src_ntfs_linker_SOURCES = $(src_common_SOURCES)
 src_ntfs_linker_SOURCES += \

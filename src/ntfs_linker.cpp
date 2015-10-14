@@ -3,7 +3,8 @@
 #include "log.h"
 #include "mft.h"
 #include "usn.h"
-#include "vss_handler.h"
+#include "vss.h"
+#include "walkers.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -91,6 +92,9 @@ void setupIO(Options& opts, IOBundle& ioBundle, std::vector<std::string>& imgSeg
     VolumeWalker walker;
     walker.openImageUtf8(imgSegs.size(), segments.get(), TSK_IMG_TYPE_DETECT, 0);
     walker.findFilesInImg();
+
+    // TODO walker copies files out to VSS-named directories,
+    // make the bundle
 
     std::cout << "Done copying" << std::endl;
 
