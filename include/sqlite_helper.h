@@ -12,6 +12,7 @@ public:
   void commit();
   void close();
   void bindForSelect(unsigned int snapshot);
+  void resetSelect();
 
   sqlite3_stmt *MftInsert, *UsnInsert, *LogInsert, *EventInsert, *EventUsnSelect, *EventLogSelect;
 private:

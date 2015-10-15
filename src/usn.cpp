@@ -245,6 +245,10 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, ++i, EventSources::USN);
   sqlite3_bind_int64(stmt, ++i, IsEmbedded);
   sqlite3_bind_int64(stmt, ++i, FileOffset);
+  sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Created
+  sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Modified
+  sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Comment
+  sqlite3_bind_int  (stmt, ++i, Snapshot);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

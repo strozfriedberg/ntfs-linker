@@ -20,6 +20,7 @@ public:
   int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset;
   std::string Timestamp, Name, PreviousName, Created, Modified, Comment;
   bool IsAnchor, IsEmbedded;
+  int Snapshot;
 };
 
 class EventLNIS {

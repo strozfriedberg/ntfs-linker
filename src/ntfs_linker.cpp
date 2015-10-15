@@ -112,6 +112,7 @@ int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int
   //Set up db connection
 
   std::vector<File> records;
+  std::cout << snapshot << std::endl;
   std::cout << "Creating MFT Map..." << std::endl;
   parseMFT(records, container.IMft);
 
@@ -128,6 +129,7 @@ int processFinalize(IOBundle& bundle, IOContainer& container, unsigned int snaps
   parseMFT(records, container.IMft);
 
   std::cout << "Generating unified events output..." << std::endl;
+  std::cout << snapshot << std::endl;
   outputEvents(records, bundle.SqliteHelper, bundle.Events, snapshot);
 
   return 0;

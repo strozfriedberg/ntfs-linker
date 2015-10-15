@@ -140,6 +140,11 @@ void SQLiteHelper::bindForSelect(unsigned int snapshot) {
 
 }
 
+void SQLiteHelper::resetSelect() {
+  sqlite3_reset(EventUsnSelect);
+  sqlite3_reset(EventLogSelect);
+}
+
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
   std::string mftInsert = "insert into mft values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";

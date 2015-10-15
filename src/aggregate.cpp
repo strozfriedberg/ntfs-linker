@@ -45,6 +45,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
 
   while(log.hasMore())
     order = log.advance(order, records, out, true);
+  sqliteHelper.resetSelect();
 
   return;
 }
@@ -69,6 +70,7 @@ void Event::init(sqlite3_stmt* stmt) {
   Created        = textToString(sqlite3_column_text(stmt, ++i));
   Modified       = textToString(sqlite3_column_text(stmt, ++i));
   Comment        = textToString(sqlite3_column_text(stmt, ++i));
+  Snapshot       = sqlite3_column_int(stmt, ++i);
 
   if (PreviousParent == Parent)
     PreviousParent = -1;
@@ -101,7 +103,8 @@ std::string Event::getColumnHeaders() {
      << "Offset"            << "\t"
      << "Created"           << "\t"
      << "Modified"          << "\t"
-     << "Comment"           << std::endl;
+     << "Comment"           << "\t"
+     << "Snapshot"          << std::endl;
   return ss.str();
 }
 
@@ -123,7 +126,8 @@ void Event::write(int order, std::ostream& out, std::vector<File>& records) {
       << Offset                                                                        << "\t"
       << Created                                                                       << "\t"
       << Modified                                                                      << "\t"
-      << Comment                                                                       << std::endl;
+      << Comment                                                                       << "\t"
+      << Snapshot                                                                      << std::endl;
 }
 
 void Event::updateRecords(std::vector<File>& records) {
