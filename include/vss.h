@@ -53,4 +53,6 @@ class VSS {
     TSK_IMG_INFO VssImg;
     TSK_FS_INFO* VssFs;
     int NumStores;
+    intptr_t Tag;
+    libbfio_handle_t* Handle;
 };
