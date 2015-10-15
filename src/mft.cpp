@@ -111,22 +111,22 @@ std::string MFTRecord::toString(std::vector<File>& records) {
 void parseMFT(std::vector<File>& records, std::istream& input) {
   char buffer[1024];
 
-  bool done = false;
   int records_processed = 0;
 
+  input.clear();
   input.seekg(0, std::ios::end);
   uint64_t end = input.tellg();
   input.seekg(0, std::ios::beg);
   ProgressBar status(end);
 
   //scan through the $MFT one record at a time. Each record is 1024 bytes.
-  while(!input.eof() && !done) {
+  while(!input.eof()) {
     status.setDone((uint64_t) input.tellg());
     records_processed++;
     input.read(buffer, 1024);
     doFixup(buffer, 1024, 512);
     MFTRecord record(buffer);
-    for(int i = record.Record - records.size() + 1; i >= 0; i--)
+    for(int i = record.Record - records.size(); i >= 0; i--)
       records.push_back(File());
     records[record.Record] = record.asFile();
   }

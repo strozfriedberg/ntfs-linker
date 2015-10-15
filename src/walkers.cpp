@@ -61,9 +61,9 @@ void write_file(FileCopy& param) {
 
 int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
   fs::create_directories(dir);
-  std::vector<FileCopy> params { FileCopy("/$MFT", "", (dir / fs::path("MFT_FILE")).string()),
-                                FileCopy("/$LogFile", "", (dir / fs::path("LOGFILE_FILE")).string()),
-                                FileCopy("/$Extend/$UsnJrnl", "$J", (dir / fs::path("USNJRNL_FILE")).string())};
+  std::vector<FileCopy> params { FileCopy("/$MFT", "", (dir / fs::path("$MFT")).string()),
+                                FileCopy("/$LogFile", "", (dir / fs::path("$LogFile")).string()),
+                                FileCopy("/$Extend/$UsnJrnl", "$J", (dir / fs::path("$J")).string())};
   for (auto it = params.begin(); it != params.end(); ++it) {
     it->File = tsk_fs_file_open(fs, NULL, it->In.c_str());
     if (!it->File) {
@@ -92,7 +92,6 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
       copyFiles(snapshot, Root / fs::path(std::to_string(i)));
       vShadowVolume.freeSnapshot();
-
     }
 
     vShadowVolume.free();

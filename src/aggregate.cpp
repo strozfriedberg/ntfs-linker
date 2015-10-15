@@ -156,22 +156,25 @@ void Event::updateRecords(std::vector<File>& records) {
 
 int EventLNIS::advance(int order, std::vector<File>& records, std::ofstream& out, bool update) {
   int start, end;
+  if (!LNIS.size())
+    return order;
+
   if (Started) {
-    start = *cursor;
+    start = *Cursor;
     Events[start].IsAnchor = true;
-    ++cursor;
-    if (cursor == LNIS.end()) {
+    ++Cursor;
+    if (Cursor == LNIS.end()) {
       end = Events.size();
       Started = false;
     }
     else {
-      end = *cursor;
+      end = *Cursor;
     }
 
   }
   else {
     start = 0;
-    end = *cursor;
+    end = *Cursor;
     Started = true;
   }
 
@@ -191,7 +194,7 @@ EventLNIS::EventLNIS(sqlite3_stmt* stmt, EventTypes type) : Started(false) {
   for(auto event: Events)
     elements.push_back(event.Timestamp);
   LNIS = computeLNIS<std::string>(elements, Hits);
-  cursor = LNIS.begin();
+  Cursor = LNIS.begin();
   std::cout << "Found " << LNIS.size() << " out of " << Hits.size() << " possible anchor points."  << std::endl;
 }
 
@@ -211,9 +214,9 @@ void EventLNIS::readEvents(sqlite3_stmt* stmt, EventTypes type) {
 }
 
 bool EventLNIS::hasMore() {
-  return Started || cursor != LNIS.end();
+  return LNIS.size() && (Started || Cursor != LNIS.end());
 }
 
 std::string EventLNIS::getTimestamp() {
-  return Events[*cursor].Timestamp;
+  return Events[*Cursor].Timestamp;
 }

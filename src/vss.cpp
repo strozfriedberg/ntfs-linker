@@ -6,11 +6,8 @@
 #include <libcerror.h>
 
 #include <sstream>
-#include <memory>
 #include <iostream>
 
-typedef std::unique_ptr<TskVolumeBfioShim> TskVolumeBfioShimPtr;
-typedef std::unique_ptr<VShadowTskVolumeShim> VshadowTskVolumeShimPtr;
 TskVolumeBfioShimPtr globalTVBShim;
 VshadowTskVolumeShimPtr globalVSTVShim;
 
@@ -179,7 +176,7 @@ TskVolumeBfioShim::TskVolumeBfioShim(const TSK_FS_INFO* fs) : Fs(fs) {
 }
 
 ssize_t VShadowTskVolumeShim::read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len) {
-  if (img->tag != VSS_HANDLE_MAGIC) {
+  if (img->tag != TSK_IMG_INFO_TAG) {
     std::cerr << "Invalid tag at line: " << __LINE__ << std::endl;
     return -1;
   }
@@ -199,7 +196,7 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
   img->sector_size = 512;
   libvshadow_store_get_size(Store, reinterpret_cast<size64_t*>(&img->size), NULL);
   img->spare_size = 64;
-  img->tag = VSS_HANDLE_MAGIC;
+  img->tag = TSK_IMG_INFO_TAG;
 
   TSK_FS_INFO* fs = tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
   if (!fs) {
@@ -210,11 +207,10 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
 
 }
 
-VSS::VSS(TSK_FS_INFO* fs) : NumStores(0), Tag(fs->tag), Handle(NULL) {
+VSS::VSS(TSK_FS_INFO* fs) : Volume(NULL), Store(NULL), NumStores(0), Tag(fs->tag), Handle(NULL) {
   int rtnVal;
   globalTVBShim = TskVolumeBfioShimPtr(new TskVolumeBfioShim(fs));
-
-  libcerror_error_t* error;
+  VssImg = TskImgInfoPtr(new TSK_IMG_INFO);
 
   rtnVal = libbfio_handle_initialize(&Handle,
                                      &Tag,
@@ -259,7 +255,7 @@ TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
 
   globalVSTVShim = VshadowTskVolumeShimPtr(new VShadowTskVolumeShim(Store));
 
-  VssFs = globalVSTVShim -> getTskFsInfo(&VssImg);
+  VssFs = globalVSTVShim -> getTskFsInfo(VssImg.get());
   return VssFs;
 }
 

@@ -39,7 +39,7 @@ public:
   std::vector<int> Hits;
 
   std::list<int> LNIS;
-  std::list<int>::iterator cursor;
+  std::list<int>::iterator Cursor;
   bool Started;
 };
 

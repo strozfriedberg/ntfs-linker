@@ -4,10 +4,7 @@
 #include <libbfio.h>
 #include <libvshadow.h>
 
-const int VSS_HANDLE_MAGIC = 0xBEEF;
-
-TSK_FS_INFO* getVSS(TSK_FS_INFO* base, unsigned int num);
-void closeVSS();
+#include <memory>
 
 class TskVolumeBfioShim {
   public:
@@ -29,6 +26,8 @@ class TskVolumeBfioShim {
     size64_t Size;
 };
 
+typedef std::unique_ptr<TSK_IMG_INFO> TskImgInfoPtr;
+
 class VShadowTskVolumeShim {
   public:
     VShadowTskVolumeShim(libvshadow_store_t* store) : Store(store) {}
@@ -40,6 +39,9 @@ class VShadowTskVolumeShim {
     libvshadow_store_t* Store;
 };
 
+typedef std::unique_ptr<TskVolumeBfioShim> TskVolumeBfioShimPtr;
+typedef std::unique_ptr<VShadowTskVolumeShim> VshadowTskVolumeShimPtr;
+
 class VSS {
   public:
     VSS(TSK_FS_INFO* fs);
@@ -48,9 +50,9 @@ class VSS {
     void free();
     int getNumStores();
   private:
-    libvshadow_store_t* Store;
     libvshadow_volume_t* Volume;
-    TSK_IMG_INFO VssImg;
+    libvshadow_store_t* Store;
+    TskImgInfoPtr VssImg;
     TSK_FS_INFO* VssFs;
     int NumStores;
     intptr_t Tag;

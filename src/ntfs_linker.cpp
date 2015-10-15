@@ -119,7 +119,6 @@ int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int
   parseUSN(records, sqliteHelper, container.IUsnJrnl, container.OUsnJrnl, snapshot);
   std::cout << "Parsing LogFile..." << std::endl;
   parseLog(records, sqliteHelper, container.ILogFile, container.OLogFile, snapshot);
-  sqliteHelper.commit();
   return 0;
 }
 
@@ -177,8 +176,9 @@ int main(int argc, char** argv) {
       for (snapshot = 0, it = bundle.Containers.begin(); it != bundle.Containers.end(); ++it, ++snapshot) {
         processStep(**it, bundle.SqliteHelper, snapshot);
       }
+      bundle.SqliteHelper.commit();
       for (rIt = bundle.Containers.rbegin(); rIt != bundle.Containers.rend(); ++rIt, --snapshot) {
-        processFinalize(bundle, **rIt, snapshot);
+        processFinalize(bundle, **rIt, snapshot - 1);
       }
       bundle.SqliteHelper.close();
       std::cout << "Process complete." << std::endl;

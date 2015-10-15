@@ -72,6 +72,7 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
   The next two pages (0x2000 - 0x4000) are buffer record pages
   in my testing I've seen very little of value here, and it doesn't follow the same format as the rest of the $LogFile
   */
+  input.clear();
   input.seekg(0, std::ios::end);
   uint64_t end = input.tellg();
   ProgressBar status(end);

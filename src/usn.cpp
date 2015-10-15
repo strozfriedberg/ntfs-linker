@@ -62,6 +62,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
    * Does NOT set the stream position to last all zero block, just somewhere near the end
    * Returns the streampos of the end
    */
+  stream.clear();
   stream.seekg(0, std::ios::end);
   std::streampos end = stream.tellg();
   if (sparse) {
