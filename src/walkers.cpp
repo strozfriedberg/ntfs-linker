@@ -80,6 +80,9 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
 }
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
+  std::cout << "Copying from base" << std::endl;
+
+  // "base" has the important property that it sorts after numbers
   int rtnVal = copyFiles(fs, Root / fs::path("base"));
 
   if (rtnVal)
@@ -88,7 +91,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   try {
     VSS vShadowVolume(fs);
     for(int i = 0; i < vShadowVolume.getNumStores(); ++i) {
-      std::cout << "Processing store " << i << std::endl;
+      std::cout << "Copying from store: " << i << std::endl;
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
       copyFiles(snapshot, Root / fs::path(std::to_string(i)));
       vShadowVolume.freeSnapshot();

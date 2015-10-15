@@ -22,7 +22,7 @@ struct Options {
 
 class IOContainer {
 public:
-  IOContainer(Options& opts) {
+  IOContainer(Options& opts) : Dir(opts.input) {
     IMft.open((opts.input / fs::path("$MFT")).string(), std::ios::binary);
     IUsnJrnl.open((opts.input / fs::path("$UsnJrnl")).string(), std::ios::binary);
     ILogFile.open((opts.input / fs::path("$LogFile")).string(), std::ios::binary);
@@ -50,6 +50,7 @@ public:
 
   std::ifstream IMft, IUsnJrnl, ILogFile;
   std::ofstream OUsnJrnl, OLogFile;
+  fs::path Dir;
 };
 
 typedef std::unique_ptr<IOContainer> IOContainerPtr;
@@ -112,7 +113,6 @@ int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int
   //Set up db connection
 
   std::vector<File> records;
-  std::cout << snapshot << std::endl;
   std::cout << "Creating MFT Map..." << std::endl;
   parseMFT(records, container.IMft);
 
@@ -125,11 +125,8 @@ int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int
 
 int processFinalize(IOBundle& bundle, IOContainer& container, unsigned int snapshot) {
   std::vector<File> records;
-  std::cout << "Creating MFT Map..." << std::endl;
   parseMFT(records, container.IMft);
 
-  std::cout << "Generating unified events output..." << std::endl;
-  std::cout << snapshot << std::endl;
   outputEvents(records, bundle.SqliteHelper, bundle.Events, snapshot);
 
   return 0;
@@ -176,10 +173,14 @@ int main(int argc, char** argv) {
       std::vector<IOContainerPtr>::reverse_iterator rIt;
       unsigned int snapshot;
       for (snapshot = 0, it = bundle.Containers.begin(); it != bundle.Containers.end(); ++it, ++snapshot) {
+        std::cout << "Pre-processing: " << (*it)->Dir << std::endl;
         processStep(**it, bundle.SqliteHelper, snapshot);
       }
       bundle.SqliteHelper.commit();
+
+      std::cout << "Generating unified events output..." << std::endl;
       for (rIt = bundle.Containers.rbegin(); rIt != bundle.Containers.rend(); ++rIt, --snapshot) {
+        std::cout << "Processing: " << (*rIt)->Dir << std::endl;
         processFinalize(bundle, **rIt, snapshot - 1);
       }
       bundle.SqliteHelper.close();
