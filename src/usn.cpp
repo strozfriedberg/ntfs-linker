@@ -135,7 +135,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       status.clear();
       std::cerr << std::hex << record_length << " is an awfully large record_length!" << std::endl;
       std::cerr << "Cannot continue. Check that we're not missing much at "
-        << std::hex << input.tellg()<< std::endl;
+        << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset << std::endl;
       break;
     }
     records_processed++;

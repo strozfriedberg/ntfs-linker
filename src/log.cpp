@@ -9,12 +9,6 @@
 #include <iomanip>
 #include <sstream>
 
-int ceilingDivide(int n, int m) {
-  // Returns ceil(n/m), without using clunky FP arithmetic
-  return (n + m - 1) / m;
-
-}
-
 /*
 Decodes the LogFile Op code
 */
@@ -255,7 +249,7 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
   */
   if(RecordType == 0 && prev_has_next) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "Invalid record type: " << RecordType;
+    std::cerr << "Invalid record type: " << RecordType << std::endl;
     if(RecordType == 0) {
       return -2;
     }
@@ -282,7 +276,7 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
   UndoOp = hex_to_long(buffer + 0x32, 2);
   if(RedoOp > 0x21 || UndoOp > 0x21) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp;
+    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp << std::endl;
     return -2;
   }
   RedoOffset = hex_to_long(buffer + 0x34, 2);
