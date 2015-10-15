@@ -14,6 +14,8 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=fal
 
 void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, unsigned int snapshot);
 
+int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_offset);
+
 class UsnRecord {
 public:
   UsnRecord();

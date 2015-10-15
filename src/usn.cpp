@@ -110,6 +110,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
 
   unsigned int offset = 0;
   unsigned int totalOffset = 0;
+  uint64_t usn_offset = UINT64_MAX;
 
   //scan through the $USNJrnl one record at a time. Each record is variable length.
   bool done = false;
@@ -133,14 +134,31 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     if (record_length > USN_BUFFER_SIZE) {
       status.clear();
-      std::cerr << std::hex << record_length << " is an awfully large record_length!" << std::endl;
-      std::cerr << "Cannot continue. Check that we're not missing much at "
-        << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset << std::endl;
-      break;
+      std::cerr << std::hex << record_length << " is an awfully large record_length! Attempting to recover" << std::endl;
+      int new_offset = recoverPosition(buffer, offset, usn_offset + (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset));
+      if (new_offset > 0) {
+        // TODO 258 bytes?
+        std::cerr << "Recovery successful with " << new_offset - offset << " bytes skipped" << std::endl;
+        offset = new_offset;
+        continue;
+      }
+      else {
+        std::cerr << "Recovery failed. Cannot continue. Check that we're not missing much at "
+          << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset << std::endl;
+        break;
+      }
     }
     records_processed++;
 
     UsnRecord rec(buffer + offset, offset + totalOffset, snapshot);
+
+    if (usn_offset == UINT64_MAX) {
+      usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
+    }
+    else if (usn_offset != rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset) && !input.eof()) {
+      std::cerr << "Inconsistent Usn value found at " << static_cast<int>(input.tellg()) - offset << std::endl;
+      usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
+    }
     output << rec.toString(records);
     rec.insert(sqliteHelper.UsnInsert, records);
 
@@ -155,6 +173,32 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     offset += record_length;
   }
   status.finish();
+}
+
+int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_offset) {
+  // Look for the offset of the next valid USN record
+  // In some instances, entire sectors are replaced with junk data
+  // buffer is the current buffer, and offset is the offset within it
+  // usn_offset is the offset of the _start_ of buffer in the $J stream
+  // Care should be taken that no reads are performed past buffer + USN_BUFFER_SIZE
+
+  // The strategy is to read 8-byte longs until one is found whose value matches it own offset
+  // That record may be invalid (with some of the first 0x18 bytes chopped off, so we use the
+  // filename size to return the offset of the _next_ record.
+
+  // Ensure offset is 8-byte aligned
+  offset = 8 * ceilingDivide(offset, 8);
+  bool found = false;
+  while (offset < USN_BUFFER_SIZE) {
+    uint64_t value = hex_to_long(buffer + offset, 8);
+    if (value == offset + usn_offset - 0x18) {
+     if (found)
+        return offset - 0x18;
+     found = true;
+    }
+    offset += 8;
+  }
+  return -1;
 }
 
 void UsnRecord::update(UsnRecord rec) {
