@@ -137,8 +137,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       std::cerr << std::hex << record_length << " is an awfully large record_length! Attempting to recover" << std::endl;
       int new_offset = recoverPosition(buffer, offset, usn_offset + (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset));
       if (new_offset > 0) {
-        // TODO 258 bytes?
-        std::cerr << "Recovery successful with " << new_offset - offset << " bytes skipped" << std::endl;
+        std::cerr << "Recovery successful with 0x" << std::hex << new_offset - offset << " bytes skipped" << std::endl;
         offset = new_offset;
         continue;
       }
