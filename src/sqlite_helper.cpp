@@ -49,26 +49,6 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
     rc |= sqlite3_exec(Db, "drop table if exists usnjrnl;", 0, 0, 0);
     rc |= sqlite3_exec(Db, "drop table if exists events;", 0, 0, 0);
   }
-  rc |= sqlite3_exec(Db, "create table if not exists mft (" \
-                         "LSN int, " \
-                         "MFTRecNo int, " \
-                         "ParMFTRecNo int, " \
-                         "USN int, " \
-                         "FileName text, " \
-                         "isDir int, " \
-                         "isAllocated int, " \
-                         "sia_created text, " \
-                         "sia_modified text, " \
-                         "sia_mft_modified text, " \
-                         "sia_accessed text, " \
-                         "fna_created text, " \
-                         "fna_modified text, " \
-                         "fna_mft_modified text, " \
-                         "fna_accessed text, " \
-                         "logical_size text, " \
-                         "physical_size text, " \
-                         "snapshot text);",
-                     0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists log (" \
                          "CurrentLSN int, " \
                          "PrevLSN int, " \
