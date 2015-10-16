@@ -44,7 +44,6 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
   }
 
   if(overwrite) {
-    rc |= sqlite3_exec(Db, "drop table if exists mft;", 0, 0, 0);
     rc |= sqlite3_exec(Db, "drop table if exists logfile;", 0, 0, 0);
     rc |= sqlite3_exec(Db, "drop table if exists usnjrnl;", 0, 0, 0);
     rc |= sqlite3_exec(Db, "drop table if exists events;", 0, 0, 0);
@@ -130,7 +129,6 @@ void SQLiteHelper::resetSelect() {
 
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
-  std::string mftInsert = "insert into mft values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   // Events are processed from the oldest to the newest, so when an event with a conflicting (USN_LSN, EventSource)
@@ -138,7 +136,6 @@ void SQLiteHelper::prepareStatements() {
   std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   std::string eventSelect = "select * from events where EventSource=? and Snapshot=? order by USN_LSN desc";
 
-  rc |= prepareStatement(&MftInsert, mftInsert);
   rc |= prepareStatement(&UsnInsert, usnInsert);
   rc |= prepareStatement(&LogInsert, logInsert);
   rc |= prepareStatement(&EventInsert, eventInsert);
@@ -154,7 +151,6 @@ void SQLiteHelper::prepareStatements() {
 }
 
 void SQLiteHelper::finalizeStatements() {
-  sqlite3_finalize(MftInsert);
   sqlite3_finalize(UsnInsert);
   sqlite3_finalize(LogInsert);
   sqlite3_finalize(EventInsert);
