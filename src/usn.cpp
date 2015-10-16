@@ -178,7 +178,7 @@ int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_of
   // Look for the offset of the next valid USN record
   // In some instances, entire sectors are replaced with junk data
   // buffer is the current buffer, and offset is the offset within it
-  // usn_offset is the offset of the _start_ of buffer in the $J stream
+  // usn_offset is the offset of the _start_ of buffer in the $J stream, including the leading sparse section
   // Care should be taken that no reads are performed past buffer + USN_BUFFER_SIZE
 
   // The strategy is to read 8-byte longs until one is found whose value matches it own offset

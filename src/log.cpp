@@ -94,7 +94,7 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     records_processed++;
     unsigned int update_seq_offset, update_seq_count, offset, next_record_offset;
-    unsigned int length;
+    unsigned int length = 0;
     update_seq_offset = hex_to_long(buffer + 0x4, 2);
     update_seq_count = hex_to_long(buffer + 0x6, 2);
     offset = update_seq_offset + ceilingDivide(update_seq_count, 4) * 8;
@@ -268,15 +268,14 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
     return -1;
   }
 
-  /*
-  If we're reading invalid op codes then chances are something went horribly wrong.
-  We end the process before it can implode.
-  */
   RedoOp = hex_to_long(buffer + 0x30, 2);
   UndoOp = hex_to_long(buffer + 0x32, 2);
+
+  // We've run into some junk data
   if(RedoOp > 0x21 || UndoOp > 0x21) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp << std::endl;
+    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp
+              << " at 0x" << offset << std::endl;
     return -2;
   }
   RedoOffset = hex_to_long(buffer + 0x34, 2);
