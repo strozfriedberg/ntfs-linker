@@ -4,6 +4,8 @@
 #include <fstream>
 #include <string>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 
 #include <boost/filesystem.hpp>
 
@@ -79,6 +81,12 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
   return 0;
 }
 
+std::string getFolderName(int i, int n) {
+  int width = std::to_string(n).size();
+  std::stringstream ss;
+  ss << std::setfill('0') << std::setw(width) << i;
+  return ss.str();
+}
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   std::cout << "Copying from base" << std::endl;
 
@@ -90,10 +98,11 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
 
   try {
     VSS vShadowVolume(fs);
-    for(int i = 0; i < vShadowVolume.getNumStores(); ++i) {
+    int n = vShadowVolume.getNumStores();
+    for(int i = 0; i < n; ++i) {
       std::cout << "Copying from store: " << i << std::endl;
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
-      copyFiles(snapshot, Root / fs::path(std::to_string(i)));
+      copyFiles(snapshot, Root / fs::path(getFolderName(i, n)));
       vShadowVolume.freeSnapshot();
     }
 

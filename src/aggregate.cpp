@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out, unsigned int snapshot) {
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out, std::string snapshot) {
   int u;
   Event usn_event;
 

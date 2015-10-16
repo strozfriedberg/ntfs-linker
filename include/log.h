@@ -16,31 +16,29 @@ std::string decodeLogFileOpCode(int op);
 Parses the $LogFile stream input
 Writes output to designated streams
 */
-void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, unsigned int snapshot);
+void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot);
 
 class LogRecord {
 public:
-  uint64_t CurrentLsn, PreviousLsn, UndoLsn, Offset;
-  unsigned int ClientId, RecordType, Flags, RedoOp, UndoOp, RedoOffset, RedoLength, UndoOffset, UndoLength;
-  unsigned int TargetAttribute, LcnsToFollow, RecordOffset, AttributeOffset, MftClusterIndex, TargetVcn, TargetLcn;
-  unsigned int ClientDataLength;
-  char* Data;
+  LogRecord(std::string snapshot) : Snapshot(snapshot) {}
 
   int init(char* buffer, uint64_t offset, bool prev_has_next);
   void clearFields();
   void insert(sqlite3_stmt* stmt);
   static std::string getColumnHeaders();
+
+  uint64_t CurrentLsn, PreviousLsn, UndoLsn, Offset;
+  unsigned int ClientId, RecordType, Flags, RedoOp, UndoOp, RedoOffset, RedoLength, UndoOffset, UndoLength;
+  unsigned int TargetAttribute, LcnsToFollow, RecordOffset, AttributeOffset, MftClusterIndex, TargetVcn, TargetLcn;
+  unsigned int ClientDataLength;
+  char* Data;
+  std::string Snapshot;
 };
 std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
-  LogData(unsigned int snapshot) : Snapshot(snapshot) {}
-  int64_t Record, Parent, PreviousParent, Offset;
-  uint64_t Lsn;
-  unsigned int Snapshot;
-  std::string Name, PreviousName, Timestamp, Created, Modified, Comment;
-  std::vector<int> RedoOps, UndoOps;
+  LogData(std::string snapshot) : Snapshot(snapshot) {}
 
   void clearFields();
   void processLogRecord(const std::vector<File>& records, LogRecord& rec, SQLiteHelper& sqliteHelper, uint64_t fileOffset);
@@ -55,6 +53,11 @@ public:
   bool isRenameEvent();
   bool isMoveEvent();
   bool isTransactionOver();
+
+  int64_t Record, Parent, PreviousParent, Offset;
+  uint64_t Lsn;
+  std::string Name, PreviousName, Timestamp, Created, Modified, Comment, Snapshot;
+  std::vector<int> RedoOps, UndoOps;
 
   static const std::vector<int> createRedo, createUndo, deleteRedo, deleteUndo;
   static const std::vector<int> renameRedo, renameUndo, writeRedo, writeUndo;

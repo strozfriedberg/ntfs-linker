@@ -66,7 +66,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "fna_mft_modified text, " \
                          "fna_accessed text, " \
                          "logical_size text, " \
-                         "physical_size text);",
+                         "physical_size text, " \
+                         "snapshot text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists log (" \
                          "CurrentLSN int, " \
@@ -78,7 +79,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "UndoOP text, " \
                          "TargetAttribute int, " \
                          "MFTClusterIndex int, " \
-                         "Offset int);",
+                         "Offset int, " \
+                         "snapshot text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists usn (" \
                          "MFTRecNo int, " \
@@ -88,7 +90,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "Reason text, " \
                          "FileName text, " \
                          "PossiblePath text, " \
-                         "PossibleParPath text, " \
+                         "PossibleParPath text,, " \
+                        "snapshot text " \
                          "Offset int);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists events(" \
@@ -106,7 +109,7 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "Created text, " \
                          "Modified text, " \
                          "Comment text, " \
-                         "Snapshot int, " \
+                         "Snapshot text, " \
                          "UNIQUE(USN_LSN, EventSource));",
                      0, 0, 0);
   prepareStatements();
@@ -131,12 +134,12 @@ int SQLiteHelper::prepareStatement(sqlite3_stmt **stmt, std::string& sql) {
   return sqlite3_prepare_v2(Db, sql.c_str(), sql.length() + 1, stmt, NULL);
 }
 
-void SQLiteHelper::bindForSelect(unsigned int snapshot) {
+void SQLiteHelper::bindForSelect(std::string snapshot) {
   sqlite3_bind_int64(EventUsnSelect, 1, EventSources::USN);
   sqlite3_bind_int64(EventLogSelect, 1, EventSources::LOG);
 
-  sqlite3_bind_int(EventUsnSelect, 2, snapshot);
-  sqlite3_bind_int(EventLogSelect, 2, snapshot);
+  sqlite3_bind_text(EventUsnSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(EventLogSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
 }
 

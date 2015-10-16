@@ -11,7 +11,7 @@ public:
   void init(std::string dbName, bool overwrite);
   void commit();
   void close();
-  void bindForSelect(unsigned int snapshot);
+  void bindForSelect(std::string snapshot);
   void resetSelect();
 
   sqlite3_stmt *MftInsert, *UsnInsert, *LogInsert, *EventInsert, *EventUsnSelect, *EventLogSelect;

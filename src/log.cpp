@@ -51,7 +51,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, unsigned int snapshot) {
+void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot) {
   unsigned int buffer_size = 4096;
   char* buffer = new char[buffer_size];
   bool split_record = false;
@@ -110,7 +110,7 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       int64_t cur_offset = static_cast<long int>(input.tellg()) - buffer_size + offset - adjust;
       if (transactions.Offset == -1)
         transactions.Offset = cur_offset;
-      LogRecord rec;
+      LogRecord rec(snapshot);
       int rtnVal = rec.init(buffer + offset, cur_offset, prev_has_next);
       prev_has_next = rec.LcnsToFollow;
       if(rtnVal == -1) {
@@ -390,7 +390,7 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
   }
   else if (rec.RedoOp == LogOps::UPDATE_NONRESIDENT_VALUE && rec.UndoOp == LogOps::NOOP) {
     // Embedded $UsnJrnl/$J record
-    UsnRecord usnRecord(redo_data, fileOffset + 0x30 + rec.RedoOffset, rec.RedoLength, true);
+    UsnRecord usnRecord(redo_data, fileOffset + 0x30 + rec.RedoOffset, Snapshot, rec.RedoLength, true);
     usnRecord.insert(sqliteHelper.UsnInsert, records);
     usnRecord.checkTypeAndInsert(sqliteHelper.EventInsert);
 
@@ -458,7 +458,7 @@ void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text (stmt, ++i, Created.c_str()     , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Modified.c_str()    , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Comment.c_str()     , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int  (stmt, ++i, Snapshot);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str()    , -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -476,6 +476,7 @@ void LogRecord::insert(sqlite3_stmt* stmt) {
   sqlite3_bind_int  (stmt, ++i, TargetAttribute);
   sqlite3_bind_int  (stmt, ++i, MftClusterIndex);
   sqlite3_bind_int64(stmt, ++i, Offset);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -494,7 +495,8 @@ std::string LogRecord::getColumnHeaders() {
      << "MFT Cluster Index" << "\t"
      << "Target VCN"        << "\t"
      << "Target LCN"        << "\t"
-     << "Offset"            << std::endl;
+     << "Offset"            << "\t"
+     << "Snapshot"          << std::endl;
   return ss.str();
 }
 
@@ -510,7 +512,8 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {
       << rec.MftClusterIndex             << "\t"
       << rec.TargetVcn                   << "\t"
       << rec.TargetLcn                   << "\t"
-      << rec.Offset                      << std::endl;
+      << rec.Offset                      << "\t"
+      << rec.Snapshot                    << std::endl;
   return out;
 }
 

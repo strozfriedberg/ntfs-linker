@@ -19,7 +19,8 @@ std::string getUSNColumnHeaders() {
      << "Filename"             << "\t"
      << "Path"                 << "\t"
      << "Parent Path"          << "\t"
-     << "File Offset"          << std::endl;
+     << "File Offset"          << "\t"
+     << "VSS Snapshot"         << std::endl;
   return ss.str();
 }
 
@@ -96,7 +97,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, unsigned int snapshot) {
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot) {
   static char buffer[USN_BUFFER_SIZE];
 
   int records_processed = -1;
@@ -214,7 +215,7 @@ void UsnRecord::update(UsnRecord rec) {
     }
 }
 
-UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, unsigned int snapshot, int len, bool isEmbedded) :
+UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, std::string snapshot, int len, bool isEmbedded) :
   FileOffset(fileOffset),
   Snapshot(snapshot),
   IsEmbedded(isEmbedded) {
@@ -271,7 +272,8 @@ std::string UsnRecord::toString(const std::vector<File>& records) {
      << Name                         << "\t"
      << getFullPath(records, Record) << "\t"
      << getFullPath(records, Parent) << "\t"
-     << FileOffset                   << std::endl;
+     << FileOffset                   << "\t"
+     << Snapshot                     << std::endl;
   return ss.str();
 }
 
@@ -291,7 +293,7 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Created
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Modified
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Comment
-  sqlite3_bind_int  (stmt, ++i, Snapshot);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -311,7 +313,7 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int  (stmt, ++i, Snapshot);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

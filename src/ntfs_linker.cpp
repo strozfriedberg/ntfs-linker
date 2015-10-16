@@ -109,7 +109,7 @@ void setupIO(Options& opts, IOBundle& ioBundle, std::vector<std::string>& imgSeg
   ioBundle.SqliteHelper.init(dbName, opts.overwrite);
 }
 
-int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int snapshot) {
+int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, std::string snapshot) {
   //Set up db connection
 
   std::vector<File> records;
@@ -123,7 +123,7 @@ int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, unsigned int
   return 0;
 }
 
-int processFinalize(IOBundle& bundle, IOContainer& container, unsigned int snapshot) {
+int processFinalize(IOBundle& bundle, IOContainer& container, std::string snapshot) {
   std::vector<File> records;
   parseMFT(records, container.IMft);
 
@@ -169,19 +169,17 @@ int main(int argc, char** argv) {
       IOBundle bundle;
       setupIO(opts, bundle, imgSegs);
 
-      std::vector<IOContainerPtr>::iterator it;
-      std::vector<IOContainerPtr>::reverse_iterator rIt;
-      unsigned int snapshot;
-      for (snapshot = 0, it = bundle.Containers.begin(); it != bundle.Containers.end(); ++it, ++snapshot) {
-        std::cout << "Pre-processing: " << (*it)->Dir << std::endl;
-        processStep(**it, bundle.SqliteHelper, snapshot);
+      for (auto& container: bundle.Containers) {
+        std::cout << "Pre-processing: " << container->Dir << std::endl;
+        processStep(*container, bundle.SqliteHelper, container->Dir.string());
       }
       bundle.SqliteHelper.commit();
 
       std::cout << "Generating unified events output..." << std::endl;
-      for (rIt = bundle.Containers.rbegin(); rIt != bundle.Containers.rend(); ++rIt, --snapshot) {
+      std::vector<IOContainerPtr>::reverse_iterator rIt;
+      for (rIt = bundle.Containers.rbegin(); rIt != bundle.Containers.rend(); ++rIt) {
         std::cout << "Processing: " << (*rIt)->Dir << std::endl;
-        processFinalize(bundle, **rIt, snapshot - 1);
+        processFinalize(bundle, **rIt, (*rIt)->Dir.string());
       }
       bundle.SqliteHelper.close();
       std::cout << "Process complete." << std::endl;

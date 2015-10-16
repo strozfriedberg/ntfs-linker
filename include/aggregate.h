@@ -8,6 +8,7 @@
 #include <list>
 #include <sqlite3.h>
 #include <vector>
+#include <string>
 
 class Event {
 public:
@@ -44,7 +45,7 @@ public:
   bool Started;
 };
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events, unsigned int snapshot);
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events, std::string snapshot);
 
 template<typename T>
 std::list<int> computeLNIS(std::vector<T>& elements, std::vector<int>& hits) {
