@@ -106,7 +106,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
   std::streampos start = input.tellg();
   ProgressBar status(end - start);
 
-  UsnRecord prevRec;
+  UsnRecord prevRec(snapshot);
   output << getUSNColumnHeaders();
 
   unsigned int offset = 0;
@@ -257,7 +257,7 @@ void UsnRecord::clearFields() {
   FileOffset      = 0;
 }
 
-UsnRecord::UsnRecord() {
+UsnRecord::UsnRecord(std::string snapshot) : Snapshot(snapshot) {
   IsEmbedded = false;
   clearFields();
 }

@@ -44,8 +44,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
   }
 
   if(overwrite) {
-    rc |= sqlite3_exec(Db, "drop table if exists logfile;", 0, 0, 0);
-    rc |= sqlite3_exec(Db, "drop table if exists usnjrnl;", 0, 0, 0);
+    rc |= sqlite3_exec(Db, "drop table if exists log;", 0, 0, 0);
+    rc |= sqlite3_exec(Db, "drop table if exists usn;", 0, 0, 0);
     rc |= sqlite3_exec(Db, "drop table if exists events;", 0, 0, 0);
   }
   rc |= sqlite3_exec(Db, "create table if not exists log (" \
@@ -59,7 +59,7 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "TargetAttribute int, " \
                          "MFTClusterIndex int, " \
                          "Offset int, " \
-                         "snapshot text);",
+                         "Snapshot text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists usn (" \
                          "MFTRecNo int, " \
@@ -69,9 +69,9 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "Reason text, " \
                          "FileName text, " \
                          "PossiblePath text, " \
-                         "PossibleParPath text,, " \
-                        "snapshot text " \
-                         "Offset int);",
+                         "PossibleParPath text, " \
+                         "Offset int, " \
+                         "Snapshot text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists events(" \
                          "MFTRecNo int, " \
@@ -129,8 +129,8 @@ void SQLiteHelper::resetSelect() {
 
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
-  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   // Events are processed from the oldest to the newest, so when an event with a conflicting (USN_LSN, EventSource)
   // comes into play, it should be ignored
   std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
