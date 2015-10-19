@@ -236,5 +236,52 @@ which represent our sequence elements are actually decreasing, so we're actually
 interested in the longest non-increasing subsequence. We say non-increasing
 rather than decreasing because events are allowed to share the same timestamp.
 
+### Extracting events from `$UsnJrnl`
+When a file is created, renamed, moved, or deleted, `$UsnJrnl` will contain
+multiple records for the same logical event. The records contain information
+such as data being written to the file, security changes, etc. For rename and
+move events the old name/parent recordnum and new name/parent recordnum will be
+in separate `$UsnJrnl` records. NTFS-Linker will compress all of these records
+into one logical event, depending on the event flags. This compression ends when
+either the `$UsnJrnl` Record recordnum changes or a CLOSE flag is signalled.
+If the flags for a group of records indicate the file was neither created,
+deleted, moved, or renamed, then the records are discarded.
+
+### Extracting events from `$LogFile`
+`$LogFile` records exist at a lower-level than `$UsnJrnl`, so extracting logical
+events is more complicated. A `$LogFile` record consists of a RedoOp and an
+UndoOp code each possibly associated with some data.
+
+We begin with an easy case: `RedoOp=UPDATE_NON_RESIDENT_VALUE` and `UndoOp=NOOP`.
+In this case the redo data is actually a `$UsnJrnl` record, which we can parse
+as before.
+
+In all other cases, we break apart the $LogFile records into logical
+transactions ending with a record with `RedoOp=FORGET_TRANSACTION` and
+`UndoOp=COMPENSATION_LOG_RECORD`. From here, we consider the sequence of OpCodes
+and check if it has a subsequence which represents a particular event type. We
+list the subsequences associated with each event type below:
+
+| Event Type  | Order | RedoOp Subsequence Entry          | UndoOp Subsequence Entry          |
+| ----------- | ----- | --------------------------------- | --------------------------------- |
+| Create      | 1     | SET_BITS_IN_NONRESIDENT_BIT_MAP   | CLEAR_BITS_IN_NONRESIDENT_BIT_MAP |
+| Create      | 2     | NOOP                              | DEALLOCATE_FILE_RECORD_SEGMENT    |
+| Create      | 3     | ADD_INDEX_ENTRY_ALLOCATION        | DELETE_INDEX_ENTRY_ALLOCATION     |
+| Create      | 4     | INITIALIZE_FILE_RECORD_SEGMEN     | NOOP                              |
+| Create      | 5     | FORGET TRANSACTION                | COMPENSATION_LOG_RECORD           |
+| ----------- | ----- | --------------------------------- | --------------------------------- |
+| Delete      | 1     | DELETE_INDEX_ENTRY_ALLOCATION     | ADD_INDEX_ENTRY_ALLOCATION        |
+| Delete      | 2     | DEALLOCATE_FILE_RECORD_SEGMENT    | INITIALIZE_FILE_RECORD_SEGMENT    |
+| Delete      | 3     | CLEAR_BITS_IN_NONRESIDENT_BIT_MAP | SET_BITS_IN_NONRESIDENT_BIT_MAP   |
+| Delete      | 4     | FORGET_TRANSACTION                | COMPENSATION_LOG_RECORD           |
+| ----------- | ----- | --------------------------------- | --------------------------------- |
+| Rename/Move | 1     | DELETE_INDEX_ENTRY_ALLOCATION     | ADD_INDEX_ENTRY_ALLOCATION        |
+| Rename/Move | 2     | DELETE_ATTRIBUTE                  | CREATE_ATTRIBUTE                  |
+| Rename/Move | 3     | CREATE_ATTRIBUTE                  | DELETR_ATTRIBUTE                  |
+| Rename/Move | 4     | ADD_INDEX_ENTRY_ALLOCATION        | DELETE_INDEX_ENTRY_ALLOCATION     |
+| Rename/Move | 5     | FORGET_TRANSACTION                | COMPENSATION_LOG_RECORD           |
+
+
+
 ## Build Notes
 The source is in C++ and uses autoconf.
