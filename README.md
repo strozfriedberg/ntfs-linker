@@ -138,5 +138,29 @@ displays this event just once. *However*, for the `$UsnJrnl` events embedded in 
 performed. This means that for an embedded rename/move event, the File Name and MFT Record could be either from before
 or after.
 
+## Implementation Details
+
+This section contains notes on the inner-workings of NTFS-Linker. Specifically,
+we outline the process by which NTFS-Linker recovers events from `$LogFile`, 
+`$UsnJrnl:$J`, and `$MFT`. While the structures of these files are fairly well
+known, their inter-related meaning requires explanation.
+
+### Background: Sequencing
+
+In this document, by `sequence`, we mean some ordered collection of objects,
+which could possibly repeat. Given a sequence, we can obtain a `subsequence`
+by *removing* zero or more elements. For example, the following is a sequence:
+
+>25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72
+
+And the following are all subsequences of the above sequence:
+
+|   | Subsequence                                                | Note                    |
+| - | ---------------------------------------------------------- | ----------------------- |
+| 1 | 25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72 | zero elements removed   |
+| 2 |                                                            | (all elements removed)  |
+| 3 | 25 38 58 29 23 60 47 98 13 61                              | (some elements removed) |
+| 4 | 25 38 47 50 61 72                                          | (some elements removed) |
+
 ## Build Notes
 The source is in C++ and uses autoconf.
