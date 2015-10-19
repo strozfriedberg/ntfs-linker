@@ -200,8 +200,8 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
 
   TSK_FS_INFO* fs = tsk_fs_open_img(img, 0, TSK_FS_TYPE_NTFS);
   if (!fs) {
-    std::cerr << tsk_error_get() << std::endl;
-    std::cerr << "Error happened!" << std::endl;
+    std::cerr << "TSK error at " << __FILE__ << ":" << __LINE__ << ": "
+              << tsk_error_get() << std::endl;
   }
   return fs;
 

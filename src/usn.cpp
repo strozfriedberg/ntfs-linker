@@ -182,9 +182,9 @@ int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_of
   // usn_offset is the offset of the _start_ of buffer in the $J stream, including the leading sparse section
   // Care should be taken that no reads are performed past buffer + USN_BUFFER_SIZE
 
-  // The strategy is to read 8-byte longs until one is found whose value matches it own offset
-  // That record may be invalid (with some of the first 0x18 bytes chopped off, so we use the
-  // filename size to return the offset of the _next_ record.
+  // The strategy is to read 8-byte longs until one is found whose value matches its own offset
+  // That record may be invalid (with some of the first 0x18 bytes chopped off, so we return
+  // the offset to the next record
 
   // Ensure offset is 8-byte aligned
   offset = 8 * ceilingDivide(offset, 8);
