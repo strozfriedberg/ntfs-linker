@@ -13,33 +13,28 @@ Combined, these files can provide a wealth of information about the history of a
 
 ## Usage
 ```
-usage: ntfs-linker.py [-h] -i INPUT [-v]
+ntfs-linker, Copyright (c) Stroz Friedberg, LLC
+Version 0.1.0
+Allowed options:
+  --help                display help and exit
+  --output arg          directory in which to dump output files
+  --input arg           If no image specified, location of directory containing
+                        input files: $MFT, $UsnJrnl, $LogFile. Otherwise, root 
+                        directory in which to dump files extracted from image.
+  --image arg           Path to image
+  --version             display version number and exit
+  --overwrite           overwrite files in the output directory. Default: 
+                        append
+  --extra               Outputs supplemental lower-level parsed data from 
+                        $UsnJrnl and $LogFile
 
-NTFS Linker v4.3
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -i INPUT, --input INPUT
-                        Path to directory containing $MFT, $LogFile, and
-                        $UsnJrnl (or $J)
-  -v, --version         Print version information and exit
   ```
 
-## Advanced Usage
-This tool can be combined with other command utilities to recursively run the tool (useful for volume shadow copies).
-
-Unix:
-
-`find  . -mindepth 1 -type d | awk '{print "-i", $1, "-o", $1}' | xargs ntfs-linker`
-
-Windows:
-
-`FOR /F %k in (‘dir /ad /b /s .’) DO ntfs-linker.exe –i %k -o %k`
 
 ## Output
 
 ### General Notes
-All timestamps are in the format YYYY-mm-dd HH:MM:SS 1234567. This format ensures that a text-based sort of the timestamps will also sort by time.
+All timestamps are in the format YYYY-mm-dd HH:MM:SS.1234567. This format ensures that a text-based sort of the timestamps will also sort by time.
 Windows stores timestamps as the number of hundred nanoseconds since 1601 (FILETIME). The routines used by NTFS-Linker to parse the time use standard C++ libraries, which may result in incorrect timestamps in some cases.
 Specifically, if the time is BEFORE 1970 or AFTER 2038, the timestamp will not be displayed properly.
 The 1234567 refers to the 100-nanosecond part of the timestamp.
