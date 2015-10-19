@@ -1,7 +1,7 @@
 #include "aggregate.h"
 #include "file.h"
-#include "helper_functions.h"
-#include "sqlite_helper.h"
+#include "util.h"
+#include "sqlite_util.h"
 
 #include <fstream>
 #include <sqlite3.h>

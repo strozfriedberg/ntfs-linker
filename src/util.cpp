@@ -1,6 +1,6 @@
 #include "file.h"
 #include "utf8.h"
-#include "helper_functions.h"
+#include "util.h"
 
 #include <algorithm>
 #include <cstring>

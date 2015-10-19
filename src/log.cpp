@@ -1,8 +1,8 @@
 #include "log.h"
-#include "helper_functions.h"
+#include "util.h"
 #include "mft.h"
 #include "progress.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 #include "usn.h"
 
 #include <cstring>

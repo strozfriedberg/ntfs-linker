@@ -1,10 +1,10 @@
 #include <sstream>
 
-#include "helper_functions.h"
+#include "util.h"
 #include "mft.h"
 #include "file.h"
 #include "progress.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 
 std::string getMFTColumnHeaders() {
   return "Logical Sequence Number\tMFT_Record_No\tupdate_sequence_no\tfile_name\tisDir\tisAllocated" \

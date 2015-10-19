@@ -1,5 +1,5 @@
 #include "aggregate.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 
 #include <fstream>
 #include <iostream>
