@@ -19,9 +19,8 @@ public:
   static std::string getColumnHeaders();
 
   int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset;
-  std::string Timestamp, Name, PreviousName, Created, Modified, Comment;
+  std::string Timestamp, Name, PreviousName, Created, Modified, Comment, Snapshot;
   bool IsAnchor, IsEmbedded;
-  int Snapshot;
 };
 
 class EventLNIS {

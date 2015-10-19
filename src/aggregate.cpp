@@ -70,7 +70,7 @@ void Event::init(sqlite3_stmt* stmt) {
   Created        = textToString(sqlite3_column_text(stmt, ++i));
   Modified       = textToString(sqlite3_column_text(stmt, ++i));
   Comment        = textToString(sqlite3_column_text(stmt, ++i));
-  Snapshot       = sqlite3_column_int(stmt, ++i);
+  Snapshot       = textToString(sqlite3_column_text(stmt, ++i));
 
   if (PreviousParent == Parent)
     PreviousParent = -1;
@@ -81,7 +81,7 @@ void Event::init(sqlite3_stmt* stmt) {
 
 Event::Event() {
   Record = Parent = PreviousParent = UsnLsn = Type = Source = -1;
-  Timestamp = Name = PreviousName = "";
+  Snapshot = Timestamp = Name = PreviousName = "";
 }
 
 std::string Event::getColumnHeaders() {
