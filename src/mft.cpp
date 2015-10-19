@@ -1,10 +1,10 @@
 #include <sstream>
 
-#include "helper_functions.h"
+#include "util.h"
 #include "mft.h"
 #include "file.h"
 #include "progress.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 
 std::string getMFTColumnHeaders() {
   return "Logical Sequence Number\tMFT_Record_No\tupdate_sequence_no\tfile_name\tisDir\tisAllocated" \
@@ -108,33 +108,27 @@ std::string MFTRecord::toString(std::vector<File>& records) {
   return ss.str();
 }
 
-void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const bool initRecords) {
+void parseMFT(std::vector<File>& records, std::istream& input) {
   char buffer[1024];
 
-  bool done = false;
   int records_processed = 0;
 
+  input.clear();
   input.seekg(0, std::ios::end);
   uint64_t end = input.tellg();
   input.seekg(0, std::ios::beg);
   ProgressBar status(end);
 
   //scan through the $MFT one record at a time. Each record is 1024 bytes.
-  while(!input.eof() && !done) {
+  while(!input.eof()) {
     status.setDone((uint64_t) input.tellg());
     records_processed++;
     input.read(buffer, 1024);
     doFixup(buffer, 1024, 512);
     MFTRecord record(buffer);
-    if (initRecords) {
-      for(int i = record.Record - records.size() + 1; i >= 0; i--)
-        records.push_back(File());
-      records[record.Record] = record.asFile();
-    }
-    else {
-      record.insert(sqliteHelper.MftInsert, records);
-      output << record.toString(records);
-    }
+    for(int i = record.Record - records.size(); i >= 0; i--)
+      records.push_back(File());
+    records[record.Record] = record.asFile();
   }
 
   status.finish();

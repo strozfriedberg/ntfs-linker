@@ -1,13 +1,14 @@
 #pragma once
 
 #include "file.h"
-#include "helper_functions.h"
-#include "sqlite_helper.h"
+#include "util.h"
+#include "sqlite_util.h"
 
 #include <fstream>
 #include <list>
 #include <sqlite3.h>
 #include <vector>
+#include <string>
 
 class Event {
 public:
@@ -18,7 +19,7 @@ public:
   static std::string getColumnHeaders();
 
   int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset;
-  std::string Timestamp, Name, PreviousName, Created, Modified, Comment;
+  std::string Timestamp, Name, PreviousName, Created, Modified, Comment, Snapshot;
   bool IsAnchor, IsEmbedded;
 };
 
@@ -39,11 +40,11 @@ public:
   std::vector<int> Hits;
 
   std::list<int> LNIS;
-  std::list<int>::iterator cursor;
+  std::list<int>::iterator Cursor;
   bool Started;
 };
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events);
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events, std::string snapshot);
 
 template<typename T>
 std::list<int> computeLNIS(std::vector<T>& elements, std::vector<int>& hits) {

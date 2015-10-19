@@ -1,5 +1,5 @@
 #include "aggregate.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 
 #include <fstream>
 #include <iostream>
@@ -44,30 +44,10 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
   }
 
   if(overwrite) {
-    rc |= sqlite3_exec(Db, "drop table if exists mft;", 0, 0, 0);
-    rc |= sqlite3_exec(Db, "drop table if exists logfile;", 0, 0, 0);
-    rc |= sqlite3_exec(Db, "drop table if exists usnjrnl;", 0, 0, 0);
+    rc |= sqlite3_exec(Db, "drop table if exists log;", 0, 0, 0);
+    rc |= sqlite3_exec(Db, "drop table if exists usn;", 0, 0, 0);
     rc |= sqlite3_exec(Db, "drop table if exists events;", 0, 0, 0);
   }
-  rc |= sqlite3_exec(Db, "create table if not exists mft (" \
-                         "LSN int, " \
-                         "MFTRecNo int, " \
-                         "ParMFTRecNo int, " \
-                         "USN int, " \
-                         "FileName text, " \
-                         "isDir int, " \
-                         "isAllocated int, " \
-                         "sia_created text, " \
-                         "sia_modified text, " \
-                         "sia_mft_modified text, " \
-                         "sia_accessed text, " \
-                         "fna_created text, " \
-                         "fna_modified text, " \
-                         "fna_mft_modified text, " \
-                         "fna_accessed text, " \
-                         "logical_size text, " \
-                         "physical_size text);",
-                     0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists log (" \
                          "CurrentLSN int, " \
                          "PrevLSN int, " \
@@ -78,7 +58,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "UndoOP text, " \
                          "TargetAttribute int, " \
                          "MFTClusterIndex int, " \
-                         "Offset int);",
+                         "Offset int, " \
+                         "Snapshot text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists usn (" \
                          "MFTRecNo int, " \
@@ -89,7 +70,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "FileName text, " \
                          "PossiblePath text, " \
                          "PossibleParPath text, " \
-                         "Offset int);",
+                         "Offset int, " \
+                         "Snapshot text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists events(" \
                          "MFTRecNo int, " \
@@ -106,6 +88,7 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "Created text, " \
                          "Modified text, " \
                          "Comment text, " \
+                         "Snapshot text, " \
                          "UNIQUE(USN_LSN, EventSource));",
                      0, 0, 0);
   prepareStatements();
@@ -130,23 +113,34 @@ int SQLiteHelper::prepareStatement(sqlite3_stmt **stmt, std::string& sql) {
   return sqlite3_prepare_v2(Db, sql.c_str(), sql.length() + 1, stmt, NULL);
 }
 
+void SQLiteHelper::bindForSelect(std::string snapshot) {
+  sqlite3_bind_int64(EventUsnSelect, 1, EventSources::USN);
+  sqlite3_bind_int64(EventLogSelect, 1, EventSources::LOG);
+
+  sqlite3_bind_text(EventUsnSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(EventLogSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);
+
+}
+
+void SQLiteHelper::resetSelect() {
+  sqlite3_reset(EventUsnSelect);
+  sqlite3_reset(EventLogSelect);
+}
+
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
-  std::string mftInsert = "insert into mft values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventSelect = "select * from events where EventSource=? order by USN_LSN desc";
+  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  // Events are processed from the oldest to the newest, so when an event with a conflicting (USN_LSN, EventSource)
+  // comes into play, it should be ignored
+  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string eventSelect = "select * from events where EventSource=? and Snapshot=? order by USN_LSN desc";
 
-  rc |= prepareStatement(&MftInsert, mftInsert);
   rc |= prepareStatement(&UsnInsert, usnInsert);
   rc |= prepareStatement(&LogInsert, logInsert);
   rc |= prepareStatement(&EventInsert, eventInsert);
   rc |= prepareStatement(&EventUsnSelect, eventSelect);
   rc |= prepareStatement(&EventLogSelect, eventSelect);
-
-  sqlite3_bind_int64(EventUsnSelect, 1, EventSources::USN);
-  sqlite3_bind_int64(EventLogSelect, 1, EventSources::LOG);
 
   if (rc) {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
@@ -157,7 +151,6 @@ void SQLiteHelper::prepareStatements() {
 }
 
 void SQLiteHelper::finalizeStatements() {
-  sqlite3_finalize(MftInsert);
   sqlite3_finalize(UsnInsert);
   sqlite3_finalize(LogInsert);
   sqlite3_finalize(EventInsert);

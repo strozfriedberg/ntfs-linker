@@ -1,4 +1,4 @@
-#include "helper_functions.h"
+#include "util.h"
 #include "progress.h"
 #include "usn.h"
 
@@ -19,7 +19,8 @@ std::string getUSNColumnHeaders() {
      << "Filename"             << "\t"
      << "Path"                 << "\t"
      << "Parent Path"          << "\t"
-     << "File Offset"          << std::endl;
+     << "File Offset"          << "\t"
+     << "VSS Snapshot"         << std::endl;
   return ss.str();
 }
 
@@ -62,6 +63,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
    * Does NOT set the stream position to last all zero block, just somewhere near the end
    * Returns the streampos of the end
    */
+  stream.clear();
   stream.seekg(0, std::ios::end);
   std::streampos end = stream.tellg();
   if (sparse) {
@@ -95,7 +97,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot) {
   static char buffer[USN_BUFFER_SIZE];
 
   int records_processed = -1;
@@ -104,11 +106,12 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
   std::streampos start = input.tellg();
   ProgressBar status(end - start);
 
-  UsnRecord prevRec;
+  UsnRecord prevRec(snapshot);
   output << getUSNColumnHeaders();
 
   unsigned int offset = 0;
   unsigned int totalOffset = 0;
+  uint64_t usn_offset = UINT64_MAX;
 
   //scan through the $USNJrnl one record at a time. Each record is variable length.
   bool done = false;
@@ -132,14 +135,30 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     if (record_length > USN_BUFFER_SIZE) {
       status.clear();
-      std::cerr << std::hex << record_length << " is an awfully large record_length!" << std::endl;
-      std::cerr << "Cannot continue. Check that we're not missing much at "
-        << std::hex << input.tellg()<< std::endl;
-      break;
+      std::cerr << std::hex << record_length << " is an awfully large record_length! Attempting to recover" << std::endl;
+      int new_offset = recoverPosition(buffer, offset, usn_offset + (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset));
+      if (new_offset > 0) {
+        std::cerr << "Recovery successful with 0x" << std::hex << new_offset - offset << " bytes skipped" << std::endl;
+        offset = new_offset;
+        continue;
+      }
+      else {
+        std::cerr << "Recovery failed. Cannot continue. Check that we're not missing much at "
+          << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset << std::endl;
+        break;
+      }
     }
     records_processed++;
 
-    UsnRecord rec(buffer + offset, offset + totalOffset);
+    UsnRecord rec(buffer + offset, offset + totalOffset, snapshot);
+
+    if (usn_offset == UINT64_MAX) {
+      usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
+    }
+    else if (usn_offset != rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset) && !input.eof()) {
+      std::cerr << "Inconsistent Usn value found at " << static_cast<int>(input.tellg()) - offset << std::endl;
+      usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
+    }
     output << rec.toString(records);
     rec.insert(sqliteHelper.UsnInsert, records);
 
@@ -156,6 +175,32 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
   status.finish();
 }
 
+int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_offset) {
+  // Look for the offset of the next valid USN record
+  // In some instances, entire sectors are replaced with junk data
+  // buffer is the current buffer, and offset is the offset within it
+  // usn_offset is the offset of the _start_ of buffer in the $J stream, including the leading sparse section
+  // Care should be taken that no reads are performed past buffer + USN_BUFFER_SIZE
+
+  // The strategy is to read 8-byte longs until one is found whose value matches its own offset
+  // That record may be invalid (with some of the first 0x18 bytes chopped off, so we return
+  // the offset to the next record
+
+  // Ensure offset is 8-byte aligned
+  offset = 8 * ceilingDivide(offset, 8);
+  bool found = false;
+  while (offset < USN_BUFFER_SIZE) {
+    uint64_t value = hex_to_long(buffer + offset, 8);
+    if (value == offset + usn_offset - 0x18) {
+     if (found)
+        return offset - 0x18;
+     found = true;
+    }
+    offset += 8;
+  }
+  return -1;
+}
+
 void UsnRecord::update(UsnRecord rec) {
     Reason |= rec.Reason;
 
@@ -170,8 +215,9 @@ void UsnRecord::update(UsnRecord rec) {
     }
 }
 
-UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, int len, bool isEmbedded) :
+UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, std::string snapshot, int len, bool isEmbedded) :
   FileOffset(fileOffset),
+  Snapshot(snapshot),
   IsEmbedded(isEmbedded) {
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
@@ -211,7 +257,7 @@ void UsnRecord::clearFields() {
   FileOffset      = 0;
 }
 
-UsnRecord::UsnRecord() {
+UsnRecord::UsnRecord(std::string snapshot) : Snapshot(snapshot) {
   IsEmbedded = false;
   clearFields();
 }
@@ -226,7 +272,8 @@ std::string UsnRecord::toString(const std::vector<File>& records) {
      << Name                         << "\t"
      << getFullPath(records, Record) << "\t"
      << getFullPath(records, Parent) << "\t"
-     << FileOffset                   << std::endl;
+     << FileOffset                   << "\t"
+     << Snapshot                     << std::endl;
   return ss.str();
 }
 
@@ -243,6 +290,10 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_int64(stmt, ++i, EventSources::USN);
   sqlite3_bind_int64(stmt, ++i, IsEmbedded);
   sqlite3_bind_int64(stmt, ++i, FileOffset);
+  sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Created
+  sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Modified
+  sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Comment
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -262,6 +313,7 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

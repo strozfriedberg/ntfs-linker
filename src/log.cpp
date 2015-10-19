@@ -1,19 +1,13 @@
 #include "log.h"
-#include "helper_functions.h"
+#include "util.h"
 #include "mft.h"
 #include "progress.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 #include "usn.h"
 
 #include <cstring>
 #include <iomanip>
 #include <sstream>
-
-int ceilingDivide(int n, int m) {
-  // Returns ceil(n/m), without using clunky FP arithmetic
-  return (n + m - 1) / m;
-
-}
 
 /*
 Decodes the LogFile Op code
@@ -57,7 +51,7 @@ std::string decodeLogFileOpCode(int op) {
 Parses the $LogFile
 outputs to the various streams
 */
-void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output) {
+void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot) {
   unsigned int buffer_size = 4096;
   char* buffer = new char[buffer_size];
   bool split_record = false;
@@ -72,6 +66,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
   The next two pages (0x2000 - 0x4000) are buffer record pages
   in my testing I've seen very little of value here, and it doesn't follow the same format as the rest of the $LogFile
   */
+  input.clear();
   input.seekg(0, std::ios::end);
   uint64_t end = input.tellg();
   ProgressBar status(end);
@@ -82,7 +77,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
 
   output << LogRecord::getColumnHeaders();
 
-  LogData transactions;
+  LogData transactions(snapshot);
   transactions.clearFields();
 
   //scan through the $LogFile one  page at a time. Each record is 4096 bytes.
@@ -99,7 +94,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
     }
     records_processed++;
     unsigned int update_seq_offset, update_seq_count, offset, next_record_offset;
-    unsigned int length;
+    unsigned int length = 0;
     update_seq_offset = hex_to_long(buffer + 0x4, 2);
     update_seq_count = hex_to_long(buffer + 0x6, 2);
     offset = update_seq_offset + ceilingDivide(update_seq_count, 4) * 8;
@@ -115,7 +110,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       int64_t cur_offset = static_cast<long int>(input.tellg()) - buffer_size + offset - adjust;
       if (transactions.Offset == -1)
         transactions.Offset = cur_offset;
-      LogRecord rec;
+      LogRecord rec(snapshot);
       int rtnVal = rec.init(buffer + offset, cur_offset, prev_has_next);
       prev_has_next = rec.LcnsToFollow;
       if(rtnVal == -1) {
@@ -133,7 +128,7 @@ void parseLog(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istre
       output << rec;
       rec.insert(sqliteHelper.LogInsert);
 
-      transactions.processLogRecord(rec, records, sqliteHelper, cur_offset);
+      transactions.processLogRecord(records, rec, sqliteHelper, cur_offset);
       if(transactions.isTransactionOver()) {
         if(transactions.isCreateEvent()) {
           transactions.insertEvent(EventTypes::CREATE, sqliteHelper.EventInsert);
@@ -254,7 +249,7 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
   */
   if(RecordType == 0 && prev_has_next) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "Invalid record type: " << RecordType;
+    std::cerr << "Invalid record type: " << RecordType << std::endl;
     if(RecordType == 0) {
       return -2;
     }
@@ -273,15 +268,14 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
     return -1;
   }
 
-  /*
-  If we're reading invalid op codes then chances are something went horribly wrong.
-  We end the process before it can implode.
-  */
   RedoOp = hex_to_long(buffer + 0x30, 2);
   UndoOp = hex_to_long(buffer + 0x32, 2);
+
+  // We've run into some junk data
   if(RedoOp > 0x21 || UndoOp > 0x21) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp;
+    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp
+              << " at 0x" << offset << std::endl;
     return -2;
   }
   RedoOffset = hex_to_long(buffer + 0x34, 2);
@@ -306,7 +300,7 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
 
 }
 
-void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLiteHelper& sqliteHelper, uint64_t fileOffset) {
+void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec, SQLiteHelper& sqliteHelper, uint64_t fileOffset) {
   if(Lsn == 0) {
     Lsn = rec.CurrentLsn;
   }
@@ -396,7 +390,7 @@ void LogData::processLogRecord(LogRecord& rec, std::vector<File>& records, SQLit
   }
   else if (rec.RedoOp == LogOps::UPDATE_NONRESIDENT_VALUE && rec.UndoOp == LogOps::NOOP) {
     // Embedded $UsnJrnl/$J record
-    UsnRecord usnRecord(redo_data, fileOffset + 0x30 + rec.RedoOffset, rec.RedoLength, true);
+    UsnRecord usnRecord(redo_data, fileOffset + 0x30 + rec.RedoOffset, Snapshot, rec.RedoLength, true);
     usnRecord.insert(sqliteHelper.UsnInsert, records);
     usnRecord.checkTypeAndInsert(sqliteHelper.EventInsert);
 
@@ -464,6 +458,7 @@ void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text (stmt, ++i, Created.c_str()     , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Modified.c_str()    , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Comment.c_str()     , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str()    , -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -481,6 +476,7 @@ void LogRecord::insert(sqlite3_stmt* stmt) {
   sqlite3_bind_int  (stmt, ++i, TargetAttribute);
   sqlite3_bind_int  (stmt, ++i, MftClusterIndex);
   sqlite3_bind_int64(stmt, ++i, Offset);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -499,7 +495,8 @@ std::string LogRecord::getColumnHeaders() {
      << "MFT Cluster Index" << "\t"
      << "Target VCN"        << "\t"
      << "Target LCN"        << "\t"
-     << "Offset"            << std::endl;
+     << "Offset"            << "\t"
+     << "Snapshot"          << std::endl;
   return ss.str();
 }
 
@@ -515,7 +512,8 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec) {
       << rec.MftClusterIndex             << "\t"
       << rec.TargetVcn                   << "\t"
       << rec.TargetLcn                   << "\t"
-      << rec.Offset                      << std::endl;
+      << rec.Offset                      << "\t"
+      << rec.Snapshot                    << std::endl;
   return out;
 }
 

@@ -1,26 +1,25 @@
 ACLOCAL_AMFLAGS = -I m4
- 
-AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir)/include/utf8 $(SCOPE_CPPFLAGS) $(NL_CPPFLAGS) $(SQLITE_CPPFLAGS) $(BOOST_CPPFLAGS)
-AM_CXXFLAGS = $(NL_CXXFLAGS) $(SQLITE_CXXFLAGS) $(BOOST_CXXFLAGS)
-AM_LDFLAGS = $(NL_LDFLAGS) $(SQLITE_LDFLAGS) $(BOOST_LDFLAGS)
+
+AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir)/include/utf8 $(NL_CPPFLAGS)
+AM_CXXFLAGS = $(NL_CXXFLAGS)
+AM_LDFLAGS = $(NL_LDFLAGS)
 
 src_common_SOURCES = \
 	src/aggregate.cpp \
-	src/helper_functions.cpp \
+	src/util.cpp \
 	src/log.cpp \
 	src/mft.cpp \
 	src/progress.cpp \
-	src/usn.cpp
+	src/usn.cpp \
+	src/vss.cpp \
+	src/walkers.cpp
 
 src_ntfs_linker_SOURCES = $(src_common_SOURCES)
 src_ntfs_linker_SOURCES += \
 	src/ntfs_linker.cpp \
-	src/sqlite_helper.cpp
+	src/sqlite_util.cpp
 
-src_ntfs_linker_LDADD = $(SQLITE_LIBS) \
-	$(BOOST_FILESYSTEM_LIB) \
-	$(BOOST_SYSTEM_LIB) \
-	$(BOOST_PROGRAM_OPTIONS_LIB)
+src_ntfs_linker_LDADD = $(NL_LIBS)
 
 bin_PROGRAMS = src/ntfs_linker
  
@@ -30,8 +29,9 @@ TESTS = $(check_PROGRAMS)
 test_test_SOURCES = $(src_common_SOURCES)
 test_test_SOURCES += \
 	test/test.cpp \
-	test/test_helper_functions.cpp \
+	test/test_util.cpp \
 	test/test_lnis.cpp \
 	test/test_usn.cpp
 
-test_test_LDADD = $(SQLITE_LIBS)
+test_test_CPPFLAGS = $(AM_CPPFLAGS) $(SCOPE_CPPFLAGS)
+test_test_LDADD = $(NL_LIBS)

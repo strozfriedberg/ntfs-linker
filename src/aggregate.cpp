@@ -1,7 +1,7 @@
 #include "aggregate.h"
 #include "file.h"
-#include "helper_functions.h"
-#include "sqlite_helper.h"
+#include "util.h"
+#include "sqlite_util.h"
 
 #include <fstream>
 #include <sqlite3.h>
@@ -9,10 +9,11 @@
 #include <string>
 #include <vector>
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out) {
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out, std::string snapshot) {
   int u;
   Event usn_event;
 
+  sqliteHelper.bindForSelect(snapshot);
   u = sqlite3_step(sqliteHelper.EventUsnSelect);
 
   // Output log events until the log event is a create, so we can compare timestamps properly.
@@ -44,6 +45,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
 
   while(log.hasMore())
     order = log.advance(order, records, out, true);
+  sqliteHelper.resetSelect();
 
   return;
 }
@@ -68,6 +70,7 @@ void Event::init(sqlite3_stmt* stmt) {
   Created        = textToString(sqlite3_column_text(stmt, ++i));
   Modified       = textToString(sqlite3_column_text(stmt, ++i));
   Comment        = textToString(sqlite3_column_text(stmt, ++i));
+  Snapshot       = textToString(sqlite3_column_text(stmt, ++i));
 
   if (PreviousParent == Parent)
     PreviousParent = -1;
@@ -78,7 +81,7 @@ void Event::init(sqlite3_stmt* stmt) {
 
 Event::Event() {
   Record = Parent = PreviousParent = UsnLsn = Type = Source = -1;
-  Timestamp = Name = PreviousName = "";
+  Snapshot = Timestamp = Name = PreviousName = "";
 }
 
 std::string Event::getColumnHeaders() {
@@ -100,7 +103,8 @@ std::string Event::getColumnHeaders() {
      << "Offset"            << "\t"
      << "Created"           << "\t"
      << "Modified"          << "\t"
-     << "Comment"           << std::endl;
+     << "Comment"           << "\t"
+     << "Snapshot"          << std::endl;
   return ss.str();
 }
 
@@ -122,7 +126,8 @@ void Event::write(int order, std::ostream& out, std::vector<File>& records) {
       << Offset                                                                        << "\t"
       << Created                                                                       << "\t"
       << Modified                                                                      << "\t"
-      << Comment                                                                       << std::endl;
+      << Comment                                                                       << "\t"
+      << Snapshot                                                                      << std::endl;
 }
 
 void Event::updateRecords(std::vector<File>& records) {
@@ -155,22 +160,25 @@ void Event::updateRecords(std::vector<File>& records) {
 
 int EventLNIS::advance(int order, std::vector<File>& records, std::ofstream& out, bool update) {
   int start, end;
+  if (!LNIS.size())
+    return order;
+
   if (Started) {
-    start = *cursor;
+    start = *Cursor;
     Events[start].IsAnchor = true;
-    ++cursor;
-    if (cursor == LNIS.end()) {
+    ++Cursor;
+    if (Cursor == LNIS.end()) {
       end = Events.size();
       Started = false;
     }
     else {
-      end = *cursor;
+      end = *Cursor;
     }
 
   }
   else {
     start = 0;
-    end = *cursor;
+    end = *Cursor;
     Started = true;
   }
 
@@ -190,7 +198,7 @@ EventLNIS::EventLNIS(sqlite3_stmt* stmt, EventTypes type) : Started(false) {
   for(auto event: Events)
     elements.push_back(event.Timestamp);
   LNIS = computeLNIS<std::string>(elements, Hits);
-  cursor = LNIS.begin();
+  Cursor = LNIS.begin();
   std::cout << "Found " << LNIS.size() << " out of " << Hits.size() << " possible anchor points."  << std::endl;
 }
 
@@ -210,9 +218,9 @@ void EventLNIS::readEvents(sqlite3_stmt* stmt, EventTypes type) {
 }
 
 bool EventLNIS::hasMore() {
-  return Started || cursor != LNIS.end();
+  return LNIS.size() && (Started || Cursor != LNIS.end());
 }
 
 std::string EventLNIS::getTimestamp() {
-  return Events[*cursor].Timestamp;
+  return Events[*Cursor].Timestamp;
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "file.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 
 #include <iostream>
 #include <string>
@@ -14,7 +14,7 @@ std::string getMFTColumnHeaders();
 /*
 Parses all the MFT records
 */
-void parseMFT(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const bool initRecords);
+void parseMFT(std::vector<File>& records, std::istream& input);
 
 class SIAttribute {
 public:

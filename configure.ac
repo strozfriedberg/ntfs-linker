@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-m4_define([ntfs_linker_version], [0.0.3])
+m4_define([ntfs_linker_version], [0.1.0])
 AC_INIT([ntfs-linker], [ntfs_linker_version], [zweger@strozfriedberg.com])
  
 AC_CONFIG_AUX_DIR([config])
@@ -21,7 +21,22 @@ AX_APPEND_LINK_FLAGS([-g -pthread], [NL_LDFLAGS])
 
 AX_APPEND_COMPILE_FLAGS([-pthread -D__VERSION="'\"ntfs_linker_version\"'"], [NL_CPPFLAGS])
 
+# pkg-config doesn't look in /usr/local/lib on some systems
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
+
+PKG_CHECK_MODULES([BFIO], [libbfio])
+PKG_CHECK_MODULES([EWF], [libewf])
 PKG_CHECK_MODULES([SQLITE], [sqlite3])
+PKG_CHECK_MODULES([VSHADOW], [libvshadow])
+PKG_CHECK_MODULES([CERROR], [libcerror])
+
+# zlib is a dependency of libtsk
+PKG_CHECK_MODULES([ZLIB], [zlib])
+
+AX_CHECK_LIBRARY([TSK], [tsk/libtsk.h], [tsk],
+                 [TSK_LIBS=-ltsk],
+                 [AC_MSG_ERROR([Failed to find libtsk])])
+AC_SUBST([TSK_LIBS])
 
 #
 # Boost
@@ -108,9 +123,37 @@ else
 fi
 AC_SUBST([CXXLD])
 
+AC_DEFUN([SF_APPEND], [{
+  if test -n "[$]$1"; then
+    if test -n "$2"; then
+      AS_VAR_APPEND($1, " $2")
+    fi
+  else
+    $1=[$]$2
+  fi
+}])
+
+# collect the flags from everything which might set some
+for lib in EWF VSHADOW SQLITE BFIO TSK BOOST ZLIB CERROR; do
+  # fold CFLAGS into CXXFLAGS since everything here is C++
+  h="${lib}_CXXFLAGS"
+  t=$(eval echo \"\$${lib}_CFLAGS\")
+  SF_APPEND($h, $t)
+
+  for var in CPPFLAGS CXXFLAGS LDFLAGS LIBS; do
+    h="NL_$var"
+    t=$(eval echo \"\$${lib}_$var\")
+    SF_APPEND($h, $t)
+  done
+done
+
+# yay, inconsistent variable naming
+NL_LIBS="$NL_LIBS $BOOST_PROGRAM_OPTIONS_LIB $BOOST_FILESYSTEM_LIB $BOOST_SYSTEM_LIB"
+
 AC_SUBST([NL_CPPFLAGS])
 AC_SUBST([NL_CXXFLAGS])
 AC_SUBST([NL_LDFLAGS])
- 
+AC_SUBST([NL_LIBS])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

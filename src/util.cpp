@@ -1,6 +1,6 @@
 #include "file.h"
 #include "utf8.h"
-#include "helper_functions.h"
+#include "util.h"
 
 #include <algorithm>
 #include <cstring>
@@ -199,4 +199,9 @@ int doFixup(char* buffer, unsigned int len, unsigned int sectorSize) {
     }
   }
   return corrupt;
+}
+
+int ceilingDivide(int n, int m) {
+  // Returns ceil(n/m), without using clunky FP arithmetic
+  return (n + m - 1) / m;
 }

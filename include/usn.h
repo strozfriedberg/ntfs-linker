@@ -1,7 +1,7 @@
 #pragma once
 
 #include "file.h"
-#include "sqlite_helper.h"
+#include "sqlite_util.h"
 
 #include <iostream>
 #include <string>
@@ -12,12 +12,14 @@ std::string getUSNColumnHeaders();
 
 std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=false);
 
-void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input = std::cin, std::ostream& output = std::cout);
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot);
+
+int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_offset);
 
 class UsnRecord {
 public:
-  UsnRecord();
-  UsnRecord(const char* buffer, uint64_t fileOffset, int len = -1, bool isEmbedded=false);
+  UsnRecord(std::string snapshot);
+  UsnRecord(const char* buffer, uint64_t fileOffset, std::string snapshot, int len = -1, bool isEmbedded=false);
 
   std::string getReasonString();
   std::string toCreateString(const  std::vector<File> &records);
@@ -36,8 +38,8 @@ public:
   uint64_t Reference, ParentReference, Usn, FileOffset;
   int64_t Record, Parent, PreviousParent;
   unsigned int Reason;
+  std::string Name, PreviousName, Timestamp, Snapshot;
   bool IsEmbedded;
-  std::string Name, PreviousName, Timestamp;
 };
 
 namespace UsnReasons {
