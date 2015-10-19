@@ -281,7 +281,11 @@ list the subsequences associated with each event type below:
 | Rename/Move | 4     | ADD_INDEX_ENTRY_ALLOCATION        | DELETE_INDEX_ENTRY_ALLOCATION     |
 | Rename/Move | 5     | FORGET_TRANSACTION                | COMPENSATION_LOG_RECORD           |
 
+For some of the above (RedoOp, UndoOp) pairs there is data associated with the operation
+which we add to the candidate event, which we list below:
 
+| RedoOp | UndoOp | Data Found |
+| ------ | ------ | ---------- |
 
 ## Build Notes
 The source is in C++ and uses autoconf.
