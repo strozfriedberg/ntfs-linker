@@ -119,8 +119,8 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
 uint8_t VolumeWalker::openImageUtf8(int a_numImg, const char *const a_images[], TSK_IMG_TYPE_ENUM a_imgType, unsigned int a_sSize) {
   uint8_t rtnVal = TskAuto::openImageUtf8(a_numImg, a_images, a_imgType, a_sSize);
   if (rtnVal) {
-    std::cout << "TSK Error! Stopping." << std::endl;
-    std::cout << tsk_error_get() << std::endl;
+    std::cerr << "TSK Error! Stopping." << std::endl;
+    std::cerr << tsk_error_get() << std::endl;
     exit(1);
   }
   return rtnVal;
