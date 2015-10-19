@@ -12,7 +12,7 @@ std::string getUSNColumnHeaders();
 
 std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse=false);
 
-void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot);
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot, bool extra);
 
 int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_offset);
 

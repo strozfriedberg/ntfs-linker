@@ -18,6 +18,7 @@ struct Options {
   fs::path input;
   fs::path output;
   bool overwrite;
+  bool extra;
 };
 
 class IOContainer {
@@ -109,7 +110,7 @@ void setupIO(Options& opts, IOBundle& ioBundle, std::vector<std::string>& imgSeg
   ioBundle.SqliteHelper.init(dbName, opts.overwrite);
 }
 
-int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, std::string snapshot) {
+int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, std::string snapshot, bool extra) {
   //Set up db connection
 
   std::vector<File> records;
@@ -117,9 +118,9 @@ int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, std::string 
   parseMFT(records, container.IMft);
 
   std::cout << "Parsing USNJrnl..." << std::endl;
-  parseUSN(records, sqliteHelper, container.IUsnJrnl, container.OUsnJrnl, snapshot);
+  parseUSN(records, sqliteHelper, container.IUsnJrnl, container.OUsnJrnl, snapshot, extra);
   std::cout << "Parsing LogFile..." << std::endl;
-  parseLog(records, sqliteHelper, container.ILogFile, container.OLogFile, snapshot);
+  parseLog(records, sqliteHelper, container.ILogFile, container.OLogFile, snapshot, extra);
   return 0;
 }
 
@@ -142,7 +143,8 @@ int main(int argc, char** argv) {
     ("input", po::value<std::string>(), "If no image specified, location of directory containing input files: $MFT, $UsnJrnl, $LogFile. Otherwise, root directory in which to dump files extracted from image.")
     ("image", po::value<std::vector<std::string>>(), "Path to image")
     ("version", "display version number and exit")
-    ("overwrite", "overwrite files in the output directory. Default: append");
+    ("overwrite", "overwrite files in the output directory. Default: append")
+    ("extra", "Outputs supplemental lower-level parsed data from $UsnJrnl and $LogFile");
 
   po::variables_map vm;
   try {
@@ -151,13 +153,19 @@ int main(int argc, char** argv) {
     std::vector<std::string> imgSegs;
 
 
-    if (vm.count("overwrite"))
+    if (vm.count("overwrite")) {
       opts.overwrite = true;
+    }
+    if (vm.count("extra")) {
+      opts.extra = true;
+    }
 
-    if (vm.count("help"))
+    if (vm.count("help")) {
       printHelp(desc);
-    else if (vm.count("version"))
+    }
+    else if (vm.count("version")) {
         std::cout << "ntfs_linker version: " << VERSION << std::endl;
+    }
     else if (vm.count("input") && vm.count("output")) {
       // Run
       opts.input = fs::path(vm["input"].as<std::string>());
@@ -171,7 +179,7 @@ int main(int argc, char** argv) {
 
       for (auto& container: bundle.Containers) {
         std::cout << "Pre-processing: " << container->Dir << std::endl;
-        processStep(*container, bundle.SqliteHelper, container->Dir.string());
+        processStep(*container, bundle.SqliteHelper, container->Dir.string(), opts.extra);
       }
       bundle.SqliteHelper.commit();
 

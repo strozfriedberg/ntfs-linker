@@ -97,7 +97,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot) {
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot, bool extra) {
   static char buffer[USN_BUFFER_SIZE];
 
   int records_processed = -1;
@@ -159,8 +159,11 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       std::cerr << "Inconsistent Usn value found at " << static_cast<int>(input.tellg()) - offset << std::endl;
       usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
     }
-    output << rec.toString(records);
-    rec.insert(sqliteHelper.UsnInsert, records);
+
+    if (extra) {
+      output << rec.toString(records);
+      rec.insert(sqliteHelper.UsnInsert, records);
+    }
 
     if (prevRec.Record != rec.Record || prevRec.Reason & UsnReasons::CLOSE) {
       prevRec.checkTypeAndInsert(sqliteHelper.EventInsert);
