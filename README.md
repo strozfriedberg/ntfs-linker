@@ -171,6 +171,70 @@ can actually have multiple longest increasing subequences (which are all the
 same length). In this example, `25 38 58 66 92 98` and `25 38 47 50 61 72` are
 both longest increasing subsequences.
 
+### Changes in State
+Put simply, a filesystem event implies a change in state of the filesystem. When
+reporting on an event, it's often desirable to display that in the context of
+the state of the filesystem. This should be done in the context of the
+filesystem *at the time the event occurred*. For instance, suppose we know the
+state of a filesystem at some point in time (say, from a base image) to be:
+
+| Recordnum | Full Path      |
+| --------- | -------------- |
+| 10        | /foo/bar       |
+| 11        | /foo/bar/a.txt |
+| 12        | /foo/bar/b.txt |
+
+Suppose that immediately prior to the filesystem being imaged, we know that
+an entry with recordnum 13, parent recordnum 10 named `some_name` was deleted. 
+Now suppose that just before *that*, we know an entry with recordnum 14, parent
+recordnum 13, named `file.txt` was deleted. What was the full path of this
+record *at the time it was deleted*? We know that it must have been
+`/foo/bar/some_name/file.txt`! Thus we observe it's necessary to accumulate
+changes in state of the filesystem as events are processed, in order to recover
+the context of each event.
+
+
+### Event Ordering
+At some point we arrive at this situation: we have a sequence of events from
+`$UsnJrnl` and a sequence of events from `$LogFile`. For the `$UsnJrnl` events
+we know the event timestamps, but for the `$LogFile` events we have less
+information. For `$LogFile` rename, move, and delete events, we are not able to
+recover an event timestamp. But for `$LogFile` create events, we are able to
+recover the File Creation timestamp *at the time the file was created*. Even
+under normal operating conditions, it's possible this is not the event time.
+
+The impact is this: we know the order of events in `$UsnJrnl` and `$LogFile`
+separately, and we have some idea of the times these events occurred, but we
+don't know how the two sequences fit together. If both sequences were
+increasing, then we could perform a standard merge (by say, taking two cursors
+on the sequences and taking the smaller value from either cursor). But the
+`$LogFile` sequence is not increasing, so this approach wouldn't work. The
+solution is to first compute the longest increasing subsequence of the
+`$LogFile` events, and using those events to "anchor" the entire sequence for
+merging.
+
+
+### Volume Shadows and Processing Order
+A Volume Shadow Copy represents a snapshot of a filesystem at a particular time.
+Often, multiple shadow copies may be present which are close together in time
+(for example, shadow copies created as a result of running system updates). In
+this situation, `$UsnJrnl` and `$LogFile` may actually overlap some between the
+snapshots. To deduplicate this, we defer to the older snapshot. We grab all
+events from the oldest snapshot, then only the events not present in the oldest
+snapshot from the next oldest, etc., until we've processed the base snapshot.
+
+To output events, however, we need to process the Shadow Copies in the reverse
+order, with the most recent events first, because the most recent events imply
+a change in state of the file system. Thus we process all the events from the
+base image (not including events which are found in the most recent shadow
+copy!), and then the most recent shadow copy, etc. In the end we get a timeline
+from the present extending into the past of unified events which are mostly in
+the same order as the events occurred.
+
+Note: As we're producing a timeline going backwards in time, the timestamps
+which represent our sequence elements are actually decreasing, so we're actually
+interested in the longest non-increasing subsequence. We say non-increasing
+rather than decreasing because events are allowed to share the same timestamp.
 
 ## Build Notes
 The source is in C++ and uses autoconf.
