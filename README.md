@@ -151,16 +151,26 @@ In this document, by `sequence`, we mean some ordered collection of objects,
 which could possibly repeat. Given a sequence, we can obtain a `subsequence`
 by *removing* zero or more elements. For example, the following is a sequence:
 
->25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72
+    25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72
 
 And the following are all subsequences of the above sequence:
 
-|   | Subsequence                                                | Note                    |
-| - | ---------------------------------------------------------- | ----------------------- |
-| 1 | 25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72 | zero elements removed   |
-| 2 |                                                            | (all elements removed)  |
-| 3 | 25 38 58 29 23 60 47 98 13 61                              | (some elements removed) |
-| 4 | 25 38 47 50 61 72                                          | (some elements removed) |
+|     | Subsequence                                                | Note                    |
+| --- | ---------------------------------------------------------- | ----------------------- |
+| S1  | 25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72 | zero elements removed   |
+| S2  |                                                            | (all elements removed)  |
+| S3  | 25 38 58 29 23 60 47 98 13 61                              | (some elements removed) |
+| S4  | 25 38 47 50 72                                             | (some elements removed) |
+
+An `increasing sequence` is a sequence in which every element is larger than the
+element which precedes it. While sequence S1 and S3 are not increasing, S4 and
+S2 (trivially) are. Thus given a sequence, a natural question which arises is:
+what is this sequence's `longest increasing subsequence`? It turns out there is
+a polynomial-time algorithm which answers this question. In general, a sequence
+can actually have multiple longest increasing subequences (which are all the
+same length). In this example, `25 38 58 66 92 98` and `25 38 47 50 61 72` are
+both longest increasing subsequences.
+
 
 ## Build Notes
 The source is in C++ and uses autoconf.
