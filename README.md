@@ -158,18 +158,9 @@ And the following are all subsequences of the above sequence:
 |     | Subsequence                                                | Note                    |
 | --- | ---------------------------------------------------------- | ----------------------- |
 | S1  | 25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72 | zero elements removed   |
-| S2  |                                                            | (all elements removed)  |
-| S3  | 25 38 58 29 23 60 47 98 13 61                              | (some elements removed) |
-| S4  | 25 38 47 50 72                                             | (some elements removed) |
+| S2  | 25 38 58 29 23 60 47 98 13 61                              | (some elements removed) |
+| S3  | 25 38 47 50 72                                             | (some elements removed) |
 
-An `increasing sequence` is a sequence in which every element is larger than the
-element which precedes it. While sequence S1 and S3 are not increasing, S4 and
-S2 (trivially) are. Thus given a sequence, a natural question which arises is:
-what is this sequence's `longest increasing subsequence`? It turns out there is
-a polynomial-time algorithm which answers this question. In general, a sequence
-can actually have multiple longest increasing subequences (which are all the
-same length). In this example, `25 38 58 66 92 98` and `25 38 47 50 61 72` are
-both longest increasing subsequences.
 
 ### Changes in State
 Put simply, a filesystem event implies a change in state of the filesystem. When
@@ -199,19 +190,16 @@ At some point we arrive at this situation: we have a sequence of events from
 `$UsnJrnl` and a sequence of events from `$LogFile`. For the `$UsnJrnl` events
 we know the event timestamps, but for the `$LogFile` events we have less
 information. For `$LogFile` rename, move, and delete events, we are not able to
-recover an event timestamp. But for `$LogFile` create events, we are able to
-recover the File Creation timestamp *at the time the file was created*. Even
-under normal operating conditions, it's possible this is not the event time.
+recover an event timestamp. Only for `$LogFile` create events are we able to
+recover an event timestamp.
 
 The impact is this: we know the order of events in `$UsnJrnl` and `$LogFile`
 separately, and we have some idea of the times these events occurred, but we
-don't know how the two sequences fit together. If both sequences were
-increasing, then we could perform a standard merge (by say, taking two cursors
-on the sequences and taking the smaller value from either cursor). But the
-`$LogFile` sequence is not increasing, so this approach wouldn't work. The
-solution is to first compute the longest increasing subsequence of the
-`$LogFile` events, and using those events to "anchor" the entire sequence for
-merging.
+don't know exactly how the two sequences fit together. In order to create a unified
+timeline of events, we do a standard zipper merge of the two sequences, but
+only considering the `$Logfile` create event timestamps. Events of other types
+found in `$LogFile` will always be output directly after the preceding
+`$LogFile` create event.
 
 
 ### Volume Shadows and Processing Order
@@ -230,11 +218,6 @@ base image (not including events which are found in the most recent shadow
 copy!), and then the most recent shadow copy, etc. In the end we get a timeline
 from the present extending into the past of unified events which are mostly in
 the same order as the events occurred.
-
-Note: As we're producing a timeline going backwards in time, the timestamps
-which represent our sequence elements are actually decreasing, so we're actually
-interested in the longest non-increasing subsequence. We say non-increasing
-rather than decreasing because events are allowed to share the same timestamp.
 
 ### Extracting events from `$UsnJrnl`
 When a file is created, renamed, moved, or deleted, `$UsnJrnl` will contain
