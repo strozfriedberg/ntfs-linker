@@ -20,8 +20,6 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
   Event usnEvent, logEvent;
   int order = 0;
 
-  out << Event::getColumnHeaders();
-
   sqliteHelper.bindForSelect(snapshot);
   u = sqlite3_step(sqliteHelper.EventUsnSelect);
   l = sqlite3_step(sqliteHelper.EventLogSelect);

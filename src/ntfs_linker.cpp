@@ -44,7 +44,7 @@ public:
       std::cerr << "$LogFile File not found: " << std::endl;
       exit(0);
     }
-
+    fs::create_directories(opts.output);
     prep_ofstream(OUsnJrnl, (opts.output / fs::path("usnjrnl.txt")).string(), opts.overwrite);
     prep_ofstream(OLogFile, (opts.output / fs::path("logfile.txt")).string(), opts.overwrite);
   }
@@ -71,7 +71,6 @@ void printHelp(const po::options_description& desc) {
 
 
 void setupIO(Options& opts, IOBundle& ioBundle, std::vector<std::string>& imgSegs) {
-  fs::create_directories(opts.output);
   if (imgSegs.size()) {
     std::cout << "Copying files out of image..." << std::endl;
     boost::scoped_array<const char*> segments(new const char*[imgSegs.size()]);
@@ -184,6 +183,7 @@ int main(int argc, char** argv) {
       bundle.SqliteHelper.commit();
 
       std::cout << "Generating unified events output..." << std::endl;
+      bundle.Events << Event::getColumnHeaders();
       std::vector<IOContainerPtr>::reverse_iterator rIt;
       for (rIt = bundle.Containers.rbegin(); rIt != bundle.Containers.rend(); ++rIt) {
         std::cout << "Processing: " << (*rIt)->Dir << std::endl;
