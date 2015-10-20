@@ -15,5 +15,6 @@ class VolumeWalker: public TskAuto {
     virtual TSK_RETVAL_ENUM processFile(TSK_FS_FILE*, const char*) { return TSK_OK; }
   private:
     fs::path Root;
+    bool Processed;
 };
 

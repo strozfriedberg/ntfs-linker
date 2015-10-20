@@ -89,6 +89,10 @@ std::string getFolderName(int i, int n) {
 }
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
+  if (Processed) {
+    std::cerr << "Warning: already copied files to process, but more volumes found. Only processing first volume." << std::endl;
+    return TSK_FILTER_SKIP;
+  }
   std::cout << "Copying from base" << std::endl;
 
   // "base" has the important property that it sorts after numbers
@@ -110,7 +114,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     std::cerr << err.what() << std::endl;
     return TSK_FILTER_SKIP;
   }
-
+  Processed = true;
   return TSK_FILTER_SKIP;
 }
 
