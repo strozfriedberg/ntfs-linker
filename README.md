@@ -252,40 +252,58 @@ deleted, moved, or renamed, then the records are discarded.
 events is more complicated. A `$LogFile` record consists of a RedoOp and an
 UndoOp code each possibly associated with some data.
 
-We begin with an easy case: `RedoOp=UPDATE_NON_RESIDENT_VALUE` and `UndoOp=NOOP`.
-In this case the redo data is actually a `$UsnJrnl` record, which we can parse
-as before.
-
-In all other cases, we break apart the $LogFile records into logical
+We break apart the $LogFile records into logical
 transactions ending with a record with `RedoOp=FORGET_TRANSACTION` and
 `UndoOp=COMPENSATION_LOG_RECORD`. From here, we consider the sequence of OpCodes
 and check if it has a subsequence which represents a particular event type. We
 list the subsequences associated with each event type below:
 
+
 | Event Type  | Order | RedoOp Subsequence Entry          | UndoOp Subsequence Entry          |
 | ----------- | ----- | --------------------------------- | --------------------------------- |
 | Create      | 1     | SET_BITS_IN_NONRESIDENT_BIT_MAP   | CLEAR_BITS_IN_NONRESIDENT_BIT_MAP |
 | Create      | 2     | NOOP                              | DEALLOCATE_FILE_RECORD_SEGMENT    |
-| Create      | 3     | ADD_INDEX_ENTRY_ALLOCATION        | DELETE_INDEX_ENTRY_ALLOCATION     |
-| Create      | 4     | INITIALIZE_FILE_RECORD_SEGMEN     | NOOP                              |
+| Create      | 3     | ADD_INDEX_ENTRY\*                 | DELETE_INDEX_ENTRY\*              |
+| Create      | 4     | INITIALIZE_FILE_RECORD_SEGMENT    | NOOP                              |
 | Create      | 5     | FORGET TRANSACTION                | COMPENSATION_LOG_RECORD           |
 | ----------- | ----- | --------------------------------- | --------------------------------- |
-| Delete      | 1     | DELETE_INDEX_ENTRY_ALLOCATION     | ADD_INDEX_ENTRY_ALLOCATION        |
+| Delete      | 1     | DELETE_INDEX_ENTRY\*              | ADD_INDEX_ENTRY\*                 |
 | Delete      | 2     | DEALLOCATE_FILE_RECORD_SEGMENT    | INITIALIZE_FILE_RECORD_SEGMENT    |
 | Delete      | 3     | CLEAR_BITS_IN_NONRESIDENT_BIT_MAP | SET_BITS_IN_NONRESIDENT_BIT_MAP   |
 | Delete      | 4     | FORGET_TRANSACTION                | COMPENSATION_LOG_RECORD           |
 | ----------- | ----- | --------------------------------- | --------------------------------- |
-| Rename/Move | 1     | DELETE_INDEX_ENTRY_ALLOCATION     | ADD_INDEX_ENTRY_ALLOCATION        |
+| Rename/Move | 1     | DELETE_INDEX_ENTRY\*              | ADD_INDEX_ENTRY\*                 |
 | Rename/Move | 2     | DELETE_ATTRIBUTE                  | CREATE_ATTRIBUTE                  |
 | Rename/Move | 3     | CREATE_ATTRIBUTE                  | DELETR_ATTRIBUTE                  |
-| Rename/Move | 4     | ADD_INDEX_ENTRY_ALLOCATION        | DELETE_INDEX_ENTRY_ALLOCATION     |
+| Rename/Move | 4     | ADD_INDEX_ENTRY\*                 | DELETE_INDEX_ENTRY\*              |
 | Rename/Move | 5     | FORGET_TRANSACTION                | COMPENSATION_LOG_RECORD           |
+
 
 For some of the above (RedoOp, UndoOp) pairs there is data associated with the operation
 which we add to the candidate event, which we list below:
 
-| RedoOp | UndoOp | Data Found |
-| ------ | ------ | ---------- |
+
+| RedoOp                          | UndoOp                            | Data Found                                              |
+| ------------------------------- | --------------------------------- | ------------------------------------------------------- |
+| SET_BITS_IN_NONRESIDENT_BIT_MAP | CLEAR_BITS_IN_NONRESIDENT_BIT_MAP | Recordnum                                               |
+| INITIALIZE_FILE_RECORD_SEGMENT  | NOOP                              | Complete MFT entry                                      |
+| DELETE_ATTRIBUTE                | CREATE_ATTRIBUTE                  | Previous file name                                      |
+| CREATE_ATTRIBUTE                | DELETE_ATTRIBUTE                  | New file name                                           |
+| DELETE_INDEX_ENTRY\*            | ADD_INDEX_ENTRY\*                 | File name, parent recordnum                             |
+| ADD_INDEX_ENTRY\*               | DELETE_INDEX_ENTRY\*              | Recordnum, Parent recordnum, Timestamp, (new) file name |
+| UPDATE_NONRESIDENT_VALUE        | NOOP                              | Embedded `$UsnJrnl` entry                               |
+
+
+\***Note**: Throughout these tables, we consider ADD_INDEX_ENTRY_ALLOCATION to
+be equivalent to ADD_INDEX_ENTRY_ROOT, and denote as ADD_INDEX ENTRY, and
+DELETE_INDEX_ENTRY_ALLOCATION equivalent to DELETE_INDEX_ENTRY_ROOT, and 
+denote as DELETE_INDEX_ENTRY.
+
+So, the parsing strategy is to collect the above data as each record is
+processed, all the while checking if the transaction has ended. If it has, then we
+mark a new event if it matches the above event type sequences. Regardless, the
+transaction data is cleared.
+
 
 ## Build Notes
 The source is in C++ and uses autoconf.
