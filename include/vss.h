@@ -45,11 +45,12 @@ typedef std::unique_ptr<VShadowTskVolumeShim> VshadowTskVolumeShimPtr;
 class VSS {
   public:
     VSS(TSK_FS_INFO* fs);
+    ~VSS();
     TSK_FS_INFO* getSnapshot(uint8_t n);
-    void freeSnapshot();
-    void free();
     int getNumStores();
   private:
+    void freeSnapshot();
+
     libvshadow_volume_t* Volume;
     libvshadow_store_t* Store;
     TskImgInfoPtr VssImg;

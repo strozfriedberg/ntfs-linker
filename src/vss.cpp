@@ -207,10 +207,9 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
 
 }
 
-VSS::VSS(TSK_FS_INFO* fs) : Volume(NULL), Store(NULL), NumStores(0), Tag(fs->tag), Handle(NULL) {
+VSS::VSS(TSK_FS_INFO* fs) : Volume(NULL), Store(NULL), VssFs(NULL), NumStores(0), Tag(fs->tag), Handle(NULL) {
   int rtnVal;
   globalTVBShim = TskVolumeBfioShimPtr(new TskVolumeBfioShim(fs));
-  VssImg = TskImgInfoPtr(new TSK_IMG_INFO);
 
   rtnVal = libbfio_handle_initialize(&Handle,
                                      &Tag,
@@ -247,6 +246,7 @@ VSS::VSS(TSK_FS_INFO* fs) : Volume(NULL), Store(NULL), NumStores(0), Tag(fs->tag
 
 TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
   int rtnVal;
+  freeSnapshot();
 
   rtnVal = libvshadow_volume_get_store(Volume, n, &Store, &error);
   if (rtnVal != 1) {
@@ -254,7 +254,7 @@ TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
   }
 
   globalVSTVShim = VshadowTskVolumeShimPtr(new VShadowTskVolumeShim(Store));
-
+  VssImg = TskImgInfoPtr(new TSK_IMG_INFO);
   VssFs = globalVSTVShim -> getTskFsInfo(VssImg.get());
   return VssFs;
 }
@@ -262,19 +262,37 @@ TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
 void VSS::freeSnapshot() {
   int rtnVal;
 
-  tsk_fs_close(VssFs);
+  if (VssFs) {
+    tsk_fs_close(VssFs);
+    VssFs = NULL;
+  }
 
-  rtnVal = libvshadow_store_free(&Store, &error);
-  if (rtnVal != 1)
-    throw VSSException(error);
+  if (VssImg) {
+    tsk_img_close(VssImg.get());
+    VssImg = NULL;
+  }
+
+  if (Store) {
+    rtnVal = libvshadow_store_free(&Store, &error);
+    if (rtnVal != 1)
+      throw VSSException(error);
+  }
 }
 
-void VSS::free() {
+VSS::~VSS() {
+  std::cout << "~VSS" << std::endl;
   int rtnVal;
-  rtnVal = libvshadow_volume_free(&Volume, &error);
-  if (rtnVal != 1)
-    throw VSSException(error);
-  rtnVal = libbfio_handle_free(&Handle, &error);
+  freeSnapshot();
+  if (Volume) {
+    rtnVal = libvshadow_volume_free(&Volume, &error);
+    if (rtnVal != 1)
+      throw VSSException(error);
+  }
+  if (Handle) {
+    rtnVal = libbfio_handle_free(&Handle, &error);
+    if (rtnVal != 1)
+      throw VSSException(error);
+  }
 }
 
 int VSS::getNumStores() {

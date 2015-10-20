@@ -87,6 +87,7 @@ std::string getFolderName(int i, int n) {
   ss << std::setfill('0') << std::setw(width) << i;
   return ss.str();
 }
+
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   std::cout << "Copying from base" << std::endl;
 
@@ -103,10 +104,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
       std::cout << "Copying from store: " << i << std::endl;
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
       copyFiles(snapshot, Root / fs::path(getFolderName(i, n)));
-      vShadowVolume.freeSnapshot();
     }
-
-    vShadowVolume.free();
   }
   catch(std::exception& err) {
     std::cerr << err.what() << std::endl;
