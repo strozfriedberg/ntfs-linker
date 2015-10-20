@@ -320,7 +320,11 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
     //parse MFT record from redo op for create time, file name, parent dir
     //need to check for possible second MFT attribute header
     MFTRecord mftRec(redo_data, rec.RedoLength);
-    Timestamp = filetime_to_iso_8601(mftRec.Sia.Created);
+    // Modified timestamp!
+    // In case of file system tunneling (i.e., this event is really a write),
+    // the Creation time is not the event time - it's the time the file was _originally_ created
+    // https://support.microsoft.com/en-us/kb/299648
+    Timestamp = filetime_to_iso_8601(mftRec.Sia.Modified);
     Parent = mftRec.Fna.Parent;
 
     Created = filetime_to_iso_8601(mftRec.Sia.Created);

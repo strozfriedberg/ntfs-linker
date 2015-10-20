@@ -9,44 +9,68 @@
 #include <string>
 #include <vector>
 
+int writeAndStep(Event& event, sqlite3_stmt* stmt, std::vector<File>& records, int order, std::ofstream& out) {
+  event.write(order, out, records);
+  event.updateRecords(records);
+  return sqlite3_step(stmt);
+}
+
 void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out, std::string snapshot) {
-  int u;
-  Event usn_event;
+  int u, l;
+  Event usnEvent, logEvent;
+  int order = 0;
+
+  out << Event::getColumnHeaders();
 
   sqliteHelper.bindForSelect(snapshot);
   u = sqlite3_step(sqliteHelper.EventUsnSelect);
+  l = sqlite3_step(sqliteHelper.EventLogSelect);
 
   // Output log events until the log event is a create, so we can compare timestamps properly.
-  EventLNIS log(sqliteHelper.EventLogSelect, EventTypes::CREATE);
-  int order = 0;
-  out << Event::getColumnHeaders();
-  order = log.advance(order, records, out, false);
+  while (l == SQLITE_ROW) {
+    logEvent.init(sqliteHelper.EventLogSelect);
+    if (logEvent.Type == EventTypes::CREATE) {
+      break;
+    }
+    logEvent.IsAnchor = false;
+    l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+  }
 
-  while (u == SQLITE_ROW && log.hasMore()) {
-    usn_event.init(sqliteHelper.EventUsnSelect);
+  while (u == SQLITE_ROW && l == SQLITE_ROW) {
+    usnEvent.init(sqliteHelper.EventUsnSelect);
+    logEvent.init(sqliteHelper.EventLogSelect);
 
-    if (usn_event.Timestamp > log.getTimestamp()) {
-      usn_event.IsAnchor = true;
-      usn_event.write(++order, out, records);
-      usn_event.updateRecords(records);
-      u = sqlite3_step(sqliteHelper.EventUsnSelect);
-    } else {
-      order = log.advance(order, records, out, true);
+    if (usnEvent.Timestamp > logEvent.Timestamp) {
+      usnEvent.IsAnchor = true;
+      u = writeAndStep(usnEvent, sqliteHelper.EventUsnSelect, records, ++order, out);
+    }
+    else {
+      logEvent.IsAnchor = true;
+      l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+
+      while (l == SQLITE_ROW) {
+        logEvent.init(sqliteHelper.EventLogSelect);
+        if (logEvent.Type == EventTypes::CREATE) {
+          break;
+        }
+        l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+      }
     }
   }
 
   while (u == SQLITE_ROW) {
-    usn_event.init(sqliteHelper.EventUsnSelect);
-    usn_event.IsAnchor = true;
-    usn_event.write(++order, out, records);
-    usn_event.updateRecords(records);
-    u = sqlite3_step(sqliteHelper.EventUsnSelect);
+    usnEvent.init(sqliteHelper.EventUsnSelect);
+    usnEvent.IsAnchor = true;
+    u = writeAndStep(usnEvent, sqliteHelper.EventUsnSelect, records, ++order, out);
   }
 
-  while(log.hasMore())
-    order = log.advance(order, records, out, true);
-  sqliteHelper.resetSelect();
+  while (l == SQLITE_ROW) {
+    logEvent.init(sqliteHelper.EventLogSelect);
+    logEvent.IsAnchor = false;
+    l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+  }
 
+  sqliteHelper.resetSelect();
   return;
 }
 
@@ -156,71 +180,4 @@ void Event::updateRecords(std::vector<File>& records) {
       break;
   }
   return;
-}
-
-int EventLNIS::advance(int order, std::vector<File>& records, std::ofstream& out, bool update) {
-  int start, end;
-  if (!LNIS.size())
-    return order;
-
-  if (Started) {
-    start = *Cursor;
-    Events[start].IsAnchor = true;
-    ++Cursor;
-    if (Cursor == LNIS.end()) {
-      end = Events.size();
-      Started = false;
-    }
-    else {
-      end = *Cursor;
-    }
-
-  }
-  else {
-    start = 0;
-    end = *Cursor;
-    Started = true;
-  }
-
-  for(int i = start; i < end; ++i) {
-    Events[i].write(++order, out, records);
-    if (update)
-      Events[i].updateRecords(records);
-  }
-  return order;
-}
-
-EventLNIS::EventLNIS(sqlite3_stmt* stmt, EventTypes type) : Started(false) {
-  readEvents(stmt, type);
-
-  std::vector<std::string> elements;
-  elements.reserve(Events.size());
-  for(auto event: Events)
-    elements.push_back(event.Timestamp);
-  LNIS = computeLNIS<std::string>(elements, Hits);
-  Cursor = LNIS.begin();
-  std::cout << "Found " << LNIS.size() << " out of " << Hits.size() << " possible anchor points."  << std::endl;
-}
-
-void EventLNIS::readEvents(sqlite3_stmt* stmt, EventTypes type) {
-  Event x;
-
-  int status = sqlite3_step(stmt);
-  while (status == SQLITE_ROW) {
-    x.init(stmt);
-    Events.push_back(x);
-    status = sqlite3_step(stmt);
-
-    if (x.Type == type && x.Timestamp != "") {
-      Hits.push_back(Events.size() - 1);
-    }
-  }
-}
-
-bool EventLNIS::hasMore() {
-  return LNIS.size() && (Started || Cursor != LNIS.end());
-}
-
-std::string EventLNIS::getTimestamp() {
-  return Events[*Cursor].Timestamp;
 }
