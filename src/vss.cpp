@@ -88,7 +88,7 @@ int TskVolumeBfioShim::close(intptr_t *io_handle, libbfio_error_t ** error) {
     std::cerr << "Invalid tag at line: " << __LINE__ << std::endl;
     return -1;
   }
-  return 1;
+  return 0;
 }
 
 
