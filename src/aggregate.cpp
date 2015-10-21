@@ -1,4 +1,5 @@
 #include "aggregate.h"
+#include "controller.h"
 #include "file.h"
 #include "util.h"
 #include "sqlite_util.h"
@@ -15,10 +16,12 @@ int writeAndStep(Event& event, sqlite3_stmt* stmt, std::vector<File>& records, i
   return sqlite3_step(stmt);
 }
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& out, std::string snapshot) {
+void outputEvents(std::vector<File>& records, IOBundle& bundle, std::string snapshot) {
   int u, l;
   Event usnEvent, logEvent;
-  int order = 0;
+  int order = bundle.Count;
+  SQLiteHelper& sqliteHelper(bundle.SqliteHelper);
+  std::ofstream& out(bundle.Events);
 
   sqliteHelper.bindForSelect(snapshot);
   u = sqlite3_step(sqliteHelper.EventUsnSelect);
@@ -69,6 +72,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::o
   }
 
   sqliteHelper.resetSelect();
+  bundle.Count = order;
   return;
 }
 

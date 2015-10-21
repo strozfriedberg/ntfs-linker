@@ -25,14 +25,17 @@ class IOContainer {
     std::ifstream IMft, IUsnJrnl, ILogFile;
     std::ofstream OUsnJrnl, OLogFile;
     fs::path Dir;
+    std::string Snapshot;
 };
 
 typedef std::unique_ptr<IOContainer> IOContainerPtr;
 
 struct IOBundle {
+  IOBundle() : Count(0) {}
   std::vector<IOContainerPtr> Containers;
   SQLiteHelper SqliteHelper;
   std::ofstream Events;
+  unsigned int Count;
 };
 
 void run(Options& opts);

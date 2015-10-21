@@ -1,5 +1,6 @@
 #pragma once
 
+#include "controller.h"
 #include "file.h"
 #include "util.h"
 #include "sqlite_util.h"
@@ -23,4 +24,4 @@ public:
   bool IsAnchor, IsEmbedded;
 };
 
-void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, std::ofstream& o_events, std::string snapshot);
+void outputEvents(std::vector<File>& records, IOBundle& bundle, std::string snapshot);

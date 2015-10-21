@@ -9,7 +9,7 @@
 
 #include <boost/scoped_array.hpp>
 
-IOContainer::IOContainer(Options& opts) : Dir(opts.input) {
+IOContainer::IOContainer(Options& opts) : Dir(opts.input), Snapshot(Dir.string()) {
   IMft.open((opts.input / fs::path("$MFT")).string(), std::ios::binary);
   IUsnJrnl.open((opts.input / fs::path("$UsnJrnl")).string(), std::ios::binary);
   ILogFile.open((opts.input / fs::path("$LogFile")).string(), std::ios::binary);
@@ -68,30 +68,30 @@ void setupIO(Options& opts, IOBundle& ioBundle) {
     ioBundle.Containers.push_back(IOContainerPtr(new IOContainer(opts)));
   }
 
-  prep_ofstream(ioBundle.Events, (opts.output / fs::path("events.txt")).string() , opts.overwrite);
+  prep_ofstream(ioBundle.Events, (opts.output / fs::path("events.txt")).string(), opts.overwrite);
   std::cout << "Setting up DB Connection..." << std::endl;
   std::string dbName = (opts.output / fs::path("ntfs.db")).string();
   ioBundle.SqliteHelper.init(dbName, opts.overwrite);
 }
 
-int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, std::string snapshot, bool extra) {
+int processStep(IOContainer& container, SQLiteHelper& sqliteHelper, bool extra) {
   //Set up db connection
   std::vector<File> records;
   std::cout << "Creating MFT Map..." << std::endl;
   parseMFT(records, container.IMft);
 
   std::cout << "Parsing USNJrnl..." << std::endl;
-  parseUSN(records, sqliteHelper, container.IUsnJrnl, container.OUsnJrnl, snapshot, extra);
+  parseUSN(records, sqliteHelper, container.IUsnJrnl, container.OUsnJrnl, container.Snapshot, extra);
   std::cout << "Parsing LogFile..." << std::endl;
-  parseLog(records, sqliteHelper, container.ILogFile, container.OLogFile, snapshot, extra);
+  parseLog(records, sqliteHelper, container.ILogFile, container.OLogFile, container.Snapshot, extra);
   return 0;
 }
 
-int processFinalize(IOBundle& bundle, IOContainer& container, std::string snapshot) {
+int processFinalize(IOBundle& bundle, IOContainer& container) {
   std::vector<File> records;
   parseMFT(records, container.IMft);
 
-  outputEvents(records, bundle.SqliteHelper, bundle.Events, snapshot);
+  outputEvents(records, bundle, container.Snapshot);
 
   return 0;
 }
@@ -102,7 +102,7 @@ void run(Options& opts) {
 
   for (auto& container: bundle.Containers) {
     std::cout << "Pre-processing: " << container->Dir << std::endl;
-    processStep(*container, bundle.SqliteHelper, container->Dir.string(), opts.extra);
+    processStep(*container, bundle.SqliteHelper, opts.extra);
   }
   bundle.SqliteHelper.commit();
 
@@ -111,7 +111,7 @@ void run(Options& opts) {
   std::vector<IOContainerPtr>::reverse_iterator rIt;
   for (rIt = bundle.Containers.rbegin(); rIt != bundle.Containers.rend(); ++rIt) {
     std::cout << "Processing: " << (*rIt)->Dir << std::endl;
-    processFinalize(bundle, **rIt, (*rIt)->Dir.string());
+    processFinalize(bundle, **rIt);
   }
   bundle.SqliteHelper.close();
   std::cout << "Process complete." << std::endl;
