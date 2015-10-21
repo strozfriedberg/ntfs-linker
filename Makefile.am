@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir)/include/utf8 $(NL_CPPFLAGS)
+AM_CPPFLAGS = -I$(srcdir)/include $(NL_CPPFLAGS)
 AM_CXXFLAGS = $(NL_CXXFLAGS)
 AM_LDFLAGS = $(NL_LDFLAGS)
 

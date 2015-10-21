@@ -280,7 +280,6 @@ void VSS::freeSnapshot() {
 }
 
 VSS::~VSS() {
-  std::cout << "~VSS" << std::endl;
   int rtnVal;
   freeSnapshot();
   if (Volume) {
