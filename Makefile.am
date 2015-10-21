@@ -6,18 +6,19 @@ AM_LDFLAGS = $(NL_LDFLAGS)
 
 src_common_SOURCES = \
 	src/aggregate.cpp \
-	src/util.cpp \
+	src/controller.cpp \
 	src/log.cpp \
 	src/mft.cpp \
 	src/progress.cpp \
+	src/sqlite_util.cpp \
 	src/usn.cpp \
+	src/util.cpp \
 	src/vss.cpp \
 	src/walkers.cpp
 
 src_ntfs_linker_SOURCES = $(src_common_SOURCES)
 src_ntfs_linker_SOURCES += \
-	src/ntfs_linker.cpp \
-	src/sqlite_util.cpp
+	src/ntfs_linker.cpp
 
 src_ntfs_linker_LDADD = $(NL_LIBS)
 
