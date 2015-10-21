@@ -93,6 +93,14 @@ While a file name can be extracted directly from a Log/Usn entry, the paths must
 The "folder" path is the calculated path to the parent directory, and the "Path" column is the calculated path to the
 MFT record number if available.
 
+NTFS-Linker tracks through time what each record's parent is. For events where a
+recordnum and a parent recordnum can be recovered, it's possible that, in ntfs-linker's
+current conception of the file system, these records are unrelated! In this case
+the "Folder" and "Full Path" columns of the event will be mismatched. Generally,
+the "Folder" will represent the path to the parent folder where the event occurred,
+and "Full Path" will represent the path to the file which NTFS-Linker previously
+thoguht was at that record.
+
 #### Anchor and Event Ordering
 While the exact order of `$LogFile` and `$UsnJrnl` events individually is known, the combined
 ordering is not. They must be ordered according to the event timestamps, but NTFS-Linker places more confidence in
