@@ -78,7 +78,7 @@ FNAttribute::FNAttribute(char* buffer) {
   LogicalSize           = hex_to_long(buffer + 0x28, 8);
   PhysicalSize          = hex_to_long(buffer + 0x30, 8);
   unsigned int name_len = hex_to_long(buffer + 0x40, 1);
-  Name                  = mbcatos    (buffer + 0x42, name_len);
+  Name                  = mbcatos    (buffer + 0x42, 2*name_len);
   Valid                 = true;
 }
 

@@ -389,7 +389,7 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
       Timestamp = filetime_to_iso_8601(hex_to_long(redo_data + 0x18, 8));
 
       unsigned int len = hex_to_long(redo_data + 0x50, 1);
-      std::string new_name = mbcatos(redo_data + 0x52, len);
+      std::string new_name = mbcatos(redo_data + 0x52, 2*len);
       if (compareNames(Name, new_name))
         Name = new_name;
     }

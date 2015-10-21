@@ -1,5 +1,5 @@
 #include "file.h"
-#include "utf8.h"
+#include "unicode.h"
 #include "util.h"
 
 #include <algorithm>
@@ -8,9 +8,12 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <tsk/libtsk.h>
 
 /*
 Returns the first SIZE bytes of the character array as a int64_t
@@ -68,22 +71,41 @@ Multi-byte character array to UTF8 string
 Reads each 2 bytes of the charater array as a wide character and converts the UTF16 (??) result wstring to UTF8 string
 Length of output string is len, reads len*2 bytes
 */
-std::string mbcatos(const char* arr, uint64_t len) {
-  std::vector<unsigned short> utf16;
-  for(unsigned int i = 0; i < len; i++) {
-    utf16.push_back(arr[2*i] + (arr[2*i+1]<<8));
+//std::string mbcatos(const char* arr, uint64_t len) {
+//  std::vector<unsigned short> utf16;
+//  for(unsigned int i = 0; i < len; i++) {
+//    utf16.push_back(arr[2*i] + (arr[2*i+1]<<8));
+//  }
+//  std::string utf8;
+//  try {
+//    utf8::utf16to8(utf16.begin(), utf16.end(), std::back_inserter(utf8));
+//  } catch(utf8::invalid_utf16& e) {
+//    return "ERROR";
+//  }
+//  //delete any \t \r \n from utf8 string
+//  char chars[] = "\t\r\n";
+//  for(int i = 0; i < 3; i++)
+//    utf8.erase(std::remove(utf8.begin(), utf8.end(), chars[i]), utf8.end());
+//  return utf8;
+//}
+
+std::string mbcatos(const char* buf, uint64_t len) {
+  std::unique_ptr<char[]> utf8(new char[2 * len]);
+  char* utf8Buf = utf8.get();
+  const char* end = buf + len;
+  int32_t cp;
+  while (buf < end) {
+    int rtn;
+    rtn = utf16_to_cp<true>(buf, end, cp);
+    if (rtn == 0)
+      return "ERROR";
+    buf += rtn;
+    rtn = cp_to_utf8(cp, utf8Buf);
+    if (rtn == 0)
+      return "ERROR";
+    utf8Buf+= rtn;
   }
-  std::string utf8;
-  try {
-    utf8::utf16to8(utf16.begin(), utf16.end(), std::back_inserter(utf8));
-  } catch(utf8::invalid_utf16& e) {
-    return "ERROR";
-  }
-  //delete any \t \r \n from utf8 string
-  char chars[] = "\t\r\n";
-  for(int i = 0; i < 3; i++)
-    utf8.erase(std::remove(utf8.begin(), utf8.end(), chars[i]), utf8.end());
-  return utf8;
+  return std::string(utf8.get(), utf8Buf);
 }
 
 /*
