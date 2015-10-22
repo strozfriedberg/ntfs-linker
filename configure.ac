@@ -24,7 +24,7 @@ AX_APPEND_COMPILE_FLAGS([-pthread -D__VERSION="'\"ntfs_linker_version\"'"], [NL_
 # pkg-config doesn't look in /usr/local/lib on some systems
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
 
-PKG_CHECK_MODULES([BFIO], [libbfio])
+PKG_CHECK_MODULES([BFIO], [libbfio], [AC_DEFINE([HAVE_LIBBFIO], [1], [Lets libewf, libvshadow know we have libbfio.])])
 PKG_CHECK_MODULES([EWF], [libewf])
 PKG_CHECK_MODULES([SQLITE], [sqlite3])
 PKG_CHECK_MODULES([VSHADOW], [libvshadow])
