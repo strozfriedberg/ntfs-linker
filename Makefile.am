@@ -31,7 +31,6 @@ test_test_SOURCES = $(src_common_SOURCES)
 test_test_SOURCES += \
 	test/test.cpp \
 	test/test_util.cpp \
-	test/test_lnis.cpp \
 	test/test_usn.cpp
 
 test_test_CPPFLAGS = $(AM_CPPFLAGS) $(SCOPE_CPPFLAGS)
