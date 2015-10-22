@@ -134,7 +134,7 @@ std::string Event::getColumnHeaders() {
   return ss.str();
 }
 
-void Event::write(int order, std::ostream& out, std::vector<File>& records) {
+void Event::write(int order, std::ostream& out, const std::vector<File>& records) {
   out << order                                                                         << "\t"
       << (IsAnchor ? Timestamp : "")                                                   << "\t"
       << (IsEmbedded ? EventSources::SOURCE_EMBEDDED_USN : static_cast<EventSources>(Source)) << "\t"
