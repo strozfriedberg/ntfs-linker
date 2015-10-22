@@ -1,7 +1,7 @@
 #include <scope/test.h>
 #include <cstring>
 
-#include "helper_functions.h"
+#include "util.h"
 
 SCOPE_TEST(testUnpack) {
   SCOPE_ASSERT_EQUAL(16, hex_to_long("\x0010\x0000\x0000\x0000", 4));
