@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <tsk/libtsk.h>
 #include <libbfio.h>
 #include <libvshadow.h>
