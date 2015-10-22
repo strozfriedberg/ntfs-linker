@@ -30,7 +30,7 @@ void outputEvents(std::vector<File>& records, IOBundle& bundle, std::string snap
   // Output log events until the log event is a create, so we can compare timestamps properly.
   while (l == SQLITE_ROW) {
     logEvent.init(sqliteHelper.EventLogSelect);
-    if (logEvent.Type == EventTypes::CREATE) {
+    if (logEvent.Type == EventTypes::TYPE_CREATE) {
       break;
     }
     logEvent.IsAnchor = false;
@@ -51,7 +51,7 @@ void outputEvents(std::vector<File>& records, IOBundle& bundle, std::string snap
 
       while (l == SQLITE_ROW) {
         logEvent.init(sqliteHelper.EventLogSelect);
-        if (logEvent.Type == EventTypes::CREATE) {
+        if (logEvent.Type == EventTypes::TYPE_CREATE) {
           break;
         }
         l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
@@ -137,7 +137,7 @@ std::string Event::getColumnHeaders() {
 void Event::write(int order, std::ostream& out, std::vector<File>& records) {
   out << order                                                                         << "\t"
       << (IsAnchor ? Timestamp : "")                                                   << "\t"
-      << (IsEmbedded ? EventSources::EMBEDDED_USN : static_cast<EventSources>(Source)) << "\t"
+      << (IsEmbedded ? EventSources::SOURCE_EMBEDDED_USN : static_cast<EventSources>(Source)) << "\t"
       << static_cast<EventTypes>(Type)                                                 << "\t"
       << Name                                                                          << "\t"
       << (Parent == -1 ? "" : getFullPath(records, Parent))                            << "\t"
@@ -159,23 +159,23 @@ void Event::write(int order, std::ostream& out, std::vector<File>& records) {
 void Event::updateRecords(std::vector<File>& records) {
   std::vector<File>::iterator it;
   switch(Type) {
-    case EventTypes::CREATE:
+    case EventTypes::TYPE_CREATE:
       // A file was created, so to move backwards, we should delete it
       // But let's leave it be.
       //records[Record].Valid = false;
       //records[Record] = File();
       break;
-    case EventTypes::DELETE:
+    case EventTypes::TYPE_DELETE:
       // A file was deleted, so to move backwards, create it
       if (Record >= 0)
         records[Record] = File(Name, Record, Parent, Timestamp);
       break;
-    case EventTypes::MOVE:
+    case EventTypes::TYPE_MOVE:
       // Embedded events haven't been aggregated, so before/after name not known
       if (!IsEmbedded)
         records[Record].Parent = PreviousParent;
       break;
-    case EventTypes::RENAME:
+    case EventTypes::TYPE_RENAME:
       // Embedded events haven't been aggregated, so before/after name not known
       if (!IsEmbedded && PreviousName != "")
         records[Record].Name = PreviousName;

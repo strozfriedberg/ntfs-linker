@@ -114,8 +114,8 @@ int SQLiteHelper::prepareStatement(sqlite3_stmt **stmt, std::string& sql) {
 }
 
 void SQLiteHelper::bindForSelect(std::string snapshot) {
-  sqlite3_bind_int64(EventUsnSelect, 1, EventSources::USN);
-  sqlite3_bind_int64(EventLogSelect, 1, EventSources::LOG);
+  sqlite3_bind_int64(EventUsnSelect, 1, EventSources::SOURCE_USN);
+  sqlite3_bind_int64(EventLogSelect, 1, EventSources::SOURCE_LOG);
 
   sqlite3_bind_text(EventUsnSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(EventLogSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);

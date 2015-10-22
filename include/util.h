@@ -24,16 +24,16 @@ std::string getFullPath(const std::vector<File>& records, unsigned int recordNo)
 void prep_ofstream(std::ofstream& out, const std::string& name, bool overwrite);
 
 enum EventSources: unsigned int {
-  USN = 0,
-  LOG = 1,
-  EMBEDDED_USN = 2,
+  SOURCE_USN = 0,
+  SOURCE_LOG = 1,
+  SOURCE_EMBEDDED_USN = 2,
 };
 
 enum EventTypes: unsigned int {
-  CREATE = 0,
-  DELETE = 1,
-  RENAME = 2,
-  MOVE = 3,
+  TYPE_CREATE = 0,
+  TYPE_DELETE = 1,
+  TYPE_RENAME = 2,
+  TYPE_MOVE = 3,
 };
 
 std::ostream& operator<<(std::ostream& out, EventTypes e);

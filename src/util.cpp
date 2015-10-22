@@ -153,11 +153,11 @@ void prep_ofstream(std::ofstream& out, const std::string& name, bool overwrite) 
 
 std::ostream& operator<<(std::ostream& out, EventTypes e) {
   switch(e) {
-    case EventTypes::CREATE:
+    case EventTypes::TYPE_CREATE:
       return out << "Create";
-    case EventTypes::DELETE:
+    case EventTypes::TYPE_DELETE:
       return out << "Delete";
-    case EventTypes::MOVE:
+    case EventTypes::TYPE_MOVE:
       return out << "Move";
     default:
       return out << "Rename";
@@ -166,11 +166,11 @@ std::ostream& operator<<(std::ostream& out, EventTypes e) {
 
 std::ostream& operator<<(std::ostream& out, EventSources e) {
   switch(e) {
-    case EventSources::USN:
+    case EventSources::SOURCE_USN:
       return out << "$UsnJrnl/$J";
-    case EventSources::LOG:
+    case EventSources::SOURCE_LOG:
       return out << "$LogFile";
-    case EventSources::EMBEDDED_USN:
+    case EventSources::SOURCE_EMBEDDED_USN:
       return out << "$UsnJrnl entry in $LogFile";
     default:
       return out << "N/A";

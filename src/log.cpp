@@ -133,16 +133,16 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       transactions.processLogRecord(records, rec, sqliteHelper, cur_offset);
       if(transactions.isTransactionOver()) {
         if(transactions.isCreateEvent()) {
-          transactions.insertEvent(EventTypes::CREATE, sqliteHelper.EventInsert);
+          transactions.insertEvent(EventTypes::TYPE_CREATE, sqliteHelper.EventInsert);
         }
         if(transactions.isDeleteEvent()) {
-          transactions.insertEvent(EventTypes::DELETE, sqliteHelper.EventInsert);
+          transactions.insertEvent(EventTypes::TYPE_DELETE, sqliteHelper.EventInsert);
         }
         if(transactions.isRenameEvent()) {
-          transactions.insertEvent(EventTypes::RENAME, sqliteHelper.EventInsert);
+          transactions.insertEvent(EventTypes::TYPE_RENAME, sqliteHelper.EventInsert);
         }
         if(transactions.isMoveEvent()) {
-          transactions.insertEvent(EventTypes::MOVE, sqliteHelper.EventInsert);
+          transactions.insertEvent(EventTypes::TYPE_MOVE, sqliteHelper.EventInsert);
         }
         transactions.clearFields();
       }
@@ -458,7 +458,7 @@ void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text (stmt, ++i, Name.c_str()        , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, type);
-  sqlite3_bind_int64(stmt, ++i, EventSources::LOG);
+  sqlite3_bind_int64(stmt, ++i, EventSources::SOURCE_LOG);
   sqlite3_bind_int64(stmt, ++i, 0);  // Not embedded
   sqlite3_bind_int64(stmt, ++i, Offset);
   sqlite3_bind_text (stmt, ++i, Created.c_str()     , -1, SQLITE_TRANSIENT);

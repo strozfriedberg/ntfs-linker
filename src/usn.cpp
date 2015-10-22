@@ -290,7 +290,7 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text(stmt , ++i, Name.c_str()        , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text(stmt , ++i, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, type);
-  sqlite3_bind_int64(stmt, ++i, EventSources::USN);
+  sqlite3_bind_int64(stmt, ++i, EventSources::SOURCE_USN);
   sqlite3_bind_int64(stmt, ++i, IsEmbedded);
   sqlite3_bind_int64(stmt, ++i, FileOffset);
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Created
@@ -324,15 +324,15 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
 
 void UsnRecord::checkTypeAndInsert(sqlite3_stmt* stmt) {
   if (Reason & UsnReasons::FILE_CREATE)
-    insertEvent(EventTypes::CREATE, stmt);
+    insertEvent(EventTypes::TYPE_CREATE, stmt);
   if (Reason & UsnReasons::FILE_DELETE)
-    insertEvent(EventTypes::DELETE, stmt);
+    insertEvent(EventTypes::TYPE_DELETE, stmt);
   if (PreviousName != Name
       && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME))
       && PreviousName != "")
-    insertEvent(EventTypes::RENAME, stmt);
+    insertEvent(EventTypes::TYPE_RENAME, stmt);
   if (Parent != PreviousParent
       && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME))
       && PreviousParent != -1)
-    insertEvent(EventTypes::MOVE, stmt);
+    insertEvent(EventTypes::TYPE_MOVE, stmt);
 }
