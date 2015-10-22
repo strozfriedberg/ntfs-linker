@@ -32,27 +32,27 @@ Typically, as operations are performed on a file these reason codes are combined
 std::string UsnRecord::getReasonString() {
   std::stringstream ss;
   ss << "USN";
-  if (Reason & UsnReasons::BASIC_INFO_CHANGE)         ss << "|BASIC_INFO_CHANGE";
-  if (Reason & UsnReasons::CLOSE)                     ss << "|CLOSE";
-  if (Reason & UsnReasons::COMPRESSION_CHANGE)        ss << "|COMPRESSION_CHANGE";
-  if (Reason & UsnReasons::DATA_EXTEND)               ss << "|DATA_EXTEND";
-  if (Reason & UsnReasons::DATA_OVERWRITE)            ss << "|DATA_OVERWRITE";
-  if (Reason & UsnReasons::DATA_TRUNCATION)           ss << "|DATA_TRUNCATION";
-  if (Reason & UsnReasons::EXTENDED_ATTRIBUTE_CHANGE) ss << "|EXTENDED_ATTRIBUTE_CHANGE";
-  if (Reason & UsnReasons::ENCRYPTION_CHANGE)         ss << "|ENCRYPTION_CHANGE";
-  if (Reason & UsnReasons::FILE_CREATE)               ss << "|FILE_CREATE";
-  if (Reason & UsnReasons::FILE_DELETE)               ss << "|FILE_DELETE";
-  if (Reason & UsnReasons::HARD_LINK_CHANGE)          ss << "|HARD_LINK_CHANGE";
-  if (Reason & UsnReasons::INDEXABLE_CHANGE)          ss << "|INDEXABLE_CHANGE";
-  if (Reason & UsnReasons::NAMED_DATA_EXTEND)         ss << "|NAMED_DATA_EXTEND";
-  if (Reason & UsnReasons::NAMED_DATA_OVERWRITE)      ss << "|NAMED_DATA_OVERWRITE";
-  if (Reason & UsnReasons::NAMED_DATA_TRUNCATION)     ss << "|NAMED_DATA_TRUNCATION";
-  if (Reason & UsnReasons::OBJECT_ID_CHANGE)          ss << "|OBJECT_ID_CHANGE";
-  if (Reason & UsnReasons::RENAME_NEW_NAME)           ss << "|RENAME_NEW_NAME";
-  if (Reason & UsnReasons::RENAME_OLD_NAME)           ss << "|RENAME_OLD_NAME";
-  if (Reason & UsnReasons::REPARSE_POINT_CHANGE)      ss << "|REPARSE_POINT_CHANGE";
-  if (Reason & UsnReasons::SECURITY_CHANGE)           ss << "|SECURITY_CHANGE";
-  if (Reason & UsnReasons::STREAM_CHANGE)             ss << "|STREAM_CHANGE";
+  if (Reason & UsnReasons::USN_BASIC_INFO_CHANGE)         ss << "|BASIC_INFO_CHANGE";
+  if (Reason & UsnReasons::USN_CLOSE)                     ss << "|CLOSE";
+  if (Reason & UsnReasons::USN_COMPRESSION_CHANGE)        ss << "|COMPRESSION_CHANGE";
+  if (Reason & UsnReasons::USN_DATA_EXTEND)               ss << "|DATA_EXTEND";
+  if (Reason & UsnReasons::USN_DATA_OVERWRITE)            ss << "|DATA_OVERWRITE";
+  if (Reason & UsnReasons::USN_DATA_TRUNCATION)           ss << "|DATA_TRUNCATION";
+  if (Reason & UsnReasons::USN_EXTENDED_ATTRIBUTE_CHANGE) ss << "|EXTENDED_ATTRIBUTE_CHANGE";
+  if (Reason & UsnReasons::USN_ENCRYPTION_CHANGE)         ss << "|ENCRYPTION_CHANGE";
+  if (Reason & UsnReasons::USN_FILE_CREATE)               ss << "|FILE_CREATE";
+  if (Reason & UsnReasons::USN_FILE_DELETE)               ss << "|FILE_DELETE";
+  if (Reason & UsnReasons::USN_HARD_LINK_CHANGE)          ss << "|HARD_LINK_CHANGE";
+  if (Reason & UsnReasons::USN_INDEXABLE_CHANGE)          ss << "|INDEXABLE_CHANGE";
+  if (Reason & UsnReasons::USN_NAMED_DATA_EXTEND)         ss << "|NAMED_DATA_EXTEND";
+  if (Reason & UsnReasons::USN_NAMED_DATA_OVERWRITE)      ss << "|NAMED_DATA_OVERWRITE";
+  if (Reason & UsnReasons::USN_NAMED_DATA_TRUNCATION)     ss << "|NAMED_DATA_TRUNCATION";
+  if (Reason & UsnReasons::USN_OBJECT_ID_CHANGE)          ss << "|OBJECT_ID_CHANGE";
+  if (Reason & UsnReasons::USN_RENAME_NEW_NAME)           ss << "|RENAME_NEW_NAME";
+  if (Reason & UsnReasons::USN_RENAME_OLD_NAME)           ss << "|RENAME_OLD_NAME";
+  if (Reason & UsnReasons::USN_REPARSE_POINT_CHANGE)      ss << "|REPARSE_POINT_CHANGE";
+  if (Reason & UsnReasons::USN_SECURITY_CHANGE)           ss << "|SECURITY_CHANGE";
+  if (Reason & UsnReasons::USN_STREAM_CHANGE)             ss << "|STREAM_CHANGE";
   return ss.str();
 }
 
@@ -165,7 +165,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       rec.insert(sqliteHelper.UsnInsert, records);
     }
 
-    if (prevRec.Record != rec.Record || prevRec.Reason & UsnReasons::CLOSE) {
+    if (prevRec.Record != rec.Record || prevRec.Reason & UsnReasons::USN_CLOSE) {
       prevRec.checkTypeAndInsert(sqliteHelper.EventInsert);
       prevRec.clearFields();
     }
@@ -207,12 +207,12 @@ int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_of
 void UsnRecord::update(UsnRecord rec) {
     Reason |= rec.Reason;
 
-    if (rec.Reason & UsnReasons::RENAME_OLD_NAME) {
+    if (rec.Reason & UsnReasons::USN_RENAME_OLD_NAME) {
       PreviousName = rec.Name;
       PreviousParent = rec.Parent;
     }
 
-    if (rec.Reason & UsnReasons::RENAME_NEW_NAME) {
+    if (rec.Reason & UsnReasons::USN_RENAME_NEW_NAME) {
       Name = rec.Name;
       Parent = rec.Parent;
     }
@@ -323,16 +323,16 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
 }
 
 void UsnRecord::checkTypeAndInsert(sqlite3_stmt* stmt) {
-  if (Reason & UsnReasons::FILE_CREATE)
+  if (Reason & UsnReasons::USN_FILE_CREATE)
     insertEvent(EventTypes::TYPE_CREATE, stmt);
-  if (Reason & UsnReasons::FILE_DELETE)
+  if (Reason & UsnReasons::USN_FILE_DELETE)
     insertEvent(EventTypes::TYPE_DELETE, stmt);
   if (PreviousName != Name
-      && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME))
+      && (Reason & (UsnReasons::USN_RENAME_NEW_NAME | UsnReasons::USN_RENAME_OLD_NAME))
       && PreviousName != "")
     insertEvent(EventTypes::TYPE_RENAME, stmt);
   if (Parent != PreviousParent
-      && (Reason & (UsnReasons::RENAME_NEW_NAME | UsnReasons::RENAME_OLD_NAME))
+      && (Reason & (UsnReasons::USN_RENAME_NEW_NAME | UsnReasons::USN_RENAME_OLD_NAME))
       && PreviousParent != -1)
     insertEvent(EventTypes::TYPE_MOVE, stmt);
 }
