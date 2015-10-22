@@ -20,7 +20,7 @@ class TskVolumeBfioShim {
     int close(intptr_t *io_handle, libbfio_error_t **error);
     ssize_t read(intptr_t *io_handle, uint8_t *buffer, size_t size, libbfio_error_t **error);
     ssize_t write(intptr_t *io_handle, const uint8_t *buffer, size_t size, libbfio_error_t **error);
-    ssize_t seek_offset(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error);
+    off64_t seek_offset(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error);
     int exists(intptr_t *io_handle, libbfio_error_t **error);
     int is_open(intptr_t *io_handle, libbfio_error_t **error);
     int get_size(intptr_t *io_handle, size64_t *size, libbfio_error_t **error);

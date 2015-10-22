@@ -40,7 +40,7 @@ ssize_t tvb_shim_read_wrapper(intptr_t *io_handle, uint8_t *buffer, size_t size,
   { return globalTVBShim->read(io_handle, buffer, size, error); }
 ssize_t tvb_shim_write_wrapper(intptr_t *io_handle, const uint8_t *buffer, size_t size, libbfio_error_t **error)
   { return globalTVBShim->write(io_handle,  buffer, size, error); }
-ssize_t tvb_shim_seek_offset_wrapper(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error)
+off64_t tvb_shim_seek_offset_wrapper(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error)
   { return globalTVBShim->seek_offset(io_handle, offset, whence, error); }
 int tvb_shim_exists_wrapper(intptr_t *io_handle, libbfio_error_t **error)
   { return globalTVBShim->exists(io_handle, error); }
@@ -118,7 +118,7 @@ ssize_t TskVolumeBfioShim::write(intptr_t *io_handle, const uint8_t *buffer, siz
   return -1;
 }
 
-ssize_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error) {
+off64_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error) {
   (void)error;
   if (Fs->tag != *io_handle) {
     std::cerr << "Invalid tag at line: " << __LINE__ << std::endl;
@@ -139,7 +139,7 @@ ssize_t TskVolumeBfioShim::seek_offset(intptr_t *io_handle, off64_t offset, int 
       return -1;
   }
 
-  return 1;
+  return Offset;
 }
 
 int TskVolumeBfioShim::exists(intptr_t *io_handle, libbfio_error_t ** error) {
