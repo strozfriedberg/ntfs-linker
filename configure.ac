@@ -38,6 +38,22 @@ AX_CHECK_LIBRARY([TSK], [tsk/libtsk.h], [tsk],
                  [AC_MSG_ERROR([Failed to find libtsk])])
 AC_SUBST([TSK_LIBS])
 
+# Check that libvshadow has bfio
+AC_EGREP_CPP(yes,
+             [#include <libvshadow.h>
+              #ifndef LIBVSHADOW_HAVE_BFIO
+              yes
+              #endif
+              ], AC_MSG_ERROR([libvshadow does not have libbfio.]))
+
+# Check that libtsk doesn't have multithread
+AC_EGREP_CPP(yes,
+             [#include <tsk/libtsk.h>
+              #ifdef TSK_MULTITHREAD_LIB
+              yes 
+              #endif
+              ], AC_MSG_ERROR([libtsk has multithreading but should not.]))
+
 #
 # Boost
 #
