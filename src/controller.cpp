@@ -51,6 +51,10 @@ void setupIO(Options& opts, IOBundle& ioBundle) {
   }
 
   std::vector<fs::path> children;
+  if (!fs::exists(opts.input)) {
+    std::cerr << "Input directory does not exist. Exiting..." << std::endl;
+    exit(1);
+  }
   std::copy(fs::directory_iterator(opts.input), fs::directory_iterator(), std::back_inserter(children));
   std::sort(children.begin(), children.end());
   bool containsDirectories = false;
