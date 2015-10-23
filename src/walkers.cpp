@@ -44,18 +44,18 @@ void write_file(FileCopy& param) {
 
   std::ofstream out(param.Out, std::ios::out | std::ios::binary | std::ios::trunc);
   const size_t buffer_size = 1048576;
-  static char buffer[buffer_size];
+  std::unique_ptr<char[]> buffer(new char[buffer_size]);
   while (1) {
     ssize_t bytesRead;
     if (ads) {
-      bytesRead = tsk_fs_file_read_type(file, type, id, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
+      bytesRead = tsk_fs_file_read_type(file, type, id, offset, buffer.get(), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
     }
     else {
-      bytesRead = tsk_fs_file_read(file, offset, reinterpret_cast<char*>(&buffer), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
+      bytesRead = tsk_fs_file_read(file, offset, buffer.get(), buffer_size, TSK_FS_FILE_READ_FLAG_NONE);
     }
     if (bytesRead == -1)
       break;
-    out.write(reinterpret_cast<char*>(&buffer), bytesRead);
+    out.write(buffer.get(), bytesRead);
     offset += bytesRead;
   }
   out.close();

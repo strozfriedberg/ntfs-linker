@@ -14,10 +14,10 @@ class VSSException : public std::exception {
   public:
     VSSException(libcerror_error_t* error) : Error(error) {}
     virtual const char* what() const throw() {
-      static char errStr[1024];
+      std::unique_ptr<char[]> errStr(new char[1024]);
       std::stringstream ss;
-      libcerror_error_sprint(Error, errStr, 1024);
-      ss << "VSS Exception: " << errStr;
+      libcerror_error_sprint(Error, errStr.get(), 1024);
+      ss << "VSS Exception: " << errStr.get();
       return ss.str().c_str();
     }
 

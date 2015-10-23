@@ -3,6 +3,7 @@
 #include "usn.h"
 
 #include <cstring>
+#include <memory>
 #include <sqlite3.h>
 #include <sstream>
 
@@ -98,7 +99,8 @@ Parses all records found in the USN file represented by input. Uses the records 
 Outputs the results to several streams.
 */
 void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot, bool extra) {
-  static char buffer[USN_BUFFER_SIZE];
+  std::unique_ptr<char[]> bufPtr(new char[USN_BUFFER_SIZE]);
+  char* buffer = bufPtr.get();
 
   int records_processed = -1;
 
