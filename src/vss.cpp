@@ -5,6 +5,7 @@
 #include <tsk/libtsk.h>
 #include <libcerror.h>
 
+#include <cstring>
 #include <sstream>
 #include <iostream>
 
@@ -230,6 +231,7 @@ ssize_t VShadowTskVolumeShim::read(TSK_OFF_T off, char* buf, size_t len) {
 }
 
 TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
+  memset(img, 0, sizeof(TSK_IMG_INFO));
   img->close = &vstv_shim_close;
   img->imgstat = &vstv_shim_imgstat;
   img->itype = TSK_IMG_TYPE_EXTERNAL;
