@@ -196,6 +196,11 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       for(unsigned int i = 1; write_offset < new_size; i++) {
         temp = new char[4096];
         input.read(temp, 4096);
+        if(input.eof()) {
+          done = true;
+          delete[] temp;
+          break;
+        }
         doFixup(temp, 4096, 512);
 
         update_seq_offset = hex_to_long(temp + 0x4, 2);

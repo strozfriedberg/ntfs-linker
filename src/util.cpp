@@ -3,6 +3,7 @@
 #include "util.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -53,6 +54,9 @@ Returned string format is YYYY-MM-DD HH:MM:SS 0000000 (nanoseconds)
 */
 std::string filetime_to_iso_8601(uint64_t t) {
   int64_t unixtime = filetime_to_unixtime(t);
+  if (unixtime > INT32_MAX) {
+    return "";
+  }
   time_t* time = (time_t*) &unixtime;
   struct tm* date = gmtime(time);
 
