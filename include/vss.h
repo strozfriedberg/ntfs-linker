@@ -26,31 +26,36 @@ class TskVolumeBfioShim {
     int is_open(libbfio_error_t **error);
     int get_size(size64_t *size, libbfio_error_t **error);
 
-    const int64_t Tag;
+    const uint32_t Tag;
   private:
     const TSK_FS_INFO* Fs;
     off64_t Offset;
     size64_t Size;
 };
+typedef std::unique_ptr<TskVolumeBfioShim> TskVolumeBfioShimPtr;
 
 typedef std::unique_ptr<TSK_IMG_INFO> TskImgInfoPtr;
 
-static const uint32_t VSTV_SHIM_TAG = 0xd70a6a3b;
 class VShadowTskVolumeShim {
   public:
-    VShadowTskVolumeShim(libvshadow_store_t* store) : Tag(VSTV_SHIM_TAG), Store(store) {}
-    void close(TSK_IMG_INFO* img) { (void)img; }
-    void imgstat(TSK_IMG_INFO* img, FILE* file) { (void)img; (void) file; }
-    ssize_t read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len);
+    VShadowTskVolumeShim(libvshadow_store_t* store) : Store(store) {}
+    void close() {}
+    void imgstat(FILE* file) { (void) file; }
+    ssize_t read(TSK_OFF_T off, char* buf, size_t len);
     TSK_FS_INFO* getTskFsInfo(TSK_IMG_INFO* img);
-
-    const int64_t Tag;
   private:
     libvshadow_store_t* Store;
 };
+typedef std::unique_ptr<VShadowTskVolumeShim> VShadowTskVolumeShimPtr;
 
-typedef std::unique_ptr<TskVolumeBfioShim> TskVolumeBfioShimPtr;
-typedef std::unique_ptr<VShadowTskVolumeShim> VshadowTskVolumeShimPtr;
+static const uint32_t IMG_VSS_INFO_TAG = 0xd70a6a3b;
+struct IMG_VSS_INFO {
+  IMG_VSS_INFO() : Tag(IMG_VSS_INFO_TAG) {}
+  TSK_IMG_INFO img_info;
+  VShadowTskVolumeShimPtr VstvShim;
+  const uint32_t Tag;
+};
+typedef std::unique_ptr<IMG_VSS_INFO> ImgVssInfoPtr;
 
 class VSS {
   public:
@@ -61,12 +66,12 @@ class VSS {
   private:
     void freeSnapshot();
 
-    libvshadow_volume_t* Volume;
-    libvshadow_store_t* Store;
-    TskImgInfoPtr VssImg;
-    TSK_FS_INFO* VssFs;
-    int NumStores;
     TskVolumeBfioShimPtr TvbShim;
-    TskVolumeBfioShim* TvbShimPtr;
     libbfio_handle_t* Handle;
+    libvshadow_volume_t* Volume;
+    int NumStores;
+    libvshadow_store_t* Store;
+    ImgVssInfoPtr VssInfo;
+    TSK_FS_INFO* VssFs;
+
 };

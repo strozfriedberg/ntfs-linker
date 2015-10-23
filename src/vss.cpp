@@ -8,8 +8,6 @@
 #include <sstream>
 #include <iostream>
 
-VshadowTskVolumeShimPtr globalVSTVShim;
-
 libcerror_error_t* error;
 
 class VSSException : public std::exception {
@@ -28,18 +26,18 @@ class VSSException : public std::exception {
 };
 // ==== TVB SHIM WRAPPER FUNCTIONS
 
-TskVolumeBfioShim* getShim(intptr_t *io_handle) {
+TskVolumeBfioShim* getTvbShim(intptr_t *io_handle) {
   if (io_handle == NULL)
     return NULL;
-  TskVolumeBfioShim* tvbShim = reinterpret_cast<TskVolumeBfioShim*>(*io_handle);
-  if (tvbShim == NULL || tvbShim->Tag != TVB_SHIM_TAG)
+  TskVolumeBfioShim* tvbShim = reinterpret_cast<TskVolumeBfioShim*>(io_handle);
+  if (tvbShim->Tag != TVB_SHIM_TAG)
     return NULL;
   return tvbShim;
 }
 
 int tvb_shim_free_wrapper(intptr_t** io_handle, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(*io_handle)))
+  if (!(tvbShim = getTvbShim(*io_handle)))
     return -1;
   int rtnVal = tvbShim->free(error);
   if (rtnVal == -1)
@@ -50,76 +48,98 @@ int tvb_shim_free_wrapper(intptr_t** io_handle, libbfio_error_t **error) {
 
 int tvb_shim_clone_wrapper(intptr_t **destination_io_handle, intptr_t *source_io_handle, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(source_io_handle)))
+  if (!(tvbShim = getTvbShim(source_io_handle)))
     return -1;
   return tvbShim->clone(destination_io_handle, error);
 }
 
 int tvb_shim_open_wrapper(intptr_t *io_handle, int access_flags, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->open(access_flags, error);
 }
 
 int tvb_shim_close_wrapper(intptr_t *io_handle, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->close(error);
 }
 
 ssize_t tvb_shim_read_wrapper(intptr_t *io_handle, uint8_t *buffer, size_t size, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->read(buffer, size, error);
 }
 
 ssize_t tvb_shim_write_wrapper(intptr_t *io_handle, const uint8_t *buffer, size_t size, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->write(buffer, size, error);
 }
 
 off64_t tvb_shim_seek_offset_wrapper(intptr_t *io_handle, off64_t offset, int whence, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->seek_offset(offset, whence, error);
 }
 
 int tvb_shim_exists_wrapper(intptr_t *io_handle, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->exists(error);
 }
 
 int tvb_shim_is_open_wrapper(intptr_t *io_handle, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->is_open(error);
 }
 
 int tvb_shim_get_size_wrapper(intptr_t *io_handle, size64_t *size, libbfio_error_t **error) {
   TskVolumeBfioShim* tvbShim;
-  if (!(tvbShim = getShim(io_handle)))
+  if (!(tvbShim = getTvbShim(io_handle)))
     return -1;
   return tvbShim->get_size(size, error);
 }
 
 // VSTV SHIM WRAPPER FUNCTIONS
-void vstv_shim_close(TSK_IMG_INFO* img)
-  { return globalVSTVShim->close(img); }
 
-void vstv_shim_imgstat(TSK_IMG_INFO* img, FILE* file)
-  { return globalVSTVShim->imgstat(img, file); }
+VShadowTskVolumeShim* getVstvShim(TSK_IMG_INFO* img_info) {
+  if (img_info == NULL)
+    return NULL;
+  IMG_VSS_INFO* vss_info = reinterpret_cast<IMG_VSS_INFO*>(img_info);
+  if (vss_info->Tag != IMG_VSS_INFO_TAG)
+    return NULL;
+  return vss_info->VstvShim.get();
+}
 
-ssize_t vstv_shim_read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len)
-  { return globalVSTVShim->read(img, off, buf, len); }
+void vstv_shim_close(TSK_IMG_INFO* img) {
+  VShadowTskVolumeShim* vstvShim;
+  if (!(vstvShim = getVstvShim(img)))
+    return;
+  return vstvShim->close();
+}
+
+void vstv_shim_imgstat(TSK_IMG_INFO* img, FILE* file) {
+  VShadowTskVolumeShim* vstvShim;
+  if (!(vstvShim = getVstvShim(img)))
+    return;
+  return vstvShim->imgstat(file);
+}
+
+ssize_t vstv_shim_read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len) {
+  VShadowTskVolumeShim* vstvShim;
+  if (!(vstvShim = getVstvShim(img)))
+    return -1;
+  return vstvShim->read(off, buf, len);
+}
 
 int TskVolumeBfioShim::free(libbfio_error_t ** error) {
   (void)error;
@@ -142,7 +162,6 @@ int TskVolumeBfioShim::close(libbfio_error_t ** error) {
   (void)error;
   return 0;
 }
-
 
 ssize_t TskVolumeBfioShim::read(uint8_t *buffer, size_t size, libbfio_error_t **error) {
   (void)error;
@@ -203,11 +222,7 @@ TskVolumeBfioShim::TskVolumeBfioShim(const TSK_FS_INFO* fs) : Tag(TVB_SHIM_TAG),
   Size = Fs->block_count * Fs->block_size;
 }
 
-ssize_t VShadowTskVolumeShim::read(TSK_IMG_INFO *img, TSK_OFF_T off, char* buf, size_t len) {
-  if (img->tag != TSK_IMG_INFO_TAG) {
-    std::cerr << "Invalid tag at line: " << __LINE__ << std::endl;
-    return -1;
-  }
+ssize_t VShadowTskVolumeShim::read(TSK_OFF_T off, char* buf, size_t len) {
   ssize_t rtnVal = libvshadow_store_read_buffer_at_offset(Store, buf, len, off, &error);
   if (rtnVal == -1) {
     throw VSSException(error);
@@ -235,13 +250,12 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
 
 }
 
-VSS::VSS(TSK_FS_INFO* fs) : Volume(NULL), Store(NULL), VssFs(NULL), NumStores(0), Handle(NULL) {
+VSS::VSS(TSK_FS_INFO* fs) : Handle(NULL), Volume(NULL), NumStores(0),  Store(NULL), VssFs(NULL) {
   int rtnVal;
   TvbShim = TskVolumeBfioShimPtr(new TskVolumeBfioShim(fs));
-  TvbShimPtr = TvbShim.get();
 
   rtnVal = libbfio_handle_initialize(&Handle,
-                                     reinterpret_cast<intptr_t*>(&TvbShimPtr),
+                                     reinterpret_cast<intptr_t*>(TvbShim.get()),
                                      &tvb_shim_free_wrapper,
                                      &tvb_shim_clone_wrapper,
                                      &tvb_shim_open_wrapper,
@@ -282,9 +296,9 @@ TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
     throw VSSException(error);
   }
 
-  globalVSTVShim = VshadowTskVolumeShimPtr(new VShadowTskVolumeShim(Store));
-  VssImg = TskImgInfoPtr(new TSK_IMG_INFO);
-  VssFs = globalVSTVShim -> getTskFsInfo(VssImg.get());
+  VssInfo = ImgVssInfoPtr(new IMG_VSS_INFO);
+  VssInfo->VstvShim = VShadowTskVolumeShimPtr(new VShadowTskVolumeShim(Store));
+  VssFs = VssInfo->VstvShim->getTskFsInfo(&VssInfo->img_info);
   return VssFs;
 }
 
@@ -296,9 +310,9 @@ void VSS::freeSnapshot() {
     VssFs = NULL;
   }
 
-  if (VssImg) {
-    tsk_img_close(VssImg.get());
-    VssImg = NULL;
+  if (VssInfo) {
+    tsk_img_close(&VssInfo->img_info);
+    VssInfo = NULL;
   }
 
   if (Store) {
