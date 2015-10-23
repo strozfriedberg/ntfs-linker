@@ -66,15 +66,15 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
   std::vector<FileCopy> params { FileCopy("/$MFT", "", (dir / fs::path("$MFT")).string()),
                                 FileCopy("/$LogFile", "", (dir / fs::path("$LogFile")).string()),
                                 FileCopy("/$Extend/$UsnJrnl", "$J", (dir / fs::path("$J")).string())};
-  for (auto it = params.begin(); it != params.end(); ++it) {
-    it->File = tsk_fs_file_open(fs, NULL, it->In.c_str());
-    if (!it->File) {
+  for (auto& param: params) {
+    param.File = tsk_fs_file_open(fs, NULL, param.In.c_str());
+    if (!param.File) {
       std::cerr << tsk_error_get() << std::endl;
       return 1;
     }
   }
 
-  for(auto param: params) {
+  for(auto& param: params) {
       write_file(param);
       tsk_fs_file_close(param.File);
   }

@@ -30,10 +30,7 @@ int main(int argc, char** argv) {
     po::store(po::command_line_parser(argc, argv).options(desc).run(), vm);
     po::notify(vm);
 
-
-    if (vm.count("overwrite")) {
-      opts.overwrite = true;
-    }
+    opts.overwrite = vm.count("overwrite");
     opts.extra = vm.count("extra");
 
     if (vm.count("help")) {

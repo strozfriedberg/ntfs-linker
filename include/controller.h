@@ -11,6 +11,7 @@
 namespace fs = boost::filesystem;
 
 struct Options {
+  Options() : overwrite(false), extra(false) {}
   fs::path input;
   fs::path output;
   bool overwrite;
