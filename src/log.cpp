@@ -87,6 +87,8 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     //check log record header
     if(hex_to_long(buffer, 4) != 0x44524352) {
       input.read(buffer, 4096);
+      if (input.eof())
+        break;
       doFixup(buffer, 4096, 512);
       buffer_size = 4096;
       adjust = 0;
@@ -161,12 +163,12 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       char* temp = new char[new_size];
       adjust = buffer_size - offset;
       input.read(temp + buffer_size - offset, 4096);
-      doFixup(temp + buffer_size - offset, 4096, 512);
       if(input.eof()) {
         done = true;
         delete[] temp;
         break;
       }
+      doFixup(temp + buffer_size - offset, 4096, 512);
 
       update_seq_offset = hex_to_long(temp + buffer_size - offset + 0x4, 2);
       update_seq_count = hex_to_long(temp + buffer_size - offset + 0x6, 2);
@@ -175,6 +177,7 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       memcpy(temp + header_length, buffer + offset, buffer_size - offset);
       delete[] buffer;
       buffer = temp;
+      // Flag the record as not crossing the current page
       buffer[header_length + 0x28] = 0;
       buffer[header_length + 0x29] = 0;
       unsigned int write_offset = buffer_size - offset + 4096;
@@ -214,13 +217,13 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       we just read the next page. Easy.
       */
       input.read(buffer, 4096);
-      doFixup(buffer, 4096, 512);
-      buffer_size = 4096;
-
       if(input.eof()) {
         done = true;
         break;
       }
+      doFixup(buffer, 4096, 512);
+      buffer_size = 4096;
+
       adjust = 0;
     }
 

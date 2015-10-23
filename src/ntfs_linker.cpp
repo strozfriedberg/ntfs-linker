@@ -34,9 +34,7 @@ int main(int argc, char** argv) {
     if (vm.count("overwrite")) {
       opts.overwrite = true;
     }
-    if (vm.count("extra")) {
-      opts.extra = true;
-    }
+    opts.extra = vm.count("extra");
 
     if (vm.count("help")) {
       printHelp(desc);
