@@ -59,7 +59,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "TargetAttribute int, " \
                          "MFTClusterIndex int, " \
                          "Offset int, " \
-                         "Snapshot text);",
+                         "Snapshot text, " \
+                         "Volume text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists usn (" \
                          "MFTRecNo int, " \
@@ -71,7 +72,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "PossiblePath text, " \
                          "PossibleParPath text, " \
                          "Offset int, " \
-                         "Snapshot text);",
+                         "Snapshot text, " \
+                         "Volume text);",
                      0, 0, 0);
   rc |= sqlite3_exec(Db, "create table if not exists events(" \
                          "MFTRecNo int, " \
@@ -89,7 +91,8 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "Modified text, " \
                          "Comment text, " \
                          "Snapshot text, " \
-                         "UNIQUE(USN_LSN, EventSource));",
+                         "Volume text, " \
+                         "UNIQUE(USN_LSN, EventSource, Volume));",
                      0, 0, 0);
   prepareStatements();
 }
@@ -113,13 +116,15 @@ int SQLiteHelper::prepareStatement(sqlite3_stmt **stmt, std::string& sql) {
   return sqlite3_prepare_v2(Db, sql.c_str(), sql.length() + 1, stmt, NULL);
 }
 
-void SQLiteHelper::bindForSelect(std::string snapshot) {
+void SQLiteHelper::bindForSelect(const VersionInfo& version) {
   sqlite3_bind_int64(EventUsnSelect, 1, EventSources::SOURCE_USN);
   sqlite3_bind_int64(EventLogSelect, 1, EventSources::SOURCE_LOG);
 
-  sqlite3_bind_text(EventUsnSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(EventLogSelect, 2, snapshot.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(EventUsnSelect, 2, version.Snapshot.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(EventLogSelect, 2, version.Snapshot.c_str(), -1, SQLITE_TRANSIENT);
 
+  sqlite3_bind_text(EventUsnSelect, 3, version.Volume.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text(EventLogSelect, 3, version.Volume.c_str(), -1, SQLITE_TRANSIENT);
 }
 
 void SQLiteHelper::resetSelect() {
@@ -129,12 +134,12 @@ void SQLiteHelper::resetSelect() {
 
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
-  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string usnInsert = "insert into usn values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string logInsert = "insert into log values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   // Events are processed from the oldest to the newest, so when an event with a conflicting (USN_LSN, EventSource)
   // comes into play, it should be ignored
-  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  std::string eventSelect = "select * from events where EventSource=? and Snapshot=? order by USN_LSN desc";
+  std::string eventInsert = "insert or ignore into events values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+  std::string eventSelect = "select * from events where EventSource=? and Snapshot=? and Volume=? order by USN_LSN desc";
 
   rc |= prepareStatement(&UsnInsert, usnInsert);
   rc |= prepareStatement(&LogInsert, logInsert);

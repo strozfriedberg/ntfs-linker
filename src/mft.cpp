@@ -6,12 +6,6 @@
 #include "progress.h"
 #include "sqlite_util.h"
 
-std::string getMFTColumnHeaders() {
-  return "Logical Sequence Number\tMFT_Record_No\tupdate_sequence_no\tfile_name\tisDir\tisAllocated" \
-    "\tsia_created\tsia_modified\tsia_mft_modified\tsia_accessed\tParMFTRecordNo\tfna_created\tfna_modified" \
-    "\tfna_mft_modified\tfna_accessed\tlogical_size\tphysical_size";
-}
-
 MFTRecord::MFTRecord(char* buffer, unsigned int len) {
   // MFT entries must begin with FILE
   if(hex_to_long(buffer, 4) != 0x454C4946) {
@@ -86,28 +80,6 @@ File MFTRecord::asFile() {
   return File(Fna.Name, Record, Fna.Parent, filetime_to_iso_8601(Sia.MFTModified));
 }
 
-std::string MFTRecord::toString(std::vector<File>& records) {
-  std::stringstream ss;
-  ss << Lsn                                    << "\t"
-     << Record                                 << "\t"
-     << Sia.Usn                                << "\t"
-     << getFullPath(records, Record)           << "\t"
-     << isDir                                  << "\t"
-     << isAllocated                            << "\t"
-     << filetime_to_iso_8601(Sia.Created)      << "\t"
-     << filetime_to_iso_8601(Sia.Modified)     << "\t"
-     << filetime_to_iso_8601(Sia.MFTModified)  << "\t"
-     << filetime_to_iso_8601(Sia.Accessed)     << "\t"
-     << Fna.Parent                             << "\t"
-     << filetime_to_iso_8601(Fna.Created)      << "\t"
-     << filetime_to_iso_8601(Fna.Modified)     << "\t"
-     << filetime_to_iso_8601(Fna.MFTModified)  << "\t"
-     << filetime_to_iso_8601(Fna.Accessed)     << "\t"
-     << Fna.LogicalSize                        << "\t"
-     << Fna.PhysicalSize                       << std::endl;
-  return ss.str();
-}
-
 void parseMFT(std::vector<File>& records, std::istream& input) {
   char buffer[1024];
 
@@ -132,28 +104,4 @@ void parseMFT(std::vector<File>& records, std::istream& input) {
   }
 
   status.finish();
-}
-
-void MFTRecord::insert(sqlite3_stmt* stmt, std::vector<File>& records) {
-  int i = 0;
-  sqlite3_bind_int64(stmt, ++i, Lsn);
-  sqlite3_bind_int64(stmt, ++i, Record);
-  sqlite3_bind_int64(stmt, ++i, Fna.Parent);
-  sqlite3_bind_int64(stmt, ++i, Sia.Usn);
-  sqlite3_bind_text(stmt , ++i, getFullPath(records, Record).c_str()          , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int(stmt  , ++i, isDir);
-  sqlite3_bind_int(stmt  , ++i, isAllocated);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Sia.Created).c_str()     , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Sia.Modified).c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Sia.MFTModified).c_str() , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Sia.Accessed).c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Fna.Created).c_str()     , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Fna.Modified).c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Fna.MFTModified).c_str() , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, filetime_to_iso_8601(Fna.Accessed).c_str()    , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int64(stmt, ++i, Fna.LogicalSize);
-  sqlite3_bind_int64(stmt, ++i, Fna.PhysicalSize);
-
-  sqlite3_step(stmt);
-  sqlite3_reset(stmt);
 }

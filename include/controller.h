@@ -19,24 +19,35 @@ struct Options {
   std::vector<std::string> imgSegs;
 };
 
-class IOContainer {
-  public:
-    IOContainer(Options& opts);
+struct VolumeIO;
 
-    std::ifstream IMft, IUsnJrnl, ILogFile;
-    std::ofstream OUsnJrnl, OLogFile;
-    fs::path Dir;
-    std::string Snapshot;
+struct SnapshotIO {
+  SnapshotIO(Options& opts, VolumeIO* parent);
+
+  VolumeIO* Parent;
+  std::ifstream IMft, IUsnJrnl, ILogFile;
+  std::ofstream OUsnJrnl, OLogFile;
+  std::string Name;
 };
+typedef std::unique_ptr<SnapshotIO> SnapshotIOPtr;
 
-typedef std::unique_ptr<IOContainer> IOContainerPtr;
+struct ImageIO;
 
-struct IOBundle {
-  IOBundle() : Count(0) {}
-  std::vector<IOContainerPtr> Containers;
-  SQLiteHelper SqliteHelper;
+struct VolumeIO {
+  VolumeIO(Options& opts, ImageIO* parent);
+
+  ImageIO* Parent;
+  std::vector<SnapshotIOPtr> Snapshots;
   std::ofstream Events;
   unsigned int Count;
+  std::string Name;
+};
+typedef std::unique_ptr<VolumeIO> VolumeIOPtr;
+
+struct ImageIO {
+  ImageIO(Options& opts);
+  std::vector<VolumeIOPtr> Volumes;
+  SQLiteHelper SqliteHelper;
 };
 
 void run(Options& opts);

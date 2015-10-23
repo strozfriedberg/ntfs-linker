@@ -21,7 +21,8 @@ std::string getUSNColumnHeaders() {
      << "Path"                 << "\t"
      << "Parent Path"          << "\t"
      << "File Offset"          << "\t"
-     << "VSS Snapshot"         << std::endl;
+     << "VSS Snapshot"         << "\t"
+     << "File System Offset"            << std::endl;
   return ss.str();
 }
 
@@ -98,7 +99,7 @@ std::streampos advanceStream(std::istream& stream, char* buffer, bool sparse) {
 Parses all records found in the USN file represented by input. Uses the records map to recreate file paths
 Outputs the results to several streams.
 */
-void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot, bool extra) {
+void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const VersionInfo& version, bool extra) {
   std::unique_ptr<char[]> bufPtr(new char[USN_BUFFER_SIZE]);
   char* buffer = bufPtr.get();
 
@@ -108,7 +109,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
   std::streampos start = input.tellg();
   ProgressBar status(end - start);
 
-  UsnRecord prevRec(snapshot);
+  UsnRecord prevRec(version);
   output << getUSNColumnHeaders();
 
   unsigned int offset = 0;
@@ -152,7 +153,7 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     records_processed++;
 
-    UsnRecord rec(buffer + offset, offset + totalOffset, snapshot);
+    UsnRecord rec(buffer + offset, offset + totalOffset, version);
 
     if (usn_offset == UINT64_MAX) {
       usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
@@ -220,9 +221,10 @@ void UsnRecord::update(UsnRecord rec) {
     }
 }
 
-UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, std::string snapshot, int len, bool isEmbedded) :
+UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, const VersionInfo& version, int len, bool isEmbedded) :
   FileOffset(fileOffset),
-  Snapshot(snapshot),
+  Snapshot(version.Snapshot),
+  Volume(version.Volume),
   IsEmbedded(isEmbedded) {
   if (len < 0 || (unsigned) len >= 0x3C) {
     PreviousName                     = "";
@@ -262,7 +264,7 @@ void UsnRecord::clearFields() {
   FileOffset      = 0;
 }
 
-UsnRecord::UsnRecord(std::string snapshot) : Snapshot(snapshot) {
+UsnRecord::UsnRecord(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume) {
   IsEmbedded = false;
   clearFields();
 }
@@ -278,7 +280,8 @@ std::string UsnRecord::toString(const std::vector<File>& records) {
      << getFullPath(records, Record) << "\t"
      << getFullPath(records, Parent) << "\t"
      << FileOffset                   << "\t"
-     << Snapshot                     << std::endl;
+     << Snapshot                     << "\t"
+     << Volume                       << std::endl;
   return ss.str();
 }
 
@@ -299,6 +302,7 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Modified
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Comment
   sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Volume.c_str(), -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);
@@ -309,16 +313,17 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_bind_int64(stmt, ++i, Record);
   sqlite3_bind_int64(stmt, ++i, Parent);
   sqlite3_bind_int64(stmt, ++i, Usn);
-  sqlite3_bind_text(stmt , ++i, Timestamp.c_str()                   , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, getReasonString().c_str()           , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, Name.c_str()                        , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, getFullPath(records, Record).c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt , ++i, getFullPath(records, Parent).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Timestamp.c_str()                   , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, getReasonString().c_str()           , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Name.c_str()                        , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, getFullPath(records, Record).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, getFullPath(records, Parent).c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, FileOffset);
-  sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text(stmt,  ++i, ""                                  , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, Snapshot.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, ""                                  , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, ""                                  , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, ""                                  , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Snapshot.c_str()                    , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Volume.c_str()                      , -1, SQLITE_TRANSIENT);
 
   sqlite3_step(stmt);
   sqlite3_reset(stmt);

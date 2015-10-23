@@ -16,14 +16,13 @@ int writeAndStep(Event& event, sqlite3_stmt* stmt, std::vector<File>& records, i
   return sqlite3_step(stmt);
 }
 
-void outputEvents(std::vector<File>& records, IOBundle& bundle, std::string snapshot) {
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, VolumeIO& volumeIO, const VersionInfo& version) {
   int u, l;
   Event usnEvent, logEvent;
-  int order = bundle.Count;
-  SQLiteHelper& sqliteHelper(bundle.SqliteHelper);
-  std::ofstream& out(bundle.Events);
+  int order = volumeIO.Count;
+  std::ofstream& out(volumeIO.Events);
 
-  sqliteHelper.bindForSelect(snapshot);
+  sqliteHelper.bindForSelect(version);
   u = sqlite3_step(sqliteHelper.EventUsnSelect);
   l = sqlite3_step(sqliteHelper.EventLogSelect);
 
@@ -72,7 +71,7 @@ void outputEvents(std::vector<File>& records, IOBundle& bundle, std::string snap
   }
 
   sqliteHelper.resetSelect();
-  bundle.Count = order;
+  volumeIO.Count = order;
   return;
 }
 
@@ -97,6 +96,7 @@ void Event::init(sqlite3_stmt* stmt) {
   Modified       = textToString(sqlite3_column_text(stmt, ++i));
   Comment        = textToString(sqlite3_column_text(stmt, ++i));
   Snapshot       = textToString(sqlite3_column_text(stmt, ++i));
+  Volume         = textToString(sqlite3_column_text(stmt, ++i));
 
   if (PreviousParent == Parent)
     PreviousParent = -1;
@@ -107,7 +107,7 @@ void Event::init(sqlite3_stmt* stmt) {
 
 Event::Event() {
   Record = Parent = PreviousParent = UsnLsn = Type = Source = -1;
-  Snapshot = Timestamp = Name = PreviousName = "";
+  Volume = Snapshot = Timestamp = Name = PreviousName = "";
 }
 
 std::string Event::getColumnHeaders() {
@@ -130,7 +130,8 @@ std::string Event::getColumnHeaders() {
      << "Created"           << "\t"
      << "Modified"          << "\t"
      << "Comment"           << "\t"
-     << "Snapshot"          << std::endl;
+     << "Snapshot"          << "\t"
+     << "Volume"            << std::endl;
   return ss.str();
 }
 
@@ -153,7 +154,8 @@ void Event::write(int order, std::ostream& out, const std::vector<File>& records
       << Created                                                                       << "\t"
       << Modified                                                                      << "\t"
       << Comment                                                                       << "\t"
-      << Snapshot                                                                      << std::endl;
+      << Snapshot                                                                      << "\t"
+      << Volume                                                                        << std::endl;
 }
 
 void Event::updateRecords(std::vector<File>& records) {

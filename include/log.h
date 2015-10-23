@@ -16,11 +16,11 @@ std::string decodeLogFileOpCode(int op);
 Parses the $LogFile stream input
 Writes output to designated streams
 */
-void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, std::string snapshot, bool extra);
+void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std::istream& input, std::ostream& output, const VersionInfo& version, bool extra);
 
 class LogRecord {
 public:
-  LogRecord(std::string snapshot) : Snapshot(snapshot) {}
+  LogRecord(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume) {}
 
   int init(char* buffer, uint64_t offset, bool prev_has_next);
   void clearFields();
@@ -32,13 +32,13 @@ public:
   unsigned int TargetAttribute, LcnsToFollow, RecordOffset, AttributeOffset, MftClusterIndex, TargetVcn, TargetLcn;
   unsigned int ClientDataLength;
   char* Data;
-  std::string Snapshot;
+  std::string Snapshot, Volume;
 };
 std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
-  LogData(std::string snapshot) : Snapshot(snapshot) {}
+  LogData(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume) {}
 
   void clearFields();
   void processLogRecord(const std::vector<File>& records, LogRecord& rec, SQLiteHelper& sqliteHelper, uint64_t fileOffset);
@@ -56,7 +56,7 @@ public:
 
   int64_t Record, Parent, PreviousParent, Offset;
   uint64_t Lsn;
-  std::string Name, PreviousName, Timestamp, Created, Modified, Comment, Snapshot;
+  std::string Name, PreviousName, Timestamp, Created, Modified, Comment, Snapshot, Volume;
   std::vector<int> RedoOps, UndoOps;
 
   static const std::vector<int> createRedo, createUndo, deleteRedo, deleteUndo;

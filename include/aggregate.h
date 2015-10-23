@@ -20,8 +20,8 @@ public:
   static std::string getColumnHeaders();
 
   int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset;
-  std::string Timestamp, Name, PreviousName, Created, Modified, Comment, Snapshot;
+  std::string Timestamp, Name, PreviousName, Created, Modified, Comment, Snapshot, Volume;
   bool IsAnchor, IsEmbedded;
 };
 
-void outputEvents(std::vector<File>& records, IOBundle& bundle, std::string snapshot);
+void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, VolumeIO& volumeIO, const VersionInfo& version);

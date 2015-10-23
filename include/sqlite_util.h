@@ -3,6 +3,11 @@
 #include <sqlite3.h>
 #include <string>
 
+struct VersionInfo {
+  VersionInfo(std::string volume, std::string snapshot) : Volume(volume), Snapshot(snapshot) {}
+  std::string Volume, Snapshot;
+};
+
 class SQLiteHelper {
 public:
   SQLiteHelper() : UsnInsert(NULL), LogInsert(NULL),
@@ -11,7 +16,7 @@ public:
   void init(std::string dbName, bool overwrite);
   void commit();
   void close();
-  void bindForSelect(std::string snapshot);
+  void bindForSelect(const VersionInfo& version);
   void resetSelect();
 
   sqlite3_stmt *UsnInsert, *LogInsert, *EventInsert, *EventUsnSelect, *EventLogSelect;

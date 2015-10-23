@@ -81,7 +81,7 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
   return 0;
 }
 
-std::string getFolderName(int i, int n) {
+std::string zeroPad(int i, int n) {
   int width = std::to_string(n).size();
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(width) << i;
@@ -93,14 +93,11 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     return TSK_FILTER_SKIP;
   }
 
-  if (Processed) {
-    std::cerr << "Warning: already copied files to process, but more volumes found. Only processing first volume." << std::endl;
-    return TSK_FILTER_SKIP;
-  }
+  fs::path dir(Root / ("volume_" + std::to_string(fs->offset)));
   std::cout << "Copying from base" << std::endl;
 
   // "base" has the important property that it sorts after numbers
-  int rtnVal = copyFiles(fs, Root / fs::path("base"));
+  int rtnVal = copyFiles(fs, dir / fs::path("vss_base"));
 
   if (rtnVal)
     return TSK_FILTER_SKIP;
@@ -111,14 +108,13 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     for(int i = 0; i < n; ++i) {
       std::cout << "Copying from store: " << i << std::endl;
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
-      copyFiles(snapshot, Root / fs::path(getFolderName(i, n)));
+      copyFiles(snapshot, dir / fs::path("vss_" + zeroPad(i, n)));
     }
   }
   catch(std::exception& err) {
     std::cerr << err.what() << std::endl;
     return TSK_FILTER_SKIP;
   }
-  Processed = true;
   return TSK_FILTER_SKIP;
 }
 
