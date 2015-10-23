@@ -26,7 +26,7 @@ void write_file(FileCopy& param) {
   TSK_FS_ATTR_TYPE_ENUM type = TSK_FS_ATTR_TYPE_NOT_FOUND;
   TSK_OFF_T offset = 0;
   bool ads = false;
-  if (param.Attr != "") {
+  if (!param.Attr.empty()) {
     TSK_FS_ATTR* attr = file->meta->attr->head;
     while (attr != NULL) {
       if (attr->name && std::string(attr->name) == param.Attr) {
@@ -89,6 +89,10 @@ std::string getFolderName(int i, int n) {
 }
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
+  if (!TSK_FS_TYPE_ISNTFS(fs->ftype)) {
+    return TSK_FILTER_SKIP;
+  }
+
   if (Processed) {
     std::cerr << "Warning: already copied files to process, but more volumes found. Only processing first volume." << std::endl;
     return TSK_FILTER_SKIP;

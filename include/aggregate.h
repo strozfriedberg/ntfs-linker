@@ -15,7 +15,7 @@ class Event {
 public:
   Event();
   void init(sqlite3_stmt* stmt);
-  void write(int order, std::ostream& out, std::vector<File>& records);
+  void write(int order, std::ostream& out, const std::vector<File>& records);
   void updateRecords(std::vector<File>& records);
   static std::string getColumnHeaders();
 
