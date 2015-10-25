@@ -14,7 +14,8 @@ public:
                    EventInsert(NULL), EventUsnSelect(NULL), EventLogSelect(NULL),
                    Db(NULL) {}
   void init(std::string dbName, bool overwrite);
-  void commit();
+  void beginTransaction();
+  void endTransaction();
   void close();
   void bindForSelect(const VersionInfo& version);
   void resetSelect();

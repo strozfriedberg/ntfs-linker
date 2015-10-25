@@ -36,12 +36,7 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
   }
 
   sqlite3_busy_handler(Db, &busyHandler, 0);
-  rc = sqlite3_exec(Db, "BEGIN TRANSACTION", 0, 0, 0);
-  if(rc) {
-    std::cerr << "Error opening database" << std::endl;
-    std::cerr << sqlite3_errmsg(Db) << std::endl;
-    exit(1);
-  }
+  beginTransaction();
 
   if(overwrite) {
     rc |= sqlite3_exec(Db, "drop table if exists log;", 0, 0, 0);
@@ -95,9 +90,20 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
                          "UNIQUE(USN_LSN, EventSource, Volume));",
                      0, 0, 0);
   prepareStatements();
+  endTransaction();
 }
 
-void SQLiteHelper::commit() {
+void SQLiteHelper::beginTransaction() {
+  int rc = sqlite3_exec(Db, "BEGIN TRANSACTION", 0, 0, 0);
+  if(rc) {
+    std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
+    std::cerr << sqlite3_errmsg(Db) << std::endl;
+    sqlite3_close(Db);
+    exit(2);
+  }
+}
+
+void SQLiteHelper::endTransaction() {
   int rc = sqlite3_exec(Db, "END TRANSACTION", 0, 0, 0);
   if(rc) {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;

@@ -129,11 +129,12 @@ void run(Options& opts) {
   for (auto& volumeIO: imageIO.Volumes) {
     std::cout << "Processing volume: " << volumeIO->Name << std::endl;
 
+    imageIO.SqliteHelper.beginTransaction();
     for (auto& snapshotIO: volumeIO->Snapshots) {
       std::cout << "Pre-processing: " << snapshotIO->Name << std::endl;
       processStep(*snapshotIO, opts.extra);
     }
-    imageIO.SqliteHelper.commit();
+    imageIO.SqliteHelper.endTransaction();
 
     std::cout << "Generating unified events output..." << std::endl;
     volumeIO->Events << Event::getColumnHeaders();
@@ -142,8 +143,8 @@ void run(Options& opts) {
       std::cout << "Processing: " << (*rIt)->Name << std::endl;
       processFinalize(**rIt);
     }
-    imageIO.SqliteHelper.close();
   }
+  imageIO.SqliteHelper.close();
   std::cout << "Process complete." << std::endl;
 
 }
