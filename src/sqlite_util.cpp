@@ -147,10 +147,10 @@ void SQLiteHelper::prepareStatements() {
   std::string eventInsert = "insert or ignore into event_temp "
                             "(" + getColList(EventColumns.begin() + 2, EventColumns.end(), 1) + ") "
                             + "values (" + getColList(EventColumns.begin() + 2, EventColumns.end(), 2) + ");";
-  std::string eventFinalInsert = "insert or ignore into event "
+  std::string eventFinalInsert = "insert into event "
                             "(" + getColList(EventColumns.begin() + 1, EventColumns.end(), 1) + ") "
                             + "values (" + getColList(EventColumns.begin() + 1, EventColumns.end(), 2) + ");";
-  std::string eventSelect = "select " + getColList(EventColumns.begin(), EventColumns.end(), 1) + " from event_temp where EventSource=? and Snapshot=? and Volume=? order by USN_LSN desc";
+  std::string eventSelect = "select " + getColList(EventColumns.begin(), EventColumns.end(), 1) + " from event_temp where EventSource=? and Snapshot=? and Volume=? order by USN_LSN desc;";
 
   rc |= prepareStatement(&UsnInsert, usnInsert);
   rc |= prepareStatement(&LogInsert, logInsert);

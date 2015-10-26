@@ -18,7 +18,7 @@ int recoverPosition(const char* buffer, unsigned int offset, unsigned int usn_of
 
 class UsnRecord {
 public:
-  UsnRecord(const VersionInfo& version);
+  UsnRecord(const VersionInfo& version, bool isEmbedded=false);
   UsnRecord(const char* buffer, uint64_t fileOffset, const VersionInfo& version, int len = -1, bool isEmbedded=false);
 
   std::string getReasonString();

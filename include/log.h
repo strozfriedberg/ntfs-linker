@@ -39,7 +39,7 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
-  LogData(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume), PrevUsnRecord(version) {}
+  LogData(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume), PrevUsnRecord(version, true) {}
 
   void clearFields();
   void processLogRecord(const std::vector<File>& records, LogRecord& rec, SQLiteHelper& sqliteHelper, uint64_t fileOffset);

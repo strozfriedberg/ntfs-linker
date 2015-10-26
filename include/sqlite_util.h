@@ -5,8 +5,8 @@
 #include <vector>
 
 struct VersionInfo {
-  VersionInfo(std::string volume, std::string snapshot) : Volume(volume), Snapshot(snapshot) {}
-  std::string Volume, Snapshot;
+  VersionInfo(std::string snapshot, std::string volume) : Snapshot(snapshot), Volume(volume){}
+  std::string Snapshot, Volume;
 };
 
 class SQLiteHelper {

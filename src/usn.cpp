@@ -267,7 +267,7 @@ void UsnRecord::clearFields() {
   FileOffset      = 0;
 }
 
-UsnRecord::UsnRecord(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume) {
+UsnRecord::UsnRecord(const VersionInfo& version, bool isEmbedded) : Snapshot(version.Snapshot), Volume(version.Volume), IsEmbedded(isEmbedded) {
   IsEmbedded = false;
   clearFields();
 }
@@ -299,7 +299,7 @@ void UsnRecord::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   sqlite3_bind_text(stmt , ++i, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, type);
   sqlite3_bind_int64(stmt, ++i, EventSources::SOURCE_USN);
-  sqlite3_bind_int64(stmt, ++i, IsEmbedded);
+  sqlite3_bind_int  (stmt, ++i, IsEmbedded);
   sqlite3_bind_int64(stmt, ++i, FileOffset);
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Created
   sqlite3_bind_text (stmt, ++i, "", -1, SQLITE_TRANSIENT);  // Modified
