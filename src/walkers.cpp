@@ -20,26 +20,32 @@ struct FileCopy{
   TSK_FS_FILE* File;
 };
 
-void write_file(FileCopy& param) {
+int write_file(FileCopy& param) {
   TSK_FS_FILE* file = param.File;
   uint16_t id = 0;
   TSK_FS_ATTR_TYPE_ENUM type = TSK_FS_ATTR_TYPE_NOT_FOUND;
   TSK_OFF_T offset = 0;
   bool ads = false;
   if (!param.Attr.empty()) {
+    if (!(file && file->meta && file->meta->attr && file->meta->attr->head))
+      return 1;
     TSK_FS_ATTR* attr = file->meta->attr->head;
     while (attr != NULL) {
       if (attr->name && std::string(attr->name) == param.Attr) {
         id = attr->id;
         type = attr->type;
         ads = true;
-        offset = attr->nrd.run->next->offset * file->fs_info->block_size;
+
+        // Get the offset of the start of the second attribute run, if the _first_ run is sparse
+        if (attr->nrd.run && (attr->nrd.run->flags & TSK_FS_ATTR_RUN_FLAG_SPARSE) && attr->nrd.run->next) {
+          offset = attr->nrd.run->next->offset * file->fs_info->block_size;
+        }
         break;
       }
       attr = attr->next;
     }
     if (!ads)
-      return;
+      return 1;
   }
 
   std::ofstream out(param.Out, std::ios::out | std::ios::binary | std::ios::trunc);
@@ -59,6 +65,7 @@ void write_file(FileCopy& param) {
     offset += bytesRead;
   }
   out.close();
+  return 0;
 }
 
 int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
@@ -86,7 +93,10 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
   }
 
   for(auto& param: params) {
-      write_file(param);
+      if (write_file(param)) {
+        std::cerr << param.In << param.Attr << " file present, but we failed to copy it." << std::endl;
+        return 1;
+      }
       tsk_fs_file_close(param.File);
   }
   return 0;
