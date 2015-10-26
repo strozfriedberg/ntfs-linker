@@ -21,11 +21,7 @@ public:
   void bindForSelect(const VersionInfo& version);
   void resetSelect();
 
-  void makeTempOrderTable();
-  void updateEventOrders();
-
-
-  sqlite3_stmt *UsnInsert, *LogInsert, *EventInsert, *EventUsnSelect, *EventLogSelect, *EventUpdate;
+  sqlite3_stmt *UsnInsert, *LogInsert, *EventInsert, *EventUsnSelect, *EventLogSelect, *EventFinalInsert;
 private:
   void finalizeStatements();
   int prepareStatement(sqlite3_stmt **stmt, std::string& sql);

@@ -135,7 +135,6 @@ void run(Options& opts) {
       processStep(*snapshotIO, opts.extra);
     }
     imageIO.SqliteHelper.endTransaction();
-    imageIO.SqliteHelper.makeTempOrderTable();
     imageIO.SqliteHelper.beginTransaction();
 
     std::cout << "Generating unified events output..." << std::endl;
@@ -146,7 +145,6 @@ void run(Options& opts) {
       processFinalize(**rIt);
     }
 
-    imageIO.SqliteHelper.updateEventOrders();
     imageIO.SqliteHelper.endTransaction();
   }
   imageIO.SqliteHelper.close();

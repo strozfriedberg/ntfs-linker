@@ -74,9 +74,12 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
   rc |= sqlite3_exec(Db, std::string("create table if not exists usn "
                                     "(" + getColList(UsnColumns.begin(), UsnColumns.end(), 0) + ");").c_str(),
                      0, 0, 0);
-  rc |= sqlite3_exec(Db, std::string("create table if not exists event "
+  rc |= sqlite3_exec(Db, std::string("create temporary table event_temp "
                                      "(" + getColList(EventColumns.begin(), EventColumns.end(), 0) + ", "
                                      "UNIQUE(USN_LSN, EventSource, Volume));").c_str(),
+                     0, 0, 0);
+  rc |= sqlite3_exec(Db, std::string("create table if not exists event "
+                                     "(" + getColList(EventColumns.begin() + 1, EventColumns.end(), 0) + ");").c_str(),
                      0, 0, 0);
   if(rc) {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
@@ -100,41 +103,6 @@ void SQLiteHelper::beginTransaction() {
 
 void SQLiteHelper::endTransaction() {
   int rc = sqlite3_exec(Db, "END TRANSACTION", 0, 0, 0);
-  if(rc) {
-    std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-    std::cerr << sqlite3_errmsg(Db) << std::endl;
-    sqlite3_close(Db);
-    exit(2);
-  }
-}
-
-void SQLiteHelper::makeTempOrderTable() {
-  int rc = sqlite3_exec(Db, "create temporary table event_order(" \
-                            "id int, " \
-                            "position int)", 0, 0, 0);
-
-  std::string eventUpdate = "insert into event_order (id, position) values (?, ?);";
-  rc |= prepareStatement(&EventUpdate, eventUpdate);
-
-  if(rc) {
-    std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-    std::cerr << sqlite3_errmsg(Db) << std::endl;
-    sqlite3_close(Db);
-    exit(2);
-  }
-}
-
-void SQLiteHelper::updateEventOrders() {
-  std::string subquery = "(SELECT position FROM event_order WHERE event_order.id = event.id)";
-  int rc = sqlite3_exec(Db, std::string("update event set position = " + subquery + " where exists " + subquery +";").c_str(), 0, 0, 0);
-  if(rc) {
-    std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-    std::cerr << sqlite3_errmsg(Db) << std::endl;
-    sqlite3_close(Db);
-    exit(2);
-  }
-  rc |= sqlite3_exec(Db, "drop table event_order;", 0, 0, 0);
-  rc |= sqlite3_finalize(EventUpdate);
   if(rc) {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
     std::cerr << sqlite3_errmsg(Db) << std::endl;
@@ -176,14 +144,18 @@ void SQLiteHelper::prepareStatements() {
                                    "values (" + getColList(LogColumns.begin(), LogColumns.end(), 2) + ");";
   // Events are processed from the oldest to the newest, so when an event with a conflicting (USN_LSN, EventSource)
   // comes into play, it should be ignored
-  std::string eventInsert = "insert or ignore into event "
+  std::string eventInsert = "insert or ignore into event_temp "
                             "(" + getColList(EventColumns.begin() + 2, EventColumns.end(), 1) + ") "
                             + "values (" + getColList(EventColumns.begin() + 2, EventColumns.end(), 2) + ");";
-  std::string eventSelect = "select " + getColList(EventColumns.begin(), EventColumns.end(), 1) + " from event where EventSource=? and Snapshot=? and Volume=? order by USN_LSN desc";
+  std::string eventFinalInsert = "insert or ignore into event "
+                            "(" + getColList(EventColumns.begin() + 1, EventColumns.end(), 1) + ") "
+                            + "values (" + getColList(EventColumns.begin() + 1, EventColumns.end(), 2) + ");";
+  std::string eventSelect = "select " + getColList(EventColumns.begin(), EventColumns.end(), 1) + " from event_temp where EventSource=? and Snapshot=? and Volume=? order by USN_LSN desc";
 
   rc |= prepareStatement(&UsnInsert, usnInsert);
   rc |= prepareStatement(&LogInsert, logInsert);
   rc |= prepareStatement(&EventInsert, eventInsert);
+  rc |= prepareStatement(&EventFinalInsert, eventFinalInsert);
   rc |= prepareStatement(&EventUsnSelect, eventSelect);
   rc |= prepareStatement(&EventLogSelect, eventSelect);
 
@@ -199,6 +171,7 @@ void SQLiteHelper::finalizeStatements() {
   sqlite3_finalize(UsnInsert);
   sqlite3_finalize(LogInsert);
   sqlite3_finalize(EventInsert);
+  sqlite3_finalize(EventFinalInsert);
   sqlite3_finalize(EventUsnSelect);
   sqlite3_finalize(EventLogSelect);
 }

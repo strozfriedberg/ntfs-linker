@@ -17,6 +17,7 @@ public:
   void init(sqlite3_stmt* stmt);
   void write(std::ostream& out, const std::vector<File>& records);
   void updateRecords(std::vector<File>& records);
+  void insert(sqlite3_stmt* stmt);
   static std::string getColumnHeaders();
 
   int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset, Id, Order;

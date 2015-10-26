@@ -233,6 +233,10 @@ void parseLog(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
 
   }
+
+  if (transactions.PrevUsnRecord.Usn != 0) {
+    transactions.PrevUsnRecord.checkTypeAndInsert(sqliteHelper.EventInsert);
+  }
   status.finish();
   delete [] buffer;
 }

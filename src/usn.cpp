@@ -178,6 +178,9 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
 
     offset += record_length;
   }
+  if (prevRec.Usn != 0) {
+    prevRec.checkTypeAndInsert(sqliteHelper.EventInsert);
+  }
   status.finish();
 }
 
