@@ -14,7 +14,7 @@ namespace fs = boost::filesystem;
 
 struct FileCopy{
 
-  FileCopy(std::string in, std::string attr, std::string out) : In(in), Attr(attr), Out(out) {}
+  FileCopy(std::string in, std::string attr, std::string out) : In(in), Attr(attr), Out(out), File(NULL) {}
 
   std::string In, Attr, Out;
   TSK_FS_FILE* File;
@@ -66,12 +66,23 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
   std::vector<FileCopy> params { FileCopy("/$MFT", "", (dir / fs::path("$MFT")).string()),
                                 FileCopy("/$LogFile", "", (dir / fs::path("$LogFile")).string()),
                                 FileCopy("/$Extend/$UsnJrnl", "$J", (dir / fs::path("$J")).string())};
+  bool hasAll = true;
   for (auto& param: params) {
     param.File = tsk_fs_file_open(fs, NULL, param.In.c_str());
     if (!param.File) {
+      hasAll = false;
       std::cerr << tsk_error_get() << std::endl;
-      return 1;
+      break;
     }
+  }
+
+  if (!hasAll) {
+    for (auto& param: params) {
+      if (param.File) {
+        tsk_fs_file_close(param.File);
+      }
+    }
+    return 1;
   }
 
   for(auto& param: params) {
