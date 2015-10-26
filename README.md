@@ -1,7 +1,7 @@
 # NTFS-Linker
 Author: Zack Weger
 
-Copyright (c) Stroz Friedberg, LLC
+Copyright (c) 2015, [Stroz Friedberg, LLC](http://www.strozfriedberg.com)
 
 Status: Alpha
 
@@ -10,16 +10,15 @@ NTFS Linker uses the `$MFT`, `$LogFile`, and `$UsnJrnl` to generate a "linked"
 history of file system activity on an NTFS volume. $LogFile and $UsnJrnl track
 changes to files and folders over time. Linking the records in these logs with 
 `$MFT` allows for the construction of a timeline of activity: 
-creates, moves/renames, and deletes. NTFS Linker produces a UTF-8 tab separated 
-value (TSV) report of records that can easily be filtered to review different 
-types of activity. In addition, NTFS-Linker is able to run across all Volume
-Shadow Copies (VSCs) on a volume, and produce output in a unified and
-deduplicated manner.
+creates, moves/renames, and deletes. NTFS Linker produces records that can 
+easily be filtered to review different types of activity. In addition, 
+NTFS-Linker is able to run across all Volume Shadow Copies (VSCs) on a volume, 
+and produce output in a unified and deduplicated manner.
 
 
 ## Usage
 ```
-ntfs-linker, Copyright (c) Stroz Friedberg, LLC
+ntfs-linker, Copyright (c) 2015, Stroz Friedberg, LLC
 Version 0.1.0
 Allowed options:
   --help                display help and exit
@@ -50,17 +49,37 @@ what events.txt provides, including all of the Reason flags.
 both $UsnJrnl and $LogFile, ordered(approximately - see below) by event time,
 from most recent to oldest.
 
-### General Notes
-All timestamps are in the format YYYY-mm-dd HH:MM:SS.1234567.
+NTFS-Linker _also_ produces a SQLite database containing all of the above data. 
+The database schema is designed for ease of querying, not full normalization.
+
+## Installation
+The source is in C++ and uses autoconf. On a sane Unix, this should work:
+```
+./bootstrap.sh
+./configure
+make
+sudo make install
+```
+
+NTFS-linker has dependencies on [Boost](http://www.boost.org), [The Sleuthkit](http://www.sleuthkit.org), 
+[libewf](http://github.com/libyal/libewf), [libbfio](http://github.com/libyal/libbfio), 
+and [libvshadow](http://github.com/libyal/libvshadow).
+
+With sufficient wizardry, NTFS-linker can be built for Windows using mingw. For 
+the impatient, prebuilt binaries can be downloaded from [somewhere?]().
+
+
+## Understanding the output
+
+All timestamps are in [ISO 8601 format](), i.e., YYYY-mm-dd HH:MM:SS.1234567.
 Windows stores timestamps as the number of hundred nanoseconds since 1601 
 (FILETIME). The routines used by NTFS-Linker to parse the time use standard 
 C++ libraries, which may result in incorrect timestamps in some cases.
-Specifically, if the time is BEFORE 1970 or AFTER 2038, the timestamp will 
-not be displayed properly. The 1234567 refers to the 100-nanosecond part of 
-the timestamp.
+Specifically, if the time is _before_ 1970 or _after_ 2038, the timestamp will 
+not be displayed properly.
 
 ### usn.txt
-The USN Journal reason code uses a bit packing scheme for each possible reason. 
+The [USN Journal reason code]() uses a bit packing scheme for each possible reason. 
 From the time a file is opened to the time it is closed, the reasons will be 
 combined. This means that multiple reasons may show up for a particular entry, 
 even though only one operation happens at a time. The order the reasons are 
@@ -85,34 +104,41 @@ recover the data written.
 ### events.txt
 
 #### Event Source
-This can be `$UsnJrnl/$J`, `$LogFile`, or "`$UsnJrnl` entry in `$LogFile`". `$LogFile` actually contains complete
-`$UsnJrnl` entries.
+This can be `$UsnJrnl/$J`, `$LogFile`, or "`$UsnJrnl` entry in `$LogFile`". 
+`$LogFile` actually contains complete `$UsnJrnl` entries.
 
 #### File names and paths
-While a file name can be extracted directly from a Log/Usn entry, the paths must be calculated.
-The "folder" path is the calculated path to the parent directory, and the "Path" column is the calculated path to the
-MFT record number if available.
+While a file name can be extracted directly from a Log/Usn entry, the paths must
+be calculated. The "folder" path is the calculated path to the parent directory,
+and the "Path" column is the calculated path to the MFT record number if 
+available.
 
-NTFS-Linker tracks through time what each record's parent is. For events where a
-recordnum and a parent recordnum can be recovered, it's possible that, in ntfs-linker's
+```gotta come back to this and edit for clarity... maybe an example?```
+NTFS-Linker tracks each record's parent over time. For events where a recordnum 
+and a parent recordnum can be recovered, it's possible that, in ntfs-linker's
 current conception of the file system, these records are unrelated! In this case
 the "Folder" and "Full Path" columns of the event will be mismatched. Generally,
-the "Folder" will represent the path to the parent folder where the event occurred,
-and "Full Path" will represent the path to the file which NTFS-Linker previously
-thoguht was at that record.
+the "Folder" will represent the path to the parent folder where the event 
+occurred, and "Full Path" will represent the path to the file which NTFS-Linker 
+previously thought was at that record. 
 
 #### Anchor and Event Ordering
-While the exact order of `$LogFile` and `$UsnJrnl` events individually is known, the combined
-ordering is not. They must be ordered according to the event timestamps, but NTFS-Linker places more confidence in
-some timestamps than others. `$UsnJrnl` timestamps are taken at face value, while $LogFile create timestamps are not.
-The timestamp for the `$LogFile` create event is the created timestamp in the MFT at the time of creation, which is not
-necessarily the creation time. NTFS-Linker makes a principled best guess of the "true" `$LogFile` creation timestamps, 
-and uses those to merge with `$UsnJrnl`. Anchored events denote events with timestamps which NTFS-Linker used for ordering.
-The `$LogFile` events are represented in the order they occur, and will almost certainly have occurred between the 
-anchoring `$UsnJrnl` events.
+While the exact order of `$LogFile` and `$UsnJrnl` events is known, 
+respectively, the combined ordering is not. They must be ordered according to 
+the event timestamps, but NTFS-Linker places more confidence in some timestamps 
+than others. `$UsnJrnl` timestamps are taken at face value, while $LogFile 
+create timestamps are not. The timestamp for the `$LogFile` create event is the 
+created timestamp in the MFT at the time of creation, which is not necessarily 
+the creation time _[ed: should this be "not necessarily the time of the event"?]_. 
+NTFS-Linker makes a principled best guess _[ed: how?]_ of the `$LogFile` creation timestamps, 
+and uses those to merge with `$UsnJrnl`. Anchored events denote events with 
+timestamps which NTFS-Linker used for ordering. The `$LogFile` events are 
+represented in the order they occur, and will almost certainly have occurred 
+between the anchoring `$UsnJrnl` events. _[ed: any way to detect when not?]_
 
-For example, the `$LogFile` events in the below snippet will almost certainly have occurred on 2012-04-08 02:55, as they
-are anchored by two `$UsnJrnl` events within that time period.
+For example, the `$LogFile` events in the below snippet will almost certainly 
+have occurred on 2012-04-08 02:55, as they are anchored by two `$UsnJrnl` events
+within that time period.
 
 | Timestamp   | Source                         | Event  | File                  |
 |-------------|--------------------------------|--------|-----------------------|
@@ -131,20 +157,25 @@ are anchored by two `$UsnJrnl` events within that time period.
 | 4/8/12 2:55 | `$UsnJrnl/$J`                  | Create | SAE.dat-journal       |
 
 #### Offset
-The actual file offset (in decimal) to the beginning of the event record in the source file.
+The actual file offset (in decimal) to the beginning of the event record in the 
+source file.
 
 #### Created, Modified, Comment
-For `$LogFile` create events, the timestamps from the Standard Information attribute
-(regardless of the faith NTFS-Linker places in them) and whether those timestamps match the corresponding timestamps
-in the File Name Attribute.
+For `$LogFile` create events, the timestamps from the Standard Information 
+attribute (regardless of the faith NTFS-Linker places in them) and whether those 
+timestamps match the corresponding timestamps in the File Name Attribute. If 
+not, the "Comment" field will say ``. This allows for easy detection of 
+timestomping.
 
-#### `$UsnJrnl` events
-`$UsnJrnl` records are combined in events.txt to display one event for each logical event that
-actually occurred. For instance, for a rename event, `$UsnJrnl` will contain at least two records: one containing the
-"old name" and one containing the "new name" (and probably a couple other records, for the same event), but events.txt
-displays this event just once. *However*, for the `$UsnJrnl` events embedded in `$LogFile`, this deduplication is not
-performed. This means that for an embedded rename/move event, the File Name and MFT Record could be either from before
-or after.
+#### `$UsnJrnl` event collapsing
+`$UsnJrnl` records are combined in events.txt to display one event for each 
+logical event that actually occurred. For instance, for a rename event, 
+`$UsnJrnl` will contain at least two records: one containing the old name and 
+one containing the new name (and probably a couple other records, for the same 
+event). In contrast, `events.txt` displays this event just once. *However*, for 
+the `$UsnJrnl` events embedded in `$LogFile`, this deduplication is not _[ed: is not... or cannot?]_
+performed. This means that for an embedded rename/move event, the File Name and 
+MFT Record could be either from before or after.
 
 ## Implementation Details
 
@@ -203,10 +234,10 @@ recover an event timestamp.
 
 The impact is this: we know the order of events in `$UsnJrnl` and `$LogFile`
 separately, and we have some idea of the times these events occurred, but we
-don't know exactly how the two sequences fit together. In order to create a unified
-timeline of events, we do a standard zipper merge of the two sequences, but
-only considering the `$Logfile` create event timestamps. Events of other types
-found in `$LogFile` will always be output directly after the preceding
+don't know exactly how the two sequences fit together. In order to create a 
+unified timeline of events, we do a standard zipper merge of the two sequences, 
+but only considering the `$Logfile` create event timestamps. Events of other 
+types found in `$LogFile` will always be output directly after the preceding
 `$LogFile` create event.
 
 
@@ -225,7 +256,7 @@ a change in state of the file system. Thus we process all the events from the
 base image (not including events which are found in the most recent shadow
 copy!), and then the most recent shadow copy, etc. In the end we get a timeline
 from the present extending into the past of unified events which are mostly in
-the same order as the events occurred.
+the same order as the events occurred. _[ed: *mostly???*]_
 
 ### Extracting events from `$UsnJrnl`
 When a file is created, renamed, moved, or deleted, `$UsnJrnl` will contain
@@ -294,7 +325,3 @@ So, the parsing strategy is to collect the above data as each record is
 processed, all the while checking if the transaction has ended. If it has, then we
 mark a new event if it matches the above event type sequences. Regardless, the
 transaction data is cleared.
-
-
-## Build Notes
-The source is in C++ and uses autoconf.
