@@ -138,17 +138,28 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     if (record_length > USN_BUFFER_SIZE) {
       status.clear();
-      std::cerr << std::hex << record_length << " is an awfully large record_length! Attempting to recover" << std::endl;
+      std::cerr << "Encountered bad record at 0x" << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset << ".";
       int new_offset = recoverPosition(buffer, offset, usn_offset + (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset));
-      if (new_offset > 0) {
-        std::cerr << "Recovery successful with 0x" << std::hex << new_offset - offset << " bytes skipped" << std::endl;
+      if (new_offset >= 0) {
+        std::cerr << " Recovery successful with 0x" << std::hex << new_offset - offset << " bytes skipped" << std::endl;
         offset = new_offset;
         continue;
       }
       else {
-        std::cerr << "Recovery failed. Cannot continue. Check that we're not missing much at "
-          << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset << std::endl;
-        break;
+        // Try once to read another page, but no more
+        input.read(buffer, USN_BUFFER_SIZE);
+        totalOffset += USN_BUFFER_SIZE;
+        offset = 0;
+        int new_offset = recoverPosition(buffer, offset, usn_offset);
+        if (new_offset >= 0) {
+          std::cerr << " Recovery successful with 0x" << std::hex << new_offset - offset << " bytes skipped" << std::endl;
+          offset = new_offset;
+          continue;
+        }
+        else {
+          std::cerr << " Recovery failed. Cannot continue parsing this $UsnJrnl file." << std::endl;
+          break;
+        }
       }
     }
     records_processed++;
