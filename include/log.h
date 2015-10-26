@@ -2,6 +2,7 @@
 
 #include "file.h"
 #include "sqlite_util.h"
+#include "usn.h"
 
 #include <iostream>
 #include <string>
@@ -38,7 +39,7 @@ std::ostream& operator<<(std::ostream& out, const LogRecord& rec);
 
 class LogData {
 public:
-  LogData(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume) {}
+  LogData(const VersionInfo& version) : Snapshot(version.Snapshot), Volume(version.Volume), PrevUsnRecord(version) {}
 
   void clearFields();
   void processLogRecord(const std::vector<File>& records, LogRecord& rec, SQLiteHelper& sqliteHelper, uint64_t fileOffset);
@@ -61,6 +62,7 @@ public:
 
   static const std::vector<int> createRedo, createUndo, deleteRedo, deleteUndo;
   static const std::vector<int> renameRedo, renameUndo, writeRedo, writeUndo;
+  UsnRecord PrevUsnRecord;
 private:
   /*
   Used for $LogFile event analysis
