@@ -15,11 +15,11 @@ class Event {
 public:
   Event();
   void init(sqlite3_stmt* stmt);
-  void write(int order, std::ostream& out, const std::vector<File>& records);
+  void write(std::ostream& out, const std::vector<File>& records);
   void updateRecords(std::vector<File>& records);
   static std::string getColumnHeaders();
 
-  int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset;
+  int64_t Record, Parent, PreviousParent, UsnLsn, Type, Source, Offset, Id, Order;
   std::string Timestamp, Name, PreviousName, Created, Modified, Comment, Snapshot, Volume;
   bool IsAnchor, IsEmbedded;
 };

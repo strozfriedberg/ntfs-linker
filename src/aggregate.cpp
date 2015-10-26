@@ -10,10 +10,14 @@
 #include <string>
 #include <vector>
 
-int writeAndStep(Event& event, sqlite3_stmt* stmt, std::vector<File>& records, int order, std::ofstream& out) {
-  event.write(order, out, records);
+int writeAndStep(Event& event, sqlite3_stmt* step, sqlite3_stmt* update, std::vector<File>& records, int order, std::ofstream& out) {
+  event.Order = order;
+  event.write(out, records);
   event.updateRecords(records);
-  return sqlite3_step(stmt);
+
+  sqlite3_bind_int64(update, event.Id, 0);
+  sqlite3_bind_int64(update, event.Order, 1);
+  return sqlite3_step(step);
 }
 
 void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, VolumeIO& volumeIO, const VersionInfo& version) {
@@ -33,7 +37,7 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, Volume
       break;
     }
     logEvent.IsAnchor = false;
-    l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+    l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, sqliteHelper.EventUpdate, records, ++order, out);
   }
 
   while (u == SQLITE_ROW && l == SQLITE_ROW) {
@@ -42,18 +46,18 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, Volume
 
     if (usnEvent.Timestamp > logEvent.Timestamp) {
       usnEvent.IsAnchor = true;
-      u = writeAndStep(usnEvent, sqliteHelper.EventUsnSelect, records, ++order, out);
+      u = writeAndStep(usnEvent, sqliteHelper.EventUsnSelect, sqliteHelper.EventUpdate, records, ++order, out);
     }
     else {
       logEvent.IsAnchor = true;
-      l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+      l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, sqliteHelper.EventUpdate, records, ++order, out);
 
       while (l == SQLITE_ROW) {
         logEvent.init(sqliteHelper.EventLogSelect);
         if (logEvent.Type == EventTypes::TYPE_CREATE) {
           break;
         }
-        l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+        l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, sqliteHelper.EventUpdate, records, ++order, out);
       }
     }
   }
@@ -61,13 +65,13 @@ void outputEvents(std::vector<File>& records, SQLiteHelper& sqliteHelper, Volume
   while (u == SQLITE_ROW) {
     usnEvent.init(sqliteHelper.EventUsnSelect);
     usnEvent.IsAnchor = true;
-    u = writeAndStep(usnEvent, sqliteHelper.EventUsnSelect, records, ++order, out);
+    u = writeAndStep(usnEvent, sqliteHelper.EventUsnSelect, sqliteHelper.EventUpdate, records, ++order, out);
   }
 
   while (l == SQLITE_ROW) {
     logEvent.init(sqliteHelper.EventLogSelect);
     logEvent.IsAnchor = false;
-    l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, records, ++order, out);
+    l = writeAndStep(logEvent, sqliteHelper.EventLogSelect, sqliteHelper.EventUpdate, records, ++order, out);
   }
 
   sqliteHelper.resetSelect();
@@ -81,6 +85,8 @@ std::string textToString(const unsigned char* text) {
 
 void Event::init(sqlite3_stmt* stmt) {
   int i = -1;
+  Id             = sqlite3_column_int64(stmt, ++i);
+  Order          = sqlite3_column_int64(stmt, ++i);
   Record         = sqlite3_column_int64(stmt, ++i);
   Parent         = sqlite3_column_int64(stmt, ++i);
   PreviousParent = sqlite3_column_int64(stmt, ++i);
@@ -135,8 +141,8 @@ std::string Event::getColumnHeaders() {
   return ss.str();
 }
 
-void Event::write(int order, std::ostream& out, const std::vector<File>& records) {
-  out << order                                                                         << "\t"
+void Event::write(std::ostream& out, const std::vector<File>& records) {
+  out << Order                                                                         << "\t"
       << (IsAnchor ? Timestamp : "")                                                   << "\t"
       << (IsEmbedded ? EventSources::SOURCE_EMBEDDED_USN : static_cast<EventSources>(Source)) << "\t"
       << static_cast<EventTypes>(Type)                                                 << "\t"

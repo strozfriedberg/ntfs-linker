@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 #include <string>
+#include <vector>
 
 struct VersionInfo {
   VersionInfo(std::string volume, std::string snapshot) : Volume(volume), Snapshot(snapshot) {}
@@ -20,11 +21,18 @@ public:
   void bindForSelect(const VersionInfo& version);
   void resetSelect();
 
-  sqlite3_stmt *UsnInsert, *LogInsert, *EventInsert, *EventUsnSelect, *EventLogSelect;
+  void makeTempOrderTable();
+  void updateEventOrders();
+
+
+  sqlite3_stmt *UsnInsert, *LogInsert, *EventInsert, *EventUsnSelect, *EventLogSelect, *EventUpdate;
 private:
   void finalizeStatements();
   int prepareStatement(sqlite3_stmt **stmt, std::string& sql);
   void prepareStatements();
+  std::string toColumnList(std::vector<std::vector<std::string>>& cols);
+
+  static const std::vector<std::vector<std::string>> EventColumns, LogColumns, UsnColumns;
 
   sqlite3* Db;
 };
