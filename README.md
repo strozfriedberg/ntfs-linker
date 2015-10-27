@@ -46,14 +46,15 @@ redo/undo operation data, so this report is of limited use.
 what events.txt provides, including all of the Reason flags.
 
 - events.txt: contains a unified view of all file system events, as parsed from
-both $UsnJrnl and $LogFile, ordered(approximately - see below) by event time,
-from most recent to oldest.
+both $UsnJrnl and $LogFile, ordered by event time from most recent to oldest 
+(approximately--see below).
 
 NTFS-Linker _also_ produces a SQLite database containing all of the above data. 
 The database schema is designed for ease of querying, not full normalization.
 
 ## Installation
-The source is in C++ and uses autoconf. On a sane Unix, this should work:
+The source is in C++ and uses autotools for building. On a sane Unix, this 
+should work:
 ```
 ./bootstrap.sh
 ./configure
@@ -61,9 +62,15 @@ make
 sudo make install
 ```
 
-NTFS-linker has dependencies on [Boost](http://www.boost.org), [The Sleuthkit](http://www.sleuthkit.org), 
-[libewf](http://github.com/libyal/libewf), [libbfio](http://github.com/libyal/libbfio), 
-and [libvshadow](http://github.com/libyal/libvshadow).
+NTFS-linker has dependencies on 
+[SQLite](http://www.sqlite.org), 
+[Boost](http://www.boost.org), 
+[The Sleuthkit](http://www.sleuthkit.org), 
+[libewf](http://github.com/libyal/libewf), 
+[libbfio](http://github.com/libyal/libbfio), 
+[libcerror](http://github.com/libyal/libcerror), 
+and [libvshadow](http://github.com/libyal/libvshadow). The `configure` script 
+should detect these dependencies on your system and warn you if any are missing.
 
 With sufficient wizardry, NTFS-linker can be built for Windows using mingw. For 
 the impatient, prebuilt binaries can be downloaded from [somewhere?]().
@@ -71,7 +78,8 @@ the impatient, prebuilt binaries can be downloaded from [somewhere?]().
 
 ## Understanding the output
 
-All timestamps are in [ISO 8601 format](), i.e., YYYY-mm-dd HH:MM:SS.1234567.
+All timestamps are in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations), 
+i.e., YYYY-mm-dd HH:MM:SS.1234567.
 Windows stores timestamps as the number of hundred nanoseconds since 1601 
 (FILETIME). The routines used by NTFS-Linker to parse the time use standard 
 C++ libraries, which may result in incorrect timestamps in some cases.
@@ -79,11 +87,12 @@ Specifically, if the time is _before_ 1970 or _after_ 2038, the timestamp will
 not be displayed properly.
 
 ### usn.txt
-The [USN Journal reason code]() uses a bit packing scheme for each possible reason. 
-From the time a file is opened to the time it is closed, the reasons will be 
-combined. This means that multiple reasons may show up for a particular entry, 
-even though only one operation happens at a time. The order the reasons are 
-printed is completely arbitrary and has no correlation to the order in which 
+The [USN Journal reason code](https://msdn.microsoft.com/en-us/library/aa365722%28VS.85%29.aspx)
+ uses a bit packing scheme for each possible 
+reason. From the time a file is opened to the time it is closed, the reasons 
+will be combined. This means that multiple reasons may show up for a particular 
+entry, even though only one operation happens at a time. The order the reasons 
+are printed is completely arbitrary and has no correlation to the order in which 
 they occurred.
 
 #### USN Journal Example:
