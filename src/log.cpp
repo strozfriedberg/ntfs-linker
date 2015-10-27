@@ -434,7 +434,7 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
     UsnRecord usnRecord(redo_data, fileOffset + 0x30 + rec.RedoOffset, VersionInfo(Snapshot, Volume), rec.RedoLength, true);
     usnRecord.insert(sqliteHelper.UsnInsert, records);
     if (PrevUsnRecord.Record != usnRecord.Record || PrevUsnRecord.Reason & UsnReasons::USN_CLOSE) {
-      PrevUsnRecord.checkTypeAndInsert(sqliteHelper.EventInsert);
+      PrevUsnRecord.checkTypeAndInsert(sqliteHelper.EventInsert, false);
       PrevUsnRecord.clearFields();
     }
     if (PrevUsnRecord.Usn == 0)

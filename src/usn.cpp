@@ -282,7 +282,13 @@ UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, const VersionInfo&
     unsigned int name_offset         = hex_to_long(buffer + 0x3A, 2);
 
     if (len < 0 || (unsigned) len >= record_length) {
-      Name = mbcatos(buffer + name_offset, name_len);
+      std::string file_name = mbcatos(buffer + name_offset, name_len);
+      if (Reason & UsnReasons::USN_RENAME_OLD_NAME) {
+        PreviousName = file_name;
+      }
+      else {
+        Name = file_name;
+      }
       return;
     }
   }
@@ -370,17 +376,17 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_reset(stmt);
 }
 
-void UsnRecord::checkTypeAndInsert(sqlite3_stmt* stmt) {
+void UsnRecord::checkTypeAndInsert(sqlite3_stmt* stmt, bool strict) {
   if (Reason & UsnReasons::USN_FILE_CREATE)
     insertEvent(EventTypes::TYPE_CREATE, stmt);
   if (Reason & UsnReasons::USN_FILE_DELETE)
     insertEvent(EventTypes::TYPE_DELETE, stmt);
   if (PreviousName != Name
       && (Reason & (UsnReasons::USN_RENAME_NEW_NAME | UsnReasons::USN_RENAME_OLD_NAME))
-      && PreviousName != "")
+      && (PreviousName != "" || !strict))
     insertEvent(EventTypes::TYPE_RENAME, stmt);
   if (Parent != PreviousParent
       && (Reason & (UsnReasons::USN_RENAME_NEW_NAME | UsnReasons::USN_RENAME_OLD_NAME))
-      && PreviousParent != -1)
+      && (PreviousParent != -1 || !strict))
     insertEvent(EventTypes::TYPE_MOVE, stmt);
 }

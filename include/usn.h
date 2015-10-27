@@ -54,7 +54,7 @@ public:
   std::string toRenameString(const  std::vector<File> &records);
   std::string toString(const        std::vector<File> &records);
 
-  void checkTypeAndInsert(sqlite3_stmt* stmt);
+  void checkTypeAndInsert(sqlite3_stmt* stmt, bool strict=true);
   void update(UsnRecord rec);
   void clearFields();
 
