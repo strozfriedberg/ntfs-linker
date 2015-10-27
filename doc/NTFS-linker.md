@@ -164,10 +164,11 @@ timestomping.
 logical event that actually occurred. For instance, for a rename event, 
 `$UsnJrnl` will contain at least two records: one containing the old name and 
 one containing the new name (and probably a couple other records, for the same 
-event). In contrast, `events.txt` displays this event just once. *However*, for 
-the `$UsnJrnl` events embedded in `$LogFile`, this deduplication is not _[ed: is not... or cannot?]_
-performed. This means that for an embedded rename/move event, the File Name and 
-MFT Record could be either from before or after.
+event). In contrast, `events.txt` displays this event just once. For 
+the `$UsnJrnl` events embedded in `$LogFile`, this same deduplication is performed,
+but only amongst other `$UsnJrnl` events embedded in `$LogFile`. Since these
+embedded events are found less often, for rename and move events, it is generally
+not possible to retrieve both the file name before and the file name after.
 
 ## Implementation Details
 
