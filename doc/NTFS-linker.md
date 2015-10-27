@@ -1,3 +1,58 @@
+# NTFS-Linker
+Author: Zack Weger
+
+Copyright (c) 2015, [Stroz Friedberg, LLC](http://www.strozfriedberg.com)
+
+Status: Alpha
+
+## Basic usage:
+
+    C:\> ntfs-linker.exe --input .\journals\ --output .\parsed-output\
+
+    C:\> ntfs-linker.com --image MyEvidence.E01 --output .\parsed-output\
+
+## Input
+
+`ntfs-linker` operates off of a directory of input containing $UsnJrnl, 
+$Logfile, and $MFT. The $UsnJrnl should be the $J alternate data stream and it 
+can be clipped to avoid copying the sparse portions.
+
+![Input Screenshot](simple_input.jpg)
+
+When presented with a disk image as input, `ntfs-linker` will automatically run 
+against all NTFS volumes and retrieve the respective occurrences of $UsnJrnl,
+$Logfile, and $MFT. If a volume contains Volume Shadow Copies, the NTFS files
+will be retrieved from each VSC and then the entire collection will be parsed.
+
+## Output
+
+The output will look like this:
+
+![Output Screenshot](output.jpg)
+
+## Database schema
+
+The SQLite database created by `ntfs-linker` will have the following structure:
+
+_insert sql here_
+
+### Useful queries
+
+The following are useful queries.
+
+#### ccleaner
+
+    just the zzzz junk?
+
+#### Filesystem tunneling
+
+    is possible?
+
+#### Daily histogram
+
+    gotta do a group by
+
+
 ## Understanding the output
 
 All timestamps are in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations), 
@@ -253,6 +308,21 @@ DELETE_INDEX_ENTRY_ALLOCATION equivalent to DELETE_INDEX_ENTRY_ROOT, and
 denote as DELETE_INDEX_ENTRY.
 
 So, the parsing strategy is to collect the above data as each record is
-processed, all the while checking if the transaction has ended. If it has, then we
-mark a new event if it matches the above event type sequences. Regardless, the
-transaction data is cleared.
+processed, all the while checking if the transaction has ended. If it has, 
+then we mark a new event if it matches the above event type sequences. 
+Regardless, the transaction data is cleared.
+
+## Further reading
+
+There are a number of good resources online about NTFS, $MFT, $UsnJrnl, 
+$Logfile, and Volume Shadow Copies. Among them:
+ - [David Cowen](http://www.hecfblog.com/) has blogged in-depth about his 
+ research into NTFS linking and offers a [tool](http://www.gettriforce.com) 
+ that has features beyond the scope of NTFS-linker.
+   - [NTFS Triforce - A deeper look inside the artifacts](http://hackingexposedcomputerforensicsblog.blogspot.com/2013/01/ntfs-triforce-deeper-look-inside.html)
+   - [CEIC 2013 and the public beta of the NTFS Triforce](http://hackingexposedcomputerforensicsblog.blogspot.com/2013/05/ceic-2013-and-public-beta-of-ntfs.html)
+ - The [$logfile reference](http://inform.pucp.edu.pe/~inf232/Ntfs/ntfs_doc_v0.5/files/logfile.html) 
+ as part of the Linux-NTFS documentation.
+ - [MSDN on the $UsnJrnl](http://www.microsoft.com/msj/0999/journal/journal.aspx)
+ - Mike Wilkinson's [NTFS Cheat Sheet](http://www.writeblocked.org/resources/ntfs_cheat_sheets.pdf) 
+ is a succinct reference to various NTFS structures.
