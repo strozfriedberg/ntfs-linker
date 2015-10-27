@@ -30,7 +30,7 @@ src_libntfs_linkerint_la_SOURCES = \
 	src/vss.cpp \
 	src/walkers.cpp
 
-src_libntfs_linker_la_LIBADD = $(NL_LIB_INT)
+src_libntfs_linker_la_LIBADD = $(NL_LIB_INT) $(NL_LIBS)
 if BUILD_DLL
 src_libntfs_linker_la_LDFLAGS = $(AM_LDFLAGS) $(NL_LIB_LDFLAGS) -avoid-version
 else
@@ -39,7 +39,7 @@ endif
 
 src_ntfs_linker_SOURCES = src/ntfs_linker.cpp
 
-src_ntfs_linker_LDADD = $(NL_LIBS) $(NL_LIB)
+src_ntfs_linker_LDADD = $(NL_LIB) $(NL_LIBS)
 
 bin_PROGRAMS = src/ntfs_linker
  
