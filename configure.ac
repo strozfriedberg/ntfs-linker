@@ -134,9 +134,29 @@ fi
 # -static.
 if test "x$enable_shared" != "xyes"; then
   CXXLD="$CXX -all-static"
+
+  case "$host" in
+  i686-*-mingw*)
+    # FIXME: Really? This looks like it's just asking for trouble...
+    AX_APPEND_LINK_FLAGS([-Wl,--allow-multiple-definition], [NL_LIB_LDFLAGS])
+    ;;
+  esac
 else
   CXXLD="$CXX"
+
+  case "$host" in
+  *-*-mingw*)
+    # -no-undefined is a libtool flag; adding it with AX_APPEND_LINK_FLAGS
+    # will fail because that tries flags with LD. So don't do that.
+    AX_APPEND_FLAG([-no-undefined], [NL_LIB_LDFLAGS])
+    NL_LIB_LDFLAGS="$NL_LIB_LDFLAGS -Wl,--output-def -Wl,src/.libs/$PACKAGE.def"
+#    LT_LANG([Windows Resource])
+    ;;
+  esac  
 fi
+
+AM_CONDITIONAL([BUILD_DLL], [test "x$enable_shared" = "xyes" && echo "$host" | grep -q mingw])
+
 AC_SUBST([CXXLD])
 
 AC_DEFUN([SF_APPEND], [{
@@ -170,6 +190,7 @@ AC_SUBST([NL_CPPFLAGS])
 AC_SUBST([NL_CXXFLAGS])
 AC_SUBST([NL_LDFLAGS])
 AC_SUBST([NL_LIBS])
+AC_SUBST([NL_LIB_LDFLAGS])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
