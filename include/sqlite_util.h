@@ -54,7 +54,7 @@ private:
   void prepareStatements();
   std::string toColumnList(std::vector<std::vector<std::string>>& cols);
 
-  static const std::vector<std::vector<std::string>> EventColumns, LogColumns, UsnColumns;
+  static const std::vector<std::vector<std::string>> EventColumns, LogColumns, UsnColumns, EventTempColumns;
 
   sqlite3* Db;
 };

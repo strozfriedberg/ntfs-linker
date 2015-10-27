@@ -62,6 +62,10 @@ enum EventTypes: unsigned int {
   TYPE_MOVE = 3,
 };
 
+std::string toString(EventSources e);
+
+std::string toString(EventTypes e);
+
 std::ostream& operator<<(std::ostream& out, EventTypes e);
 
 std::ostream& operator<<(std::ostream& out, EventSources e);

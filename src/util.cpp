@@ -181,6 +181,32 @@ void prep_ofstream(std::ofstream& out, const std::string& name, bool overwrite) 
 //  out << smarker;
 }
 
+std::string toString(EventTypes e) {
+  switch(e) {
+    case EventTypes::TYPE_CREATE:
+      return "Create";
+    case EventTypes::TYPE_DELETE:
+      return "Delete";
+    case EventTypes::TYPE_MOVE:
+      return "Move";
+    default:
+      return "Rename";
+  }
+}
+
+std::string toString(EventSources e) {
+  switch(e) {
+    case EventSources::SOURCE_USN:
+      return "$UsnJrnl/$J";
+    case EventSources::SOURCE_LOG:
+      return "$LogFile";
+    case EventSources::SOURCE_EMBEDDED_USN:
+      return "$UsnJrnl entry in $LogFile";
+    default:
+      return "N/A";
+  }
+}
+
 std::ostream& operator<<(std::ostream& out, EventTypes e) {
   switch(e) {
     case EventTypes::TYPE_CREATE:

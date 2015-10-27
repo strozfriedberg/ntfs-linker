@@ -40,7 +40,7 @@ int writeAndStep(Event& event, sqlite3_stmt* step, sqlite3_stmt* insert, std::ve
   event.Order = order;
   event.write(out, records);
   event.updateRecords(records);
-  event.insert(insert);
+  event.insert(insert, records);
 
   return sqlite3_step(step);
 }
@@ -110,8 +110,6 @@ std::string textToString(const unsigned char* text) {
 
 void Event::init(sqlite3_stmt* stmt) {
   int i = -1;
-  Id             = sqlite3_column_int64(stmt, ++i);
-  Order          = sqlite3_column_int64(stmt, ++i);
   Record         = sqlite3_column_int64(stmt, ++i);
   Parent         = sqlite3_column_int64(stmt, ++i);
   PreviousParent = sqlite3_column_int64(stmt, ++i);
@@ -156,7 +154,6 @@ std::string Event::getColumnHeaders() {
      << "Old File Name"     << "\t"
      << "Old Folder"        << "\t"
      << "Old Parent Record" << "\t"
-     << "Anchored"          << "\t"
      << "Offset"            << "\t"
      << "Created"           << "\t"
      << "Modified"          << "\t"
@@ -180,7 +177,6 @@ void Event::write(std::ostream& out, const std::vector<File>& records) {
       << PreviousName                                                                  << "\t"
       << (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent))            << "\t"
       << (PreviousParent == -1 ? "" : std::to_string(PreviousParent))                  << "\t"
-      << IsAnchor                                                                      << "\t"
       << Offset                                                                        << "\t"
       << Created                                                                       << "\t"
       << Modified                                                                      << "\t"
@@ -189,19 +185,30 @@ void Event::write(std::ostream& out, const std::vector<File>& records) {
       << Volume                                                                        << std::endl;
 }
 
-void Event::insert(sqlite3_stmt* stmt) {
+void bind_int_or_null(sqlite3_stmt* stmt, int i, int64_t value) {
+  if (value == -1) {
+    sqlite3_bind_null(stmt, i);
+  }
+  else {
+    sqlite3_bind_int64(stmt, i, value);
+  }
+}
+
+void Event::insert(sqlite3_stmt* stmt, std::vector<File>& records) {
   int i = 0;
   sqlite3_bind_int64(stmt, ++i, Order);
-  sqlite3_bind_int64(stmt, ++i, Record);
-  sqlite3_bind_int64(stmt, ++i, Parent);
-  sqlite3_bind_int64(stmt, ++i, PreviousParent);
-  sqlite3_bind_int64(stmt, ++i, UsnLsn);
-  sqlite3_bind_text (stmt, ++i, Timestamp.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, (IsAnchor ? Timestamp : "").c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, toString(IsEmbedded ? EventSources::SOURCE_EMBEDDED_USN : static_cast<EventSources>(Source)).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, toString(static_cast<EventTypes>(Type)).c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Name.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, (Parent == -1 ? "" : getFullPath(records, Parent)).c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, (Record == -1 ? "" : getFullPath(records, Record)).c_str(), -1, SQLITE_TRANSIENT);
+  bind_int_or_null  (stmt, ++i, Record);
+  bind_int_or_null  (stmt, ++i, Parent);
+  sqlite3_bind_int64(stmt, ++i, UsnLsn);
   sqlite3_bind_text (stmt, ++i, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
-  sqlite3_bind_int  (stmt, ++i, Type);
-  sqlite3_bind_int  (stmt, ++i, Source);
-  sqlite3_bind_int  (stmt, ++i, IsEmbedded);
+  sqlite3_bind_text (stmt, ++i, (PreviousParent == -1 ? "" : getFullPath(records, PreviousParent)).c_str(), -1, SQLITE_TRANSIENT);
+  bind_int_or_null  (stmt, ++i, PreviousParent);
   sqlite3_bind_int64(stmt, ++i, Offset);
   sqlite3_bind_text (stmt, ++i, Created.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Modified.c_str(), -1, SQLITE_TRANSIENT);

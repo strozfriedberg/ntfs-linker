@@ -44,21 +44,20 @@ int busyHandler(__attribute__((unused)) void* foo, __attribute__((unused)) int n
 
 }
 
-typedef std::vector<std::vector<std::string>>::const_iterator col_iter;
-std::string getColList(col_iter first, col_iter last, int type) {
+std::string getColList(const std::vector<std::vector<std::string>>& cols, int type) {
   std::stringstream ss;
   bool isFirst = true;
-  for (col_iter cur = first; cur != last; ++cur) {
+  for (auto& col: cols) {
     if(!isFirst) {
       ss << ", ";
     }
     isFirst = false;
     switch(type) {
       case 0:
-        ss << (*cur)[0] << " " << (*cur)[1];
+        ss << col[0] << " " << col[1];
         break;
       case 1:
-        ss << (*cur)[0];
+        ss << col[0];
         break;
       case 2:
         ss << "?";
@@ -95,17 +94,17 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
     rc |= sqlite3_exec(Db, "drop table if exists event;", 0, 0, 0);
   }
   rc |= sqlite3_exec(Db, std::string("create table if not exists log "
-                                     "(" + getColList(LogColumns.begin(), LogColumns.end(), 0) + ");").c_str(),
+                                     "(" + getColList(LogColumns, 0) + ");").c_str(),
                      0, 0, 0);
   rc |= sqlite3_exec(Db, std::string("create table if not exists usn "
-                                    "(" + getColList(UsnColumns.begin(), UsnColumns.end(), 0) + ");").c_str(),
+                                    "(" + getColList(UsnColumns, 0) + ");").c_str(),
                      0, 0, 0);
   rc |= sqlite3_exec(Db, std::string("create temporary table event_temp "
-                                     "(" + getColList(EventColumns.begin(), EventColumns.end(), 0) + ", "
+                                     "(" + getColList(EventTempColumns, 0) + ", "
                                      "UNIQUE(USN_LSN, EventSource, Volume));").c_str(),
                      0, 0, 0);
   rc |= sqlite3_exec(Db, std::string("create table if not exists event "
-                                     "(" + getColList(EventColumns.begin() + 1, EventColumns.end(), 0) + ");").c_str(),
+                                     "(" + getColList(EventColumns, 0) + ");").c_str(),
                      0, 0, 0);
   if(rc) {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
@@ -164,19 +163,19 @@ void SQLiteHelper::resetSelect() {
 
 void SQLiteHelper::prepareStatements() {
   int rc = 0;
-  std::string usnInsert = "insert into usn (" + getColList(UsnColumns.begin(), UsnColumns.end(), 1) + ") "
-                                   "values (" + getColList(UsnColumns.begin(), UsnColumns.end(), 2) + ");";
-  std::string logInsert = "insert into log (" + getColList(LogColumns.begin(), LogColumns.end(), 1) + ") "
-                                   "values (" + getColList(LogColumns.begin(), LogColumns.end(), 2) + ");";
+  std::string usnInsert = "insert into usn (" + getColList(UsnColumns, 1) + ") "
+                                   "values (" + getColList(UsnColumns, 2) + ");";
+  std::string logInsert = "insert into log (" + getColList(LogColumns, 1) + ") "
+                                   "values (" + getColList(LogColumns, 2) + ");";
   // Events are processed from the oldest to the newest, so when an event with a conflicting (USN_LSN, EventSource)
   // comes into play, it should be ignored
   std::string eventInsert = "insert or ignore into event_temp "
-                            "(" + getColList(EventColumns.begin() + 2, EventColumns.end(), 1) + ") "
-                            + "values (" + getColList(EventColumns.begin() + 2, EventColumns.end(), 2) + ");";
+                            "(" + getColList(EventTempColumns, 1) + ") "
+                            + "values (" + getColList(EventTempColumns, 2) + ");";
   std::string eventFinalInsert = "insert into event "
-                            "(" + getColList(EventColumns.begin() + 1, EventColumns.end(), 1) + ") "
-                            + "values (" + getColList(EventColumns.begin() + 1, EventColumns.end(), 2) + ");";
-  std::string eventSelect = "select " + getColList(EventColumns.begin(), EventColumns.end(), 1) + " from event_temp where EventSource=? and Snapshot=? and Volume=? order by USN_LSN desc;";
+                            "(" + getColList(EventColumns, 1) + ") "
+                            + "values (" + getColList(EventColumns, 2) + ");";
+  std::string eventSelect = "select " + getColList(EventTempColumns, 1) + " from event_temp where EventSource=? and Snapshot=? and Volume=? order by USN_LSN desc;";
 
   rc |= prepareStatement(&UsnInsert, usnInsert);
   rc |= prepareStatement(&LogInsert, logInsert);
@@ -203,8 +202,28 @@ void SQLiteHelper::finalizeStatements() {
 }
 
 const std::vector<std::vector<std::string>> SQLiteHelper::EventColumns = {
-  { "id", "integer primary key autoincrement"},
-  { "position", "int default -1"},
+  { "Position", "int"},
+  { "Timestamp", "text"},
+  { "EventSource", "text"},
+  { "EventType", "text"},
+  { "FileName", "text"},
+  { "Folder", "text"},
+  { "Full_Path", "text"},
+  { "MFT_Record", "int"},
+  { "Parent_MFT_Record", "int"},
+  { "USN_LSN", "int"},
+  { "Old_File_Name", "text"},
+  { "Old_Folder", "text"},
+  { "Old_Parent_Record", "int"},
+  { "Offset", "int"},
+  { "Created", "text"},
+  { "Modified", "text"},
+  { "Comment", "text"},
+  { "Snapshot", "text"},
+  { "Volume", "text"}
+};
+
+const std::vector<std::vector<std::string>> SQLiteHelper::EventTempColumns = {
   { "MFTRecNo", "int"},
   { "ParRecNo", "int"},
   { "PreviousParRecNo", "int"},
