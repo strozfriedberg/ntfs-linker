@@ -102,7 +102,7 @@ ImageIO::ImageIO(Options& opts) : Good(false) {
       Options volumeOpts = opts;
       volumeOpts.input /= volume.filename();
       volumeOpts.output /= volume.filename();
-      VolumeIOPtr volume(new VOlumeIO(volumeOpts, this));
+      VolumeIOPtr volume(new VolumeIO(volumeOpts, this));
       if (volume->Good) {
         Good = true;
         Volumes.push_back(VolumeIOPtr(new VolumeIO(volumeOpts, this)));

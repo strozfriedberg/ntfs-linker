@@ -56,7 +56,7 @@ struct SnapshotIO {
   std::string Name;
   bool Good;
 };
-typedef std::unique_ptr<SnapshotIO> SnapshotIOPtr;
+typedef std::shared_ptr<SnapshotIO> SnapshotIOPtr;
 
 struct ImageIO;
 
@@ -70,7 +70,7 @@ struct VolumeIO {
   std::string Name;
   bool Good;
 };
-typedef std::unique_ptr<VolumeIO> VolumeIOPtr;
+typedef std::shared_ptr<VolumeIO> VolumeIOPtr;
 
 struct ImageIO {
   ImageIO(Options& opts);
