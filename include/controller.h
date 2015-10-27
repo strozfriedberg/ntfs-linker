@@ -54,6 +54,7 @@ struct SnapshotIO {
   std::ifstream IMft, IUsnJrnl, ILogFile;
   std::ofstream OUsnJrnl, OLogFile;
   std::string Name;
+  bool Good;
 };
 typedef std::unique_ptr<SnapshotIO> SnapshotIOPtr;
 
@@ -67,6 +68,7 @@ struct VolumeIO {
   std::ofstream Events;
   unsigned int Count;
   std::string Name;
+  bool Good;
 };
 typedef std::unique_ptr<VolumeIO> VolumeIOPtr;
 
@@ -74,6 +76,7 @@ struct ImageIO {
   ImageIO(Options& opts);
   std::vector<VolumeIOPtr> Volumes;
   SQLiteHelper SqliteHelper;
+  bool Good;
 };
 
 void run(Options& opts);

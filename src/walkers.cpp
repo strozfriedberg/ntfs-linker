@@ -150,6 +150,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
 
   if (rtnVal)
     return TSK_FILTER_SKIP;
+  DidItWork = true;
 
   try {
     VSS vShadowVolume(fs);

@@ -35,71 +35,91 @@
 
 #include <boost/scoped_array.hpp>
 
-SnapshotIO::SnapshotIO(Options& opts, VolumeIO* parent) : Parent(parent), Name(opts.input.string()) {
+SnapshotIO::SnapshotIO(Options& opts, VolumeIO* parent) : Parent(parent), Name(opts.input.string()), Good(false) {
   IMft.open((opts.input / fs::path("$MFT")).string(), std::ios::binary);
   IUsnJrnl.open((opts.input / fs::path("$UsnJrnl")).string(), std::ios::binary);
   ILogFile.open((opts.input / fs::path("$LogFile")).string(), std::ios::binary);
 
-
   if(!IMft) {
     std::cerr << "$MFT File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
-    exit(0);
+    return;
   }
   if(!IUsnJrnl) {
     IUsnJrnl.open((opts.input / fs::path("$J")).string(), std::ios::binary);
     if(!IUsnJrnl) {
       std::cerr << "$UsnJrnl/$J File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
-      exit(0);
+      return;
     }
   }
   if(!ILogFile) {
     std::cerr << "$LogFile File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
-    exit(0);
+    return;
   }
 
   fs::create_directories(opts.output);
   prep_ofstream(OUsnJrnl, (opts.output / fs::path("usnjrnl.txt")).string(), opts.overwrite);
   prep_ofstream(OLogFile, (opts.output / fs::path("logfile.txt")).string(), opts.overwrite);
+  Good = true;
 }
 
-VolumeIO::VolumeIO(Options& opts, ImageIO* parent) : Parent(parent), Count(0), Name(opts.input.string())  {
+VolumeIO::VolumeIO(Options& opts, ImageIO* parent) : Parent(parent), Count(0), Name(opts.input.string()), Good(false)  {
   std::vector<fs::path> snapshots;
   std::copy(fs::directory_iterator(opts.input), fs::directory_iterator(), std::back_inserter(snapshots));
   std::sort(snapshots.begin(), snapshots.end());
-  bool containsDirectories = false;
   for (auto& snapshot: snapshots) {
     if (fs::is_directory(snapshot)) {
-      containsDirectories = true;
       Options snapshotOpts = opts;
       snapshotOpts.input  /= snapshot.filename();
       snapshotOpts.output /= snapshot.filename();
-      Snapshots.push_back(SnapshotIOPtr(new SnapshotIO(snapshotOpts, this)));
+      SnapshotIOPtr snapshot(new SnapshotIO(snapshotOpts, this));
+      if (snapshot->Good) {
+        Snapshots.push_back(snapshot);
+        Good = true;
+      }
     }
   }
 
-  if (!containsDirectories) {
-    Snapshots.push_back(SnapshotIOPtr(new SnapshotIO(opts, this)));
+  if (!Good) {
+    SnapshotIOPtr snapshot(new SnapshotIO(opts, this));
+    if (snapshot->Good) {
+      Snapshots.push_back(snapshot);
+      Good = true;
+    }
+    else {
+      std::cerr << "Unable to process folder: " << opts.input << " as a volume folder. Neither this folder nor any subdirectory contain all of $MFT, $J, $LogFile" << std::endl;
+      return;
+    }
   }
   prep_ofstream(Events, (opts.output / fs::path("events.txt")).string(), opts.overwrite);
 }
 
-ImageIO::ImageIO(Options& opts) {
+ImageIO::ImageIO(Options& opts) : Good(false) {
   std::vector<fs::path> volumes;
   std::copy(fs::directory_iterator(opts.input), fs::directory_iterator(), std::back_inserter(volumes));
   std::sort(volumes.begin(), volumes.end());
-  bool containsDirectories = false;
   for (auto& volume: volumes) {
     if (fs::is_directory(volume)) {
-      containsDirectories = true;
       Options volumeOpts = opts;
       volumeOpts.input /= volume.filename();
       volumeOpts.output /= volume.filename();
-      Volumes.push_back(VolumeIOPtr(new VolumeIO(volumeOpts, this)));
+      VolumeIOPtr volume(new VOlumeIO(volumeOpts, this));
+      if (volume->Good) {
+        Good = true;
+        Volumes.push_back(VolumeIOPtr(new VolumeIO(volumeOpts, this)));
+      }
     }
   }
 
-  if (!containsDirectories) {
-    Volumes.push_back(VolumeIOPtr(new VolumeIO(opts, this)));
+  if (!Good) {
+    VolumeIOPtr volume(new VolumeIO(opts, this));
+    if (volume->Good) {
+      Good = true;
+      Volumes.push_back(volume);
+    }
+    else {
+      std::cerr << "Unable to process folder: " << opts.input << " as an image folder. Neither this folder, nor any of its subdirectories could be processed as a volume." << std::endl;
+      return;
+    }
   }
 
   std::cout << "Setting up DB Connection..." << std::endl;
@@ -118,7 +138,14 @@ void copyAllFiles(Options& opts) {
     walker.openImageUtf8(opts.imgSegs.size(), segments.get(), TSK_IMG_TYPE_DETECT, 0);
     walker.findFilesInImg();
 
-    std::cout << "Done copying" << std::endl;
+    if (walker.DidItWork) {
+      std::cout << "Done copying" << std::endl;
+    }
+    else {
+      std::cerr << "Error: unable to copy out files. Terminating." << std::endl;
+      exit(1);
+    }
+
   }
 }
 
@@ -152,6 +179,11 @@ void run(Options& opts) {
   copyAllFiles(opts);
 
   ImageIO imageIO(opts);
+  if (!imageIO.Good) {
+    std::cerr << "Unable to process input folder structure. Terminating." << std::endl;
+    exit(1);
+  }
+
   for (auto& volumeIO: imageIO.Volumes) {
     std::cout << "Finding events on Volume: " << volumeIO->Name << std::endl;
 
