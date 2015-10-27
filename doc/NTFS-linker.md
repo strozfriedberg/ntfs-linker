@@ -108,39 +108,45 @@ the "Folder" will represent the path to the parent folder where the event
 occurred, and "Full Path" will represent the path to the file which NTFS-Linker 
 previously thought was at that record. 
 
-#### Anchor and Event Ordering
+#### Event Ordering
 While the exact order of `$LogFile` and `$UsnJrnl` events is known, 
 respectively, the combined ordering is not. They must be ordered according to 
-the event timestamps, but NTFS-Linker places more confidence in some timestamps 
-than others. `$UsnJrnl` timestamps are taken at face value, while $LogFile 
-create timestamps are not. The timestamp for the `$LogFile` create event is the 
-created timestamp in the MFT at the time of creation, which is not necessarily 
-the creation time _[ed: should this be "not necessarily the time of the event"?]_. 
-NTFS-Linker makes a principled best guess _[ed: how?]_ of the `$LogFile` creation timestamps, 
-and uses those to merge with `$UsnJrnl`. Anchored events denote events with 
-timestamps which NTFS-Linker used for ordering. The `$LogFile` events are 
-represented in the order they occur, and will almost certainly have occurred 
-between the anchoring `$UsnJrnl` events. _[ed: any way to detect when not?]_
+the event timestamps. While the  timestamps for all `$UsnJrnl` events are known,
+the timestamps for `$LogFile` rename, move, and delete events is not known.
+Note that, due to file system tunneling, the event time for a `$LogFile` creation
+event is not the `$STANDARD_INFORMATION` attribute creation time. It is the SIA
+*modified* time.
 
+NTFS-Linker performs a "zipper-merge" of these two event sequences, which preserves
+the relative position of events from the same sequence. This is accomplished by
+maintaining a cursor at each sequence, and choosing the next event to be the one
+with the larger timestamp, when both sequences are non-increasing. Since timestamps
+for `$LogFile` rename, delete, and move events are not known, they are always placed
+directly after the preceding `$LogFile` creation event.
+
+This can leave some uncertainty surrounding the exact time of an event,
+but in practice there are almost always surrounding events which limit the uncertainty.
 For example, the `$LogFile` events in the below snippet will almost certainly 
-have occurred on 2012-04-08 02:55, as they are anchored by two `$UsnJrnl` events
-within that time period.
+have occurred between 2012-04-07 21:40:26.5203196 and 2012-04-07 21:39:07.3474312.
+Since identical events were found in `$UsnJrnl/$J`, we suspect these 3 files
+were deleted at 2012-04-07 21:40:26.5203196.
 
-| Timestamp   | Source                         | Event  | File                  |
-|-------------|--------------------------------|--------|-----------------------|
-| 4/8/12 2:55 | `$UsnJrnl/$J`                  | Delete | SAE.dat-journal       |
-| 4/8/12 2:55 | `$UsnJrnl` entry in `$LogFile` | Create | SAE.dat-journal       |
-| 4/8/12 2:55 | `$UsnJrnl` entry in `$LogFile` | Create | SAE.dat-journal       |
-| 4/8/12 2:55 | `$LogFile`                     | Create | SAE.dat-journal       |
-|             | `$LogFile`                     | Delete | 5.tmp                 |
-|             | `$LogFile`                     | Create | 5.ini                 |
-|             | `$LogFile`                     | Delete | 3.tmp                 |
-|             | `$LogFile`                     | Create | 3.ini                 |
-|             | `$LogFile`                     | Delete | 1.tmp                 |
-|             | `$LogFile`                     | Create | 1.ini                 |
-|             | `$LogFile`                     | Delete | SAEPolicy.dat-journal |
-| 4/8/12 2:55 | `$UsnJrnl` entry in `$LogFile` | Create | SAE.dat-journal       |
-| 4/8/12 2:55 | `$UsnJrnl/$J`                  | Create | SAE.dat-journal       |
+
+
+| Timestamp                   | Source      | Event  | File         |
+| --------------------------- | ----------- | ------ | ------------ |
+| 2012-04-07 21:40:26.5359448 |	$LogFile    | Create | gpt00000.dom |
+| 2012-04-07 21:40:26.5359448 |	$UsnJrnl/$J	| Create | gpt00000.dom |
+| 2012-04-07 21:40:26.5203196 |	$LogFile    | Create | tmpgptfl.inf |
+|                             | $LogFile    | Delete | tmpgptfl.inf |
+|                             | $LogFile    | Delete | gpt00000.dom |
+|                             | $LogFile"	| Delete | 5.tmp        |
+| 2012-04-07 21:40:26.5203196 |	$UsnJrnl/$J	| Create | tmpgptfl.inf |
+| 2012-04-07 21:40:26.5203196 |	$UsnJrnl/$J	| Delete | tmpgptfl.inf |
+| 2012-04-07 21:40:26.5203196 |	$UsnJrnl/$J | Delete | gpt00000.dom |
+| 2012-04-07 21:39:07.3474312 | $LogFile    | Create | 5.ini        |
+
+
 
 #### Offset
 The actual file offset (in decimal) to the beginning of the event record in the 
