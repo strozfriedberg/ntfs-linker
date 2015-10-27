@@ -104,7 +104,9 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
     param.File = tsk_fs_file_open(fs, NULL, param.In.c_str());
     if (!param.File) {
       hasAll = false;
+      std::cerr << "TSK error opening file: " << param.In << std::endl;
       std::cerr << tsk_error_get() << std::endl;
+      std::cerr << "Skipping!" << std::endl;
       break;
     }
   }
@@ -159,6 +161,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     }
   }
   catch(std::exception& err) {
+    std::cerr << "Error copying files for fs with offset " << fs->offset << ". Skipping." << std::endl;
     std::cerr << err.what() << std::endl;
     return TSK_FILTER_SKIP;
   }
@@ -168,8 +171,9 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
 uint8_t VolumeWalker::openImageUtf8(int a_numImg, const char *const a_images[], TSK_IMG_TYPE_ENUM a_imgType, unsigned int a_sSize) {
   uint8_t rtnVal = TskAuto::openImageUtf8(a_numImg, a_images, a_imgType, a_sSize);
   if (rtnVal) {
-    std::cerr << "TSK Error! Stopping." << std::endl;
+    std::cerr << "TSK Error opening image." << std::endl;
     std::cerr << tsk_error_get() << std::endl;
+    std::cerr << "Stopping." << std::endl;
     exit(1);
   }
   return rtnVal;

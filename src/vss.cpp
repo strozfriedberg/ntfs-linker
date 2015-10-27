@@ -192,7 +192,7 @@ ssize_t TskVolumeBfioShim::read(uint8_t *buffer, size_t size, libbfio_error_t **
   (void)error;
   ssize_t rtnVal = tsk_img_read(Fs->img_info, Fs->offset + Offset, reinterpret_cast<char*>(buffer), size);
   if (rtnVal == -1) {
-    std::cerr << tsk_error_get() << std::endl;
+    std::cerr << "TSK error: tsk_img_read: " <<tsk_error_get() << "at " << __FILE__ << ":" << __LINE__ << std::endl;
     return -1;
   }
   Offset += rtnVal;

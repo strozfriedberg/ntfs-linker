@@ -46,7 +46,6 @@ void printHelp(const po::options_description& desc, const po::positional_options
   std::cout << "Version " << VERSION << std::endl;
   std::cout << ss.str() << std::endl;
   std::cout << desc << std::endl;
-  std::cout << "Note: this program will also look for files named $J when looking for $UsnJrnl file." << std::endl;
 }
 
 int main(int argc, char** argv) {

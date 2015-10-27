@@ -42,18 +42,18 @@ SnapshotIO::SnapshotIO(Options& opts, VolumeIO* parent) : Parent(parent), Name(o
 
 
   if(!IMft) {
-    std::cerr << "$MFT File not found." << std::endl;
+    std::cerr << "$MFT File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
     exit(0);
   }
   if(!IUsnJrnl) {
     IUsnJrnl.open((opts.input / fs::path("$J")).string(), std::ios::binary);
     if(!IUsnJrnl) {
-      std::cerr << "$UsnJrnl File not found." << std::endl;
+      std::cerr << "$UsnJrnl/$J File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
       exit(0);
     }
   }
   if(!ILogFile) {
-    std::cerr << "$LogFile File not found: " << std::endl;
+    std::cerr << "$LogFile File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
     exit(0);
   }
 
@@ -126,12 +126,12 @@ int processStep(SnapshotIO& snapshotIO, bool extra) {
   //Set up db connection
   std::vector<File> records;
   SQLiteHelper& sqliteHelper = snapshotIO.Parent->Parent->SqliteHelper;
-  std::cout << "Creating MFT Map..." << std::endl;
+  std::cout << "Parsing $MFT" << std::endl;
   parseMFT(records, snapshotIO.IMft);
 
-  std::cout << "Parsing USNJrnl..." << std::endl;
+  std::cout << "Parsing $UsnJrnl..." << std::endl;
   parseUSN(records, sqliteHelper, snapshotIO.IUsnJrnl, snapshotIO.OUsnJrnl, VersionInfo(snapshotIO.Name, snapshotIO.Parent->Name), extra);
-  std::cout << "Parsing LogFile..." << std::endl;
+  std::cout << "Parsing $LogFile..." << std::endl;
   parseLog(records, sqliteHelper, snapshotIO.ILogFile, snapshotIO.OLogFile, VersionInfo(snapshotIO.Name, snapshotIO.Parent->Name), extra);
   return 0;
 }
@@ -153,11 +153,11 @@ void run(Options& opts) {
 
   ImageIO imageIO(opts);
   for (auto& volumeIO: imageIO.Volumes) {
-    std::cout << "Processing volume: " << volumeIO->Name << std::endl;
+    std::cout << "Finding events on Volume: " << volumeIO->Name << std::endl;
 
     imageIO.SqliteHelper.beginTransaction();
     for (auto& snapshotIO: volumeIO->Snapshots) {
-      std::cout << "Pre-processing: " << snapshotIO->Name << std::endl;
+      std::cout << "Parsing input files for snapshot: " << snapshotIO->Name << std::endl;
       processStep(*snapshotIO, opts.extra);
     }
     imageIO.SqliteHelper.endTransaction();
@@ -167,7 +167,7 @@ void run(Options& opts) {
     volumeIO->Events << Event::getColumnHeaders();
     std::vector<SnapshotIOPtr>::reverse_iterator rIt;
     for (rIt = volumeIO->Snapshots.rbegin(); rIt != volumeIO->Snapshots.rend(); ++rIt) {
-      std::cout << "Processing: " << (*rIt)->Name << std::endl;
+      std::cout << "Processing events from snapshot: " << (*rIt)->Name << std::endl;
       processFinalize(**rIt);
     }
 

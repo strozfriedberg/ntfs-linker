@@ -196,7 +196,8 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
     }
     else if (usn_offset != rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset) && !input.eof()) {
-      std::cerr << "Inconsistent Usn value found at " << static_cast<int>(input.tellg()) - offset << std::endl;
+      std::cerr << "Inconsistent Usn value found at " << static_cast<int>(input.tellg()) - offset
+                << ". Update sequence number does not match the offset of the record in the file" << std::endl;
       usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
     }
 

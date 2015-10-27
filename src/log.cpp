@@ -287,15 +287,12 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
   horribly wrong. Most likely cause is that the parser offset became misplaced and tried to
   parse the wrong bits of the records.
   */
-  if(RecordType == 0 && prev_has_next) {
-    std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "Invalid record type: " << RecordType << std::endl;
-    if(RecordType == 0) {
-      return -2;
+  if(RecordType == 0) {
+    if (prev_has_next) {
+      std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
+      std::cerr << "Invalid record type: 0x" << std::hex <<RecordType
+                << " where valid record expected at offset 0x" << std::hex << offset << std::endl;
     }
-    exit(0);
-  }
-  else if (RecordType == 0) {
     return -2;
   }
 
@@ -314,7 +311,7 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
   // We've run into some junk data
   if(RedoOp > 0x21 || UndoOp > 0x21) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "\rInvalid op code: " << std::hex << RedoOp << " " << UndoOp
+    std::cerr << "\rInvalid op code: 0x" << std::hex << RedoOp << " 0x" << UndoOp
               << " at 0x" << offset << std::endl;
     return -2;
   }
