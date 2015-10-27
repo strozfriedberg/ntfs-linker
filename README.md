@@ -7,7 +7,7 @@ Status: Alpha
 
 ## Description
 NTFS Linker uses the `$MFT`, `$LogFile`, and `$UsnJrnl` to generate a "linked" 
-history of file system activity on an NTFS volume. $LogFile and $UsnJrnl track
+history of file system activity on an NTFS volume. `$LogFile` and `$UsnJrnl` track
 changes to files and folders over time. Linking the records in these logs with 
 `$MFT` allows for the construction of a timeline of activity: 
 creates, moves/renames, and deletes. NTFS Linker produces records that can 
@@ -71,6 +71,9 @@ NTFS-linker has dependencies on
 [libcerror](http://github.com/libyal/libcerror), 
 and [libvshadow](http://github.com/libyal/libvshadow). The `configure` script 
 should detect these dependencies on your system and warn you if any are missing.
+
+Note that libvshadow must be compiled with libbfio enabled, and The Sleuthkit
+must be compiled with ` --disable-multithreading`.
 
 With sufficient wizardry, NTFS-linker can be built for Windows using mingw. For 
 the impatient, prebuilt binaries can be downloaded from [somewhere?]().
