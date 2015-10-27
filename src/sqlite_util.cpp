@@ -110,7 +110,7 @@ void SQLiteHelper::init(std::string dbName, bool overwrite) {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
     std::cerr << sqlite3_errmsg(Db) << std::endl;
     sqlite3_close(Db);
-    exit(2);
+    exit(1);
   }
   prepareStatements();
   endTransaction();
@@ -122,7 +122,7 @@ void SQLiteHelper::beginTransaction() {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
     std::cerr << sqlite3_errmsg(Db) << std::endl;
     sqlite3_close(Db);
-    exit(2);
+    exit(1);
   }
 }
 
@@ -132,7 +132,7 @@ void SQLiteHelper::endTransaction() {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
     std::cerr << sqlite3_errmsg(Db) << std::endl;
     sqlite3_close(Db);
-    exit(2);
+    exit(1);
   }
 }
 
@@ -188,7 +188,7 @@ void SQLiteHelper::prepareStatements() {
     std::cerr << "SQL Error " << rc << " at " << __FILE__ << ":" << __LINE__ << std::endl;
     std::cerr << sqlite3_errmsg(Db) << std::endl;
     sqlite3_close(Db);
-    exit(2);
+    exit(1);
   }
 }
 
