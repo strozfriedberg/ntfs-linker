@@ -328,8 +328,9 @@ $Logfile, and Volume Shadow Copies. Among them:
  that has features beyond the scope of NTFS-linker.
    - [NTFS Triforce - A deeper look inside the artifacts](http://hackingexposedcomputerforensicsblog.blogspot.com/2013/01/ntfs-triforce-deeper-look-inside.html)
    - [CEIC 2013 and the public beta of the NTFS Triforce](http://hackingexposedcomputerforensicsblog.blogspot.com/2013/05/ceic-2013-and-public-beta-of-ntfs.html)
- - The [$logfile reference](http://inform.pucp.edu.pe/~inf232/Ntfs/ntfs_doc_v0.5/files/logfile.html) 
- as part of the Linux-NTFS documentation.
+ - The [Linux-NTFS documentation](http://0cch.net/ntfsdoc/) 
  - [MSDN on the $UsnJrnl](http://www.microsoft.com/msj/0999/journal/journal.aspx)
  - Mike Wilkinson's [NTFS Cheat Sheet](http://www.writeblocked.org/resources/ntfs_cheat_sheets.pdf) 
  is a succinct reference to various NTFS structures.
+ - [NTFS Log Tracker](http://forensicinsight.org/wp-content/uploads/2013/06/F-INSIGHT-NTFS-Log-TrackerEnglish.pdf)
+ for details on $LogFile transactions
