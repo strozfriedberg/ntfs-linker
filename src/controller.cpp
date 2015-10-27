@@ -41,18 +41,18 @@ SnapshotIO::SnapshotIO(Options& opts, VolumeIO* parent) : Parent(parent), Name(o
   ILogFile.open((opts.input / fs::path("$LogFile")).string(), std::ios::binary);
 
   if(!IMft) {
-    std::cerr << "$MFT File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
+    std::cerr << "$MFT File not found in directory: " << opts.input.string() << std::endl;
     return;
   }
   if(!IUsnJrnl) {
     IUsnJrnl.open((opts.input / fs::path("$J")).string(), std::ios::binary);
     if(!IUsnJrnl) {
-      std::cerr << "$UsnJrnl/$J File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
+      std::cerr << "$UsnJrnl/$J File not found in directory: " << opts.input.string() << std::endl;
       return;
     }
   }
   if(!ILogFile) {
-    std::cerr << "$LogFile File not found in directory: " << opts.input.string() << ". Exiting." << std::endl;
+    std::cerr << "$LogFile File not found in directory: " << opts.input.string() << std::endl;
     return;
   }
 

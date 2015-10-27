@@ -104,9 +104,7 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
     param.File = tsk_fs_file_open(fs, NULL, param.In.c_str());
     if (!param.File) {
       hasAll = false;
-      std::cerr << "TSK error opening file: " << param.In << std::endl;
-      std::cerr << tsk_error_get() << std::endl;
-      std::cerr << "Skipping!" << std::endl;
+      std::cerr << "TSK error when opening file: " << param.In << ": " << tsk_error_get() << std::endl;
       break;
     }
   }
@@ -139,6 +137,7 @@ std::string zeroPad(int i, int n) {
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   if (!TSK_FS_TYPE_ISNTFS(fs->ftype)) {
+    std::cout << "Skipping volume with fs offset " << fs->offset << " since it is not NTFS." << std::endl;
     return TSK_FILTER_SKIP;
   }
 
@@ -148,8 +147,10 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
   // "base" has the important property that it sorts after numbers
   int rtnVal = copyFiles(fs, dir / fs::path("vss_base"));
 
-  if (rtnVal)
+  if (rtnVal) {
+    std::cerr << "Unable to copy files out of volume with fs offset " << fs->offset << ". Skipping" << std::endl;
     return TSK_FILTER_SKIP;
+  }
   DidItWork = true;
 
   try {
