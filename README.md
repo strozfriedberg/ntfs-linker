@@ -75,5 +75,10 @@ should detect these dependencies on your system and warn you if any are missing.
 Note that libvshadow must be compiled with libbfio enabled, and The Sleuthkit
 must be compiled with ` --disable-multithreading`.
 
+After installing the dependencies you may need to run:
+```
+sudo ldconfig
+```
+
 With sufficient wizardry, NTFS-linker can be built for Windows using mingw. For 
 the impatient, prebuilt binaries can be downloaded from [somewhere?]().
