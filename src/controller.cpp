@@ -71,7 +71,7 @@ VolumeIO::VolumeIO(Options& opts, ImageIO* parent) : Parent(parent), Count(0), N
       Options snapshotOpts = opts;
       snapshotOpts.input  /= snapshot.filename();
       snapshotOpts.output /= snapshot.filename();
-      SnapshotIOPtr snapshot(new SnapshotIO(snapshotOpts, this));
+      auto snapshot(std::make_shared<SnapshotIO>(snapshotOpts, this));
       if (snapshot->Good) {
         Snapshots.push_back(snapshot);
         Good = true;
@@ -80,7 +80,7 @@ VolumeIO::VolumeIO(Options& opts, ImageIO* parent) : Parent(parent), Count(0), N
   }
 
   if (!Good) {
-    SnapshotIOPtr snapshot(new SnapshotIO(opts, this));
+    auto snapshot(std::make_shared<SnapshotIO>(opts, this));
     if (snapshot->Good) {
       Snapshots.push_back(snapshot);
       Good = true;
@@ -102,16 +102,16 @@ ImageIO::ImageIO(Options& opts) : Good(false) {
       Options volumeOpts = opts;
       volumeOpts.input /= volume.filename();
       volumeOpts.output /= volume.filename();
-      VolumeIOPtr volume(new VolumeIO(volumeOpts, this));
+      auto volume(std::make_shared<VolumeIO>(volumeOpts, this));
       if (volume->Good) {
         Good = true;
-        Volumes.push_back(VolumeIOPtr(new VolumeIO(volumeOpts, this)));
+        Volumes.push_back(volume);
       }
     }
   }
 
   if (!Good) {
-    VolumeIOPtr volume(new VolumeIO(opts, this));
+    auto volume(std::make_shared<VolumeIO>(opts, this));
     if (volume->Good) {
       Good = true;
       Volumes.push_back(volume);
