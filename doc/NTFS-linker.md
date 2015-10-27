@@ -17,40 +17,91 @@ Status: Alpha
 $Logfile, and $MFT. The $UsnJrnl should be the $J alternate data stream and it 
 can be clipped to avoid copying the sparse portions.
 
-![Input Screenshot](simple_input.jpg)
+`ntfs-linker` can *also* work off of a nested directory structure like the one
+below. It can process multiple volumes, and each volume can have multiple
+volume shadow copy directories. If a volume has no volume shadow copies, the
+intermediate `vss_base` folder can be omitted.
+
+    INPUT
+    └── volume_0
+        ├── vss_0
+        │   ├── $J
+        │   ├── $LogFile
+        │   └── $MFT
+        ├── vss_1
+        │   ├── $J
+        │   ├── $LogFile
+        │   └── $MFT
+        ├── vss_2
+        │   ├── $J
+        │   ├── $LogFile
+        │   └── $MFT
+        └── vss_base
+            ├── $J
+            ├── $LogFile
+            └── $MFT
 
 When presented with a disk image as input, `ntfs-linker` will automatically run 
 against all NTFS volumes and retrieve the respective occurrences of $UsnJrnl,
 $Logfile, and $MFT. If a volume contains Volume Shadow Copies, the NTFS files
 will be retrieved from each VSC and then the entire collection will be parsed.
+The files will be copied out into a directory structure like the one above.
 
 ## Output
 
 The output will look like this:
 
-![Output Screenshot](output.jpg)
+    OUTPUT
+    ├── ntfs.db
+    └── volume_0
+        ├── events.txt
+        ├── vss_0
+        │   ├── logfile.txt
+        │   └── usnjrnl.txt
+        ├── vss_1
+        │   ├── logfile.txt
+        │   └── usnjrnl.txt
+        ├── vss_2
+        │   ├── logfile.txt
+        │   └── usnjrnl.txt
+        └── vss_base
+            ├── logfile.txt
+            └── usnjrnl.txt
+
+`ntfs.db` is a SQLite database which contains data from all volume shadow copies
+on all volumes. `events.txt` is a tab-separated report on all of the events from
+a particular volume. If `--extra` is specified, then `logfile.txt` and `usnjrnl.txt`
+will contain detailed information about the $LogFile and $UsnJrnl for a particular
+snapshot.
+
 
 ## Database schema
 
 The SQLite database created by `ntfs-linker` will have the following structure:
 
-_insert sql here_
+CREATE TABLE event (Position int, Timestamp text, EventSource text, EventType text, FileName text, Folder text, Full_Path text, MFT_Record int, Parent_MFT_Record int, USN_LSN int, Old_File_Name text, Old_Folder text, Old_Parent_Record int, Offset int, Created text, Modified text, Comment text, Snapshot text, Volume text)
+CREATE TABLE log (CurrentLSN int, PrevLSN int, UndoLSN int, ClientID int, RecordType int, RedoOP text, UndoOP text, TargetAttribute int, MFTClusterIndex int, Offset int, Snapshot text, Volume text)
+CREATE TABLE usn (MFTRecNo int, ParRecNo int, USN int, Timestamp text, Reason text, FileName text, PossiblePath text, PossibleParPath text, Offset int, Snapshot text, Volume text)
 
 ### Useful queries
 
 The following are useful queries.
 
-#### ccleaner
+### Get all events
+    SELECT *
+    FROM EVENT
 
-    just the zzzz junk?
+#### CCleaner
 
-#### Filesystem tunneling
-
-    is possible?
+    SELECT *
+    FROM EVENT
+    WHERE filename REGEXP "^[\.zZ]+$"
 
 #### Daily histogram
 
-    gotta do a group by
+    SELECT substr(event.Timestamp, 0, 11) AS day, count(*) AS count
+    FROM event
+    GROUP BY day
 
 
 ## Understanding the output
