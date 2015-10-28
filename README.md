@@ -5,6 +5,8 @@ Copyright (c) 2015, [Stroz Friedberg, LLC](http://www.strozfriedberg.com)
 
 Status: Alpha
 
+License: [LGPLv3](LICENSE-LGPLv3.txt)
+
 ## Description
 NTFS Linker uses the `$MFT`, `$LogFile`, and `$UsnJrnl` to generate a "linked" 
 history of file system activity on an NTFS volume. `$LogFile` and `$UsnJrnl` track
@@ -53,8 +55,8 @@ NTFS-Linker _also_ produces a SQLite database containing all of the above data.
 The database schema is designed for ease of querying, not full normalization.
 
 ## Installation
-The source is in C++ and uses autotools for building. On a sane Unix, this 
-should work:
+The source is in C++ and uses autotools for building. C++11 compiler support is
+required. On a sane Unix, this should work:
 ```
 ./bootstrap.sh
 ./configure
@@ -65,15 +67,18 @@ sudo make install
 NTFS-linker has dependencies on 
 [SQLite](http://www.sqlite.org), 
 [Boost](http://www.boost.org), 
-[The Sleuthkit](http://www.sleuthkit.org), 
+[libtsk](http://www.sleuthkit.org), 
 [libewf](http://github.com/libyal/libewf), 
 [libbfio](http://github.com/libyal/libbfio), 
 [libcerror](http://github.com/libyal/libcerror), 
 and [libvshadow](http://github.com/libyal/libvshadow). The `configure` script 
 should detect these dependencies on your system and warn you if any are missing.
 
+`libewf` should be installed before building and installing `libtsk`.
+
 Note that libvshadow must be compiled with libbfio enabled, and The Sleuthkit
-must be compiled with ` --disable-multithreading`.
+must be compiled with ` --disable-multithreading` (which is only available in
+version 4.3).
 
 After installing the dependencies you may need to run:
 ```
