@@ -80,11 +80,56 @@ snapshot.
 The SQLite database created by `ntfs-linker` will have the following structure:
 
 ```
-CREATE TABLE event (Position int, Timestamp text, EventSource text, EventType text, FileName text, Folder text, Full_Path text, MFT_Record int, Parent_MFT_Record int, USN_LSN int, Old_File_Name text, Old_Folder text, Old_Parent_Record int, Offset int, Created text, Modified text, Comment text, Snapshot text, Volume text)
+CREATE TABLE event (
+    Position            int, 
+    Timestamp           text, 
+    EventSource         text, 
+    EventType           text, 
+    FileName            text, 
+    Folder              text, 
+    Full_Path           text, 
+    MFT_Record          int, 
+    Parent_MFT_Record   int, 
+    USN_LSN             int, 
+    Old_File_Name       text, 
+    Old_Folder          text, 
+    Old_Parent_ Record  int, 
+    Offset              int, 
+    Created             text, 
+    Modified            text, 
+    Comment             text, 
+    Snapshot            text, 
+    Volume              text
+)
 
-CREATE TABLE log (CurrentLSN int, PrevLSN int, UndoLSN int, ClientID int, RecordType int, RedoOP text, UndoOP text, TargetAttribute int, MFTClusterIndex int, Offset int, Snapshot text, Volume text)
+CREATE TABLE log (
+    CurrentLSN      int, 
+    PrevLSN         int, 
+    UndoLSN         int, 
+    ClientID        int, 
+    RecordType      int, 
+    RedoOP          text, 
+    UndoOP          text, 
+    TargetAttribute int, 
+    MFTClusterIndex int, 
+    Offset          int, 
+    Snapshot        text, 
+    Volume          text
+)
 
-CREATE TABLE usn (MFTRecNo int, ParRecNo int, USN int, Timestamp text, Reason text, FileName text, PossiblePath text, PossibleParPath text, Offset int, Snapshot text, Volume text)
+CREATE TABLE usn (
+    MFTRecNo        int, 
+    ParRecNo        int, 
+    USN             int, 
+    Timestamp       text, 
+    Reason          text, 
+    FileName        text, 
+    PossiblePath    text, 
+    PossibleParPath text, 
+    Offset          int, 
+    Snapshot        text, 
+    Volume          text
+)
 ```
 
 ### Useful queries
