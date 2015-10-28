@@ -427,6 +427,7 @@ $Logfile, and Volume Shadow Copies. Among them:
  research into NTFS linking and offers a [tool](http://www.gettriforce.com) 
  that has features beyond the scope of NTFS-linker.
    - [NTFS Triforce - A deeper look inside the artifacts](http://hackingexposedcomputerforensicsblog.blogspot.com/2013/01/ntfs-triforce-deeper-look-inside.html)
+   
    - [CEIC 2013 and the public beta of the NTFS Triforce](http://hackingexposedcomputerforensicsblog.blogspot.com/2013/05/ceic-2013-and-public-beta-of-ntfs.html)
  - The [Linux-NTFS documentation](http://0cch.net/ntfsdoc/) 
  - [MSDN on the $UsnJrnl](http://www.microsoft.com/msj/0999/journal/journal.aspx)

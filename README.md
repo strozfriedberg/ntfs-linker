@@ -86,4 +86,4 @@ sudo ldconfig
 ```
 
 With sufficient wizardry, NTFS-linker can be built for Windows using mingw. For 
-the impatient, prebuilt binaries can be downloaded from [somewhere?]().
+the impatient, prebuilt binaries can be [downloaded](https://s3.amazonaws.com/downloads.lightboxtechnologies.com/ntfs-linker/ntfs-linker-338dcc1-windows-64-static.zip).
