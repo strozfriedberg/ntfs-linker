@@ -1,0 +1,712 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Ntfs-linker by strozfriedberg</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Ntfs-linker</h1>
+        <p class="header">NTFS journal parser</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/strozfriedberg/ntfs-linker/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/strozfriedberg/ntfs-linker/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/strozfriedberg/ntfs-linker">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/strozfriedberg">strozfriedberg</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a id="ntfs-linker" class="anchor" href="#ntfs-linker" aria-hidden="true"><span class="octicon octicon-link"></span></a>NTFS-Linker</h1>
+
+<p>Author: Zack Weger</p>
+
+<p>Copyright (c) 2015, <a href="http://www.strozfriedberg.com">Stroz Friedberg, LLC</a></p>
+
+<p>Status: Alpha</p>
+
+<h2>
+<a id="basic-usage" class="anchor" href="#basic-usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Basic usage:</h2>
+
+<pre><code>C:\&gt; ntfs-linker.exe --input .\journals\ --output .\parsed-output\
+
+C:\&gt; ntfs-linker.com --image MyEvidence.E01 --output .\parsed-output\
+</code></pre>
+
+<h2>
+<a id="input" class="anchor" href="#input" aria-hidden="true"><span class="octicon octicon-link"></span></a>Input</h2>
+
+<p><code>ntfs-linker</code> operates off of a directory of input containing $UsnJrnl, 
+$Logfile, and $MFT. The $UsnJrnl should be the $J alternate data stream and it 
+can be clipped to avoid copying the sparse portions.</p>
+
+<p><code>ntfs-linker</code> can <em>also</em> work off of a nested directory structure like the one
+below. It can process multiple volumes, and each volume can have multiple
+volume shadow copy directories. If a volume has no volume shadow copies, the
+intermediate <code>vss_base</code> folder can be omitted.</p>
+
+<pre><code>INPUT
+└── volume_0
+    ├── vss_0
+    │   ├── $J
+    │   ├── $LogFile
+    │   └── $MFT
+    ├── vss_1
+    │   ├── $J
+    │   ├── $LogFile
+    │   └── $MFT
+    ├── vss_2
+    │   ├── $J
+    │   ├── $LogFile
+    │   └── $MFT
+    └── vss_base
+        ├── $J
+        ├── $LogFile
+        └── $MFT
+</code></pre>
+
+<p>When presented with a disk image as input, <code>ntfs-linker</code> will automatically run 
+against all NTFS volumes and retrieve the respective occurrences of $UsnJrnl,
+$Logfile, and $MFT. If a volume contains Volume Shadow Copies, the NTFS files
+will be retrieved from each VSC and then the entire collection will be parsed.
+The files will be copied out into a directory structure like the one above.</p>
+
+<h2>
+<a id="output" class="anchor" href="#output" aria-hidden="true"><span class="octicon octicon-link"></span></a>Output</h2>
+
+<p>The output will look like this:</p>
+
+<pre><code>OUTPUT
+├── ntfs.db
+└── volume_0
+    ├── events.txt
+    ├── vss_0
+    │   ├── logfile.txt
+    │   └── usnjrnl.txt
+    ├── vss_1
+    │   ├── logfile.txt
+    │   └── usnjrnl.txt
+    ├── vss_2
+    │   ├── logfile.txt
+    │   └── usnjrnl.txt
+    └── vss_base
+        ├── logfile.txt
+        └── usnjrnl.txt
+</code></pre>
+
+<p><code>ntfs.db</code> is a SQLite database which contains data from all volume shadow copies
+on all volumes. <code>events.txt</code> is a tab-separated report on all of the events from
+a particular volume. If <code>--extra</code> is specified, then <code>logfile.txt</code> and <code>usnjrnl.txt</code>
+will contain detailed information about the $LogFile and $UsnJrnl for a particular
+snapshot.</p>
+
+<h2>
+<a id="database-schema" class="anchor" href="#database-schema" aria-hidden="true"><span class="octicon octicon-link"></span></a>Database schema</h2>
+
+<p>The SQLite database created by <code>ntfs-linker</code> will have the following structure:</p>
+
+<pre><code>CREATE TABLE event (Position int, Timestamp text, EventSource text, EventType text, FileName text, Folder text, Full_Path text, MFT_Record int, Parent_MFT_Record int, USN_LSN int, Old_File_Name text, Old_Folder text, Old_Parent_Record int, Offset int, Created text, Modified text, Comment text, Snapshot text, Volume text)
+
+CREATE TABLE log (CurrentLSN int, PrevLSN int, UndoLSN int, ClientID int, RecordType int, RedoOP text, UndoOP text, TargetAttribute int, MFTClusterIndex int, Offset int, Snapshot text, Volume text)
+
+CREATE TABLE usn (MFTRecNo int, ParRecNo int, USN int, Timestamp text, Reason text, FileName text, PossiblePath text, PossibleParPath text, Offset int, Snapshot text, Volume text)
+</code></pre>
+
+<h3>
+<a id="useful-queries" class="anchor" href="#useful-queries" aria-hidden="true"><span class="octicon octicon-link"></span></a>Useful queries</h3>
+
+<p>The following are useful queries.</p>
+
+<h3>
+<a id="get-all-events" class="anchor" href="#get-all-events" aria-hidden="true"><span class="octicon octicon-link"></span></a>Get all events</h3>
+
+<pre><code>SELECT *
+FROM EVENT
+</code></pre>
+
+<h4>
+<a id="ccleaner" class="anchor" href="#ccleaner" aria-hidden="true"><span class="octicon octicon-link"></span></a>CCleaner</h4>
+
+<pre><code>SELECT *
+FROM EVENT
+WHERE filename REGEXP "^[\.zZ]+$"
+</code></pre>
+
+<h4>
+<a id="daily-histogram" class="anchor" href="#daily-histogram" aria-hidden="true"><span class="octicon octicon-link"></span></a>Daily histogram</h4>
+
+<pre><code>SELECT substr(event.Timestamp, 0, 11) AS day, count(*) AS count
+FROM event
+GROUP BY day
+</code></pre>
+
+<h2>
+<a id="understanding-the-output" class="anchor" href="#understanding-the-output" aria-hidden="true"><span class="octicon octicon-link"></span></a>Understanding the output</h2>
+
+<p>All timestamps are in <a href="https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations">ISO 8601 format</a>, 
+i.e., YYYY-mm-dd HH:MM:SS.1234567.
+Windows stores timestamps as the number of hundred nanoseconds since 1601 
+(FILETIME). The routines used by NTFS-Linker to parse the time use standard 
+C++ libraries, which may result in incorrect timestamps in some cases.
+Specifically, if the time is <em>before</em> 1970 or <em>after</em> 2038, the timestamp will 
+not be displayed properly.</p>
+
+<h3>
+<a id="usntxt" class="anchor" href="#usntxt" aria-hidden="true"><span class="octicon octicon-link"></span></a>usn.txt</h3>
+
+<p>The <a href="https://msdn.microsoft.com/en-us/library/aa365722%28VS.85%29.aspx">USN Journal reason code</a>
+ uses a bit packing scheme for each possible 
+reason. From the time a file is opened to the time it is closed, the reasons 
+will be combined. This means that multiple reasons may show up for a particular 
+entry, even though only one operation happens at a time. The order the reasons 
+are printed is completely arbitrary and has no correlation to the order in which 
+they occurred.</p>
+
+<h4>
+<a id="usn-journal-example" class="anchor" href="#usn-journal-example" aria-hidden="true"><span class="octicon octicon-link"></span></a>USN Journal Example:</h4>
+
+<ul>
+<li>USN|FILE_CREATE</li>
+<li>USN|CLOSE|FILE_CREATE</li>
+<li>USN|DATA_EXTEND</li>
+<li>USN|DATA_EXTEND|DATA_OVERWRITE</li>
+<li>USN|BASIC_INFO_CHANGE|DATA_EXTEND|DATA_OVERWRITE</li>
+<li>USN|BASIC_INFO_CHANGE|CLOSE|DATA_EXTEND|DATA_OVERWRITE</li>
+</ul>
+
+<h3>
+<a id="logtxt" class="anchor" href="#logtxt" aria-hidden="true"><span class="octicon octicon-link"></span></a>log.txt</h3>
+
+<p>$LogFile event analysis is much more complicated.  Each record contains a redo 
+and undo op code, as well as redo and undo data. In the case of data write 
+events, it is possible to recover the data written for resident files, or the 
+file sectors on disc for non-resident files. At this time NTFS-Linker does not 
+recover the data written.</p>
+
+<h3>
+<a id="eventstxt" class="anchor" href="#eventstxt" aria-hidden="true"><span class="octicon octicon-link"></span></a>events.txt</h3>
+
+<h4>
+<a id="event-source" class="anchor" href="#event-source" aria-hidden="true"><span class="octicon octicon-link"></span></a>Event Source</h4>
+
+<p>This can be <code>$UsnJrnl/$J</code>, <code>$LogFile</code>, or "<code>$UsnJrnl</code> entry in <code>$LogFile</code>". 
+<code>$LogFile</code> actually contains complete <code>$UsnJrnl</code> entries.</p>
+
+<h4>
+<a id="file-names-and-paths" class="anchor" href="#file-names-and-paths" aria-hidden="true"><span class="octicon octicon-link"></span></a>File names and paths</h4>
+
+<p>While a file name can be extracted directly from a Log/Usn entry, the paths must
+be calculated. The "folder" path is the calculated path to the parent directory,
+and the "Path" column is the calculated path to the MFT record number if 
+available.</p>
+
+<p><code>gotta come back to this and edit for clarity... maybe an example?</code>
+NTFS-Linker tracks each record's parent over time. For events where a recordnum 
+and a parent recordnum can be recovered, it's possible that, in ntfs-linker's
+current conception of the file system, these records are unrelated! In this case
+the "Folder" and "Full Path" columns of the event will be mismatched. Generally,
+the "Folder" will represent the path to the parent folder where the event 
+occurred, and "Full Path" will represent the path to the file which NTFS-Linker 
+previously thought was at that record. </p>
+
+<h4>
+<a id="event-ordering" class="anchor" href="#event-ordering" aria-hidden="true"><span class="octicon octicon-link"></span></a>Event Ordering</h4>
+
+<p>While the exact order of <code>$LogFile</code> and <code>$UsnJrnl</code> events is known, 
+respectively, the combined ordering is not. They must be ordered according to 
+the event timestamps. While the  timestamps for all <code>$UsnJrnl</code> events are known,
+the timestamps for <code>$LogFile</code> rename, move, and delete events is not known.
+Note that, due to file system tunneling, the event time for a <code>$LogFile</code> creation
+event is not the <code>$STANDARD_INFORMATION</code> attribute creation time. It is the SIA
+<em>modified</em> time.</p>
+
+<p>NTFS-Linker performs a "zipper-merge" of these two event sequences, which preserves
+the relative position of events from the same sequence. This is accomplished by
+maintaining a cursor at each sequence, and choosing the next event to be the one
+with the larger timestamp, when both sequences are non-increasing. Since timestamps
+for <code>$LogFile</code> rename, delete, and move events are not known, they are always placed
+directly after the preceding <code>$LogFile</code> creation event.</p>
+
+<p>This can leave some uncertainty surrounding the exact time of an event,
+but in practice there are almost always surrounding events which limit the uncertainty.
+For example, the <code>$LogFile</code> events in the below snippet will almost certainly 
+have occurred between 2012-04-07 21:40:26.5203196 and 2012-04-07 21:39:07.3474312.
+Since identical events were found in <code>$UsnJrnl/$J</code>, we suspect these 3 files
+were deleted at 2012-04-07 21:40:26.5203196.</p>
+
+<table>
+<thead>
+<tr>
+<th>Timestamp</th>
+<th>Source</th>
+<th>Event</th>
+<th>File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2012-04-07 21:40:26.5359448</td>
+<td>$LogFile</td>
+<td>Create</td>
+<td>gpt00000.dom</td>
+</tr>
+<tr>
+<td>2012-04-07 21:40:26.5359448</td>
+<td>$UsnJrnl/$J</td>
+<td>Create</td>
+<td>gpt00000.dom</td>
+</tr>
+<tr>
+<td>2012-04-07 21:40:26.5203196</td>
+<td>$LogFile</td>
+<td>Create</td>
+<td>tmpgptfl.inf</td>
+</tr>
+<tr>
+<td></td>
+<td>$LogFile</td>
+<td>Delete</td>
+<td>tmpgptfl.inf</td>
+</tr>
+<tr>
+<td></td>
+<td>$LogFile</td>
+<td>Delete</td>
+<td>gpt00000.dom</td>
+</tr>
+<tr>
+<td></td>
+<td>$LogFile"</td>
+<td>Delete</td>
+<td>5.tmp</td>
+</tr>
+<tr>
+<td>2012-04-07 21:40:26.5203196</td>
+<td>$UsnJrnl/$J</td>
+<td>Create</td>
+<td>tmpgptfl.inf</td>
+</tr>
+<tr>
+<td>2012-04-07 21:40:26.5203196</td>
+<td>$UsnJrnl/$J</td>
+<td>Delete</td>
+<td>tmpgptfl.inf</td>
+</tr>
+<tr>
+<td>2012-04-07 21:40:26.5203196</td>
+<td>$UsnJrnl/$J</td>
+<td>Delete</td>
+<td>gpt00000.dom</td>
+</tr>
+<tr>
+<td>2012-04-07 21:39:07.3474312</td>
+<td>$LogFile</td>
+<td>Create</td>
+<td>5.ini</td>
+</tr>
+</tbody>
+</table>
+
+<h4>
+<a id="offset" class="anchor" href="#offset" aria-hidden="true"><span class="octicon octicon-link"></span></a>Offset</h4>
+
+<p>The actual file offset (in decimal) to the beginning of the event record in the 
+source file.</p>
+
+<h4>
+<a id="created-modified-comment" class="anchor" href="#created-modified-comment" aria-hidden="true"><span class="octicon octicon-link"></span></a>Created, Modified, Comment</h4>
+
+<p>For <code>$LogFile</code> create events, the timestamps from the Standard Information 
+attribute (regardless of the faith NTFS-Linker places in them) and whether those 
+timestamps match the corresponding timestamps in the File Name Attribute. If 
+not, the "Comment" field will say ``. This allows for easy detection of 
+timestomping.</p>
+
+<h4>
+<a id="usnjrnl-event-collapsing" class="anchor" href="#usnjrnl-event-collapsing" aria-hidden="true"><span class="octicon octicon-link"></span></a><code>$UsnJrnl</code> event collapsing</h4>
+
+<p><code>$UsnJrnl</code> records are combined in events.txt to display one event for each 
+logical event that actually occurred. For instance, for a rename event, 
+<code>$UsnJrnl</code> will contain at least two records: one containing the old name and 
+one containing the new name (and probably a couple other records, for the same 
+event). In contrast, <code>events.txt</code> displays this event just once. For 
+the <code>$UsnJrnl</code> events embedded in <code>$LogFile</code>, this same deduplication is performed,
+but only amongst other <code>$UsnJrnl</code> events embedded in <code>$LogFile</code>. Since these
+embedded events are found less often, for rename and move events, it is generally
+not possible to retrieve both the file name before and the file name after.</p>
+
+<h2>
+<a id="implementation-details" class="anchor" href="#implementation-details" aria-hidden="true"><span class="octicon octicon-link"></span></a>Implementation Details</h2>
+
+<p>This section contains notes on the inner-workings of NTFS-Linker. Specifically,
+we outline the process by which NTFS-Linker recovers events from <code>$LogFile</code>, 
+<code>$UsnJrnl:$J</code>, and <code>$MFT</code>. While the structures of these files are fairly well
+known, their inter-related meaning requires explanation.</p>
+
+<h3>
+<a id="background-sequencing" class="anchor" href="#background-sequencing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Background: Sequencing</h3>
+
+<p>In this document, by <code>sequence</code>, we mean some ordered collection of objects,
+which could possibly repeat. Given a sequence, we can obtain a <code>subsequence</code>
+by <em>removing</em> zero or more elements. For example, the following is a sequence:</p>
+
+<pre><code>25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72
+</code></pre>
+
+<p>And the following are all subsequences of the above sequence:</p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Subsequence</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1</td>
+<td>25 67 38 97 58 94 29 66 23 92 60 8 47 50 98 28 13 91 61 72</td>
+<td>zero elements removed</td>
+</tr>
+<tr>
+<td>S2</td>
+<td>25 38 58 29 23 60 47 98 13 61</td>
+<td>(some elements removed)</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>25 38 47 50 72</td>
+<td>(some elements removed)</td>
+</tr>
+</tbody>
+</table>
+
+<h3>
+<a id="changes-in-state" class="anchor" href="#changes-in-state" aria-hidden="true"><span class="octicon octicon-link"></span></a>Changes in State</h3>
+
+<p>Put simply, a filesystem event implies a change in state of the filesystem. When
+reporting on an event, it's often desirable to display that in the context of
+the state of the filesystem. This should be done in the context of the
+filesystem <em>at the time the event occurred</em>. For instance, suppose we know the
+state of a filesystem at some point in time (say, from a base image) to be:</p>
+
+<table>
+<thead>
+<tr>
+<th>Recordnum</th>
+<th>Full Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>/foo/bar</td>
+</tr>
+<tr>
+<td>11</td>
+<td>/foo/bar/a.txt</td>
+</tr>
+<tr>
+<td>12</td>
+<td>/foo/bar/b.txt</td>
+</tr>
+</tbody>
+</table>
+
+<p>Suppose that immediately prior to the filesystem being imaged, we know that
+an entry with recordnum 13, parent recordnum 10 named <code>some_name</code> was deleted. 
+Now suppose that just before <em>that</em>, we know an entry with recordnum 14, parent
+recordnum 13, named <code>file.txt</code> was deleted. What was the full path of this
+record <em>at the time it was deleted</em>? We know that it must have been
+<code>/foo/bar/some_name/file.txt</code>! Thus we observe it's necessary to accumulate
+changes in state of the filesystem as events are processed, in order to recover
+the context of each event.</p>
+
+<h3>
+<a id="event-ordering-1" class="anchor" href="#event-ordering-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Event Ordering</h3>
+
+<p>At some point we arrive at this situation: we have a sequence of events from
+<code>$UsnJrnl</code> and a sequence of events from <code>$LogFile</code>. For the <code>$UsnJrnl</code> events
+we know the event timestamps, but for the <code>$LogFile</code> events we have less
+information. For <code>$LogFile</code> rename, move, and delete events, we are not able to
+recover an event timestamp. Only for <code>$LogFile</code> create events are we able to
+recover an event timestamp.</p>
+
+<p>The impact is this: we know the order of events in <code>$UsnJrnl</code> and <code>$LogFile</code>
+separately, and we have some idea of the times these events occurred, but we
+don't know exactly how the two sequences fit together. In order to create a 
+unified timeline of events, we do a standard zipper merge of the two sequences, 
+but only considering the <code>$Logfile</code> create event timestamps. Events of other 
+types found in <code>$LogFile</code> will always be output directly after the preceding
+<code>$LogFile</code> create event.</p>
+
+<h3>
+<a id="volume-shadows-and-processing-order" class="anchor" href="#volume-shadows-and-processing-order" aria-hidden="true"><span class="octicon octicon-link"></span></a>Volume Shadows and Processing Order</h3>
+
+<p>A Volume Shadow Copy represents a snapshot of a filesystem at a particular time.
+Often, multiple shadow copies may be present which are close together in time
+(for example, shadow copies created as a result of running system updates). In
+this situation, <code>$UsnJrnl</code> and <code>$LogFile</code> may actually overlap some between the
+snapshots. To deduplicate this, we defer to the older snapshot. We grab all
+events from the oldest snapshot, then only the events not present in the oldest
+snapshot from the next oldest, etc., until we've processed the base snapshot.</p>
+
+<p>To output events, however, we need to process the Shadow Copies in the reverse
+order, with the most recent events first, because the most recent events imply
+a change in state of the file system. Thus we process all the events from the
+base image (not including events which are found in the most recent shadow
+copy!), and then the most recent shadow copy, etc. In the end we get a timeline
+from the present extending into the past of unified events which are mostly in
+the same order as the events occurred. <em>[ed: <em>mostly???</em>]</em></p>
+
+<h3>
+<a id="extracting-events-from-usnjrnl" class="anchor" href="#extracting-events-from-usnjrnl" aria-hidden="true"><span class="octicon octicon-link"></span></a>Extracting events from <code>$UsnJrnl</code>
+</h3>
+
+<p>When a file is created, renamed, moved, or deleted, <code>$UsnJrnl</code> will contain
+multiple records for the same logical event. The records contain information
+such as data being written to the file, security changes, etc. For rename and
+move events the old name/parent recordnum and new name/parent recordnum will be
+in separate <code>$UsnJrnl</code> records. NTFS-Linker will compress all of these records
+into one logical event, depending on the event flags. This compression ends when
+either the <code>$UsnJrnl</code> Record recordnum changes or a CLOSE flag is signalled.
+If the flags for a group of records indicate the file was neither created,
+deleted, moved, or renamed, then the records are discarded.</p>
+
+<h3>
+<a id="extracting-events-from-logfile" class="anchor" href="#extracting-events-from-logfile" aria-hidden="true"><span class="octicon octicon-link"></span></a>Extracting events from <code>$LogFile</code>
+</h3>
+
+<p><code>$LogFile</code> records exist at a lower-level than <code>$UsnJrnl</code>, so extracting logical
+events is more complicated. A <code>$LogFile</code> record consists of a RedoOp and an
+UndoOp code each possibly associated with some data.</p>
+
+<p>We break apart the $LogFile records into logical
+transactions ending with a record with <code>RedoOp=FORGET_TRANSACTION</code> and
+<code>UndoOp=COMPENSATION_LOG_RECORD</code>. From here, we consider the sequence of OpCodes
+and check if it has a subsequence which represents a particular event type. We
+list the subsequences associated with each event type below:</p>
+
+<table>
+<thead>
+<tr>
+<th>Event Type</th>
+<th>Order</th>
+<th>RedoOp Subsequence Entry</th>
+<th>UndoOp Subsequence Entry</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Create</td>
+<td>1</td>
+<td>SET_BITS_IN_NONRESIDENT_BIT_MAP</td>
+<td>CLEAR_BITS_IN_NONRESIDENT_BIT_MAP</td>
+</tr>
+<tr>
+<td>Create</td>
+<td>2</td>
+<td>NOOP</td>
+<td>DEALLOCATE_FILE_RECORD_SEGMENT</td>
+</tr>
+<tr>
+<td>Create</td>
+<td>3</td>
+<td>ADD_INDEX_ENTRY*</td>
+<td>DELETE_INDEX_ENTRY*</td>
+</tr>
+<tr>
+<td>Create</td>
+<td>4</td>
+<td>INITIALIZE_FILE_RECORD_SEGMENT</td>
+<td>NOOP</td>
+</tr>
+<tr>
+<td>Create</td>
+<td>5</td>
+<td>FORGET TRANSACTION</td>
+<td>COMPENSATION_LOG_RECORD</td>
+</tr>
+<tr>
+<td>-----------</td>
+<td>-----</td>
+<td>---------------------------------</td>
+<td>---------------------------------</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td>1</td>
+<td>DELETE_INDEX_ENTRY*</td>
+<td>ADD_INDEX_ENTRY*</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td>2</td>
+<td>DEALLOCATE_FILE_RECORD_SEGMENT</td>
+<td>INITIALIZE_FILE_RECORD_SEGMENT</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td>3</td>
+<td>CLEAR_BITS_IN_NONRESIDENT_BIT_MAP</td>
+<td>SET_BITS_IN_NONRESIDENT_BIT_MAP</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td>4</td>
+<td>FORGET_TRANSACTION</td>
+<td>COMPENSATION_LOG_RECORD</td>
+</tr>
+<tr>
+<td>-----------</td>
+<td>-----</td>
+<td>---------------------------------</td>
+<td>---------------------------------</td>
+</tr>
+<tr>
+<td>Rename/Move</td>
+<td>1</td>
+<td>DELETE_INDEX_ENTRY*</td>
+<td>ADD_INDEX_ENTRY*</td>
+</tr>
+<tr>
+<td>Rename/Move</td>
+<td>2</td>
+<td>DELETE_ATTRIBUTE</td>
+<td>CREATE_ATTRIBUTE</td>
+</tr>
+<tr>
+<td>Rename/Move</td>
+<td>3</td>
+<td>CREATE_ATTRIBUTE</td>
+<td>DELETR_ATTRIBUTE</td>
+</tr>
+<tr>
+<td>Rename/Move</td>
+<td>4</td>
+<td>ADD_INDEX_ENTRY*</td>
+<td>DELETE_INDEX_ENTRY*</td>
+</tr>
+<tr>
+<td>Rename/Move</td>
+<td>5</td>
+<td>FORGET_TRANSACTION</td>
+<td>COMPENSATION_LOG_RECORD</td>
+</tr>
+</tbody>
+</table>
+
+<p>For some of the above (RedoOp, UndoOp) pairs there is data associated with the operation
+which we add to the candidate event, which we list below:</p>
+
+<table>
+<thead>
+<tr>
+<th>RedoOp</th>
+<th>UndoOp</th>
+<th>Data Found</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SET_BITS_IN_NONRESIDENT_BIT_MAP</td>
+<td>CLEAR_BITS_IN_NONRESIDENT_BIT_MAP</td>
+<td>Recordnum</td>
+</tr>
+<tr>
+<td>INITIALIZE_FILE_RECORD_SEGMENT</td>
+<td>NOOP</td>
+<td>Complete MFT entry</td>
+</tr>
+<tr>
+<td>DELETE_ATTRIBUTE</td>
+<td>CREATE_ATTRIBUTE</td>
+<td>Previous file name</td>
+</tr>
+<tr>
+<td>CREATE_ATTRIBUTE</td>
+<td>DELETE_ATTRIBUTE</td>
+<td>New file name</td>
+</tr>
+<tr>
+<td>DELETE_INDEX_ENTRY*</td>
+<td>ADD_INDEX_ENTRY*</td>
+<td>File name, parent recordnum</td>
+</tr>
+<tr>
+<td>ADD_INDEX_ENTRY*</td>
+<td>DELETE_INDEX_ENTRY*</td>
+<td>Recordnum, Parent recordnum, Timestamp, (new) file name</td>
+</tr>
+<tr>
+<td>UPDATE_NONRESIDENT_VALUE</td>
+<td>NOOP</td>
+<td>Embedded <code>$UsnJrnl</code> entry</td>
+</tr>
+</tbody>
+</table>
+
+<p>*<strong>Note</strong>: Throughout these tables, we consider ADD_INDEX_ENTRY_ALLOCATION to
+be equivalent to ADD_INDEX_ENTRY_ROOT, and denote as ADD_INDEX ENTRY, and
+DELETE_INDEX_ENTRY_ALLOCATION equivalent to DELETE_INDEX_ENTRY_ROOT, and 
+denote as DELETE_INDEX_ENTRY.</p>
+
+<p>So, the parsing strategy is to collect the above data as each record is
+processed, all the while checking if the transaction has ended. If it has, 
+then we mark a new event if it matches the above event type sequences. 
+Regardless, the transaction data is cleared.</p>
+
+<h2>
+<a id="further-reading" class="anchor" href="#further-reading" aria-hidden="true"><span class="octicon octicon-link"></span></a>Further reading</h2>
+
+<p>There are a number of good resources online about NTFS, $MFT, $UsnJrnl, 
+$Logfile, and Volume Shadow Copies. Among them:</p>
+
+<ul>
+<li>
+<a href="http://www.hecfblog.com/">David Cowen</a> has blogged in-depth about his 
+research into NTFS linking and offers a <a href="http://www.gettriforce.com">tool</a> 
+that has features beyond the scope of NTFS-linker.
+
+<ul>
+<li>
+<a href="http://hackingexposedcomputerforensicsblog.blogspot.com/2013/01/ntfs-triforce-deeper-look-inside.html">NTFS Triforce - A deeper look inside the artifacts</a>
+
+<ul>
+<li><a href="http://hackingexposedcomputerforensicsblog.blogspot.com/2013/05/ceic-2013-and-public-beta-of-ntfs.html">CEIC 2013 and the public beta of the NTFS Triforce</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>The <a href="http://0cch.net/ntfsdoc/">Linux-NTFS documentation</a> </li>
+<li><a href="http://www.microsoft.com/msj/0999/journal/journal.aspx">MSDN on the $UsnJrnl</a></li>
+<li>Mike Wilkinson's <a href="http://www.writeblocked.org/resources/ntfs_cheat_sheets.pdf">NTFS Cheat Sheet</a> 
+is a succinct reference to various NTFS structures.</li>
+<li>
+<a href="http://forensicinsight.org/wp-content/uploads/2013/06/F-INSIGHT-NTFS-Log-TrackerEnglish.pdf">NTFS Log Tracker</a>
+for details on $LogFile transactions</li>
+</ul>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
