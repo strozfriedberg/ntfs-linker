@@ -6,9 +6,10 @@
     <title>Ntfs-linker by strozfriedberg</title>
 
     <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <link rel="stylesheet" href="stylesheets/github-dark.css">
     <script src="javascripts/scale.fix.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
@@ -16,18 +17,14 @@
   <body>
     <div class="wrapper">
       <header>
-        <h1 class="header">Ntfs-linker</h1>
-        <p class="header">NTFS journal parser</p>
-
+        <h1>Ntfs-linker</h1>
+        <p>NTFS journal parser</p>
+        <p class="view"><a href="https://github.com/strozfriedberg/ntfs-linker">View the Project on GitHub <small>strozfriedberg/ntfs-linker</small></a></p>
         <ul>
-          <li class="download"><a class="buttons" href="https://github.com/strozfriedberg/ntfs-linker/zipball/master">Download ZIP</a></li>
-          <li class="download"><a class="buttons" href="https://github.com/strozfriedberg/ntfs-linker/tarball/master">Download TAR</a></li>
-          <li><a class="buttons github" href="https://github.com/strozfriedberg/ntfs-linker">View On GitHub</a></li>
+          <li><a href="https://github.com/strozfriedberg/ntfs-linker/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/strozfriedberg/ntfs-linker/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/strozfriedberg/ntfs-linker">View On <strong>GitHub</strong></a></li>
         </ul>
-
-        <p class="header">This project is maintained by <a class="header name" href="https://github.com/strozfriedberg">strozfriedberg</a></p>
-
-
       </header>
       <section>
         <h1>
@@ -119,11 +116,56 @@ snapshot.</p>
 
 <p>The SQLite database created by <code>ntfs-linker</code> will have the following structure:</p>
 
-<pre><code>CREATE TABLE event (Position int, Timestamp text, EventSource text, EventType text, FileName text, Folder text, Full_Path text, MFT_Record int, Parent_MFT_Record int, USN_LSN int, Old_File_Name text, Old_Folder text, Old_Parent_Record int, Offset int, Created text, Modified text, Comment text, Snapshot text, Volume text)
+<pre><code>CREATE TABLE event (
+    Position            int, 
+    Timestamp           text, 
+    EventSource         text, 
+    EventType           text, 
+    FileName            text, 
+    Folder              text, 
+    Full_Path           text, 
+    MFT_Record          int, 
+    Parent_MFT_Record   int, 
+    USN_LSN             int, 
+    Old_File_Name       text, 
+    Old_Folder          text, 
+    Old_Parent_ Record  int, 
+    Offset              int, 
+    Created             text, 
+    Modified            text, 
+    Comment             text, 
+    Snapshot            text, 
+    Volume              text
+)
 
-CREATE TABLE log (CurrentLSN int, PrevLSN int, UndoLSN int, ClientID int, RecordType int, RedoOP text, UndoOP text, TargetAttribute int, MFTClusterIndex int, Offset int, Snapshot text, Volume text)
+CREATE TABLE log (
+    CurrentLSN      int, 
+    PrevLSN         int, 
+    UndoLSN         int, 
+    ClientID        int, 
+    RecordType      int, 
+    RedoOP          text, 
+    UndoOP          text, 
+    TargetAttribute int, 
+    MFTClusterIndex int, 
+    Offset          int, 
+    Snapshot        text, 
+    Volume          text
+)
 
-CREATE TABLE usn (MFTRecNo int, ParRecNo int, USN int, Timestamp text, Reason text, FileName text, PossiblePath text, PossibleParPath text, Offset int, Snapshot text, Volume text)
+CREATE TABLE usn (
+    MFTRecNo        int, 
+    ParRecNo        int, 
+    USN             int, 
+    Timestamp       text, 
+    Reason          text, 
+    FileName        text, 
+    PossiblePath    text, 
+    PossibleParPath text, 
+    Offset          int, 
+    Snapshot        text, 
+    Volume          text
+)
 </code></pre>
 
 <h3>
@@ -679,34 +721,32 @@ $Logfile, and Volume Shadow Copies. Among them:</p>
 
 <ul>
 <li>
-<a href="http://www.hecfblog.com/">David Cowen</a> has blogged in-depth about his 
+<p><a href="http://www.hecfblog.com/">David Cowen</a> has blogged in-depth about his 
 research into NTFS linking and offers a <a href="http://www.gettriforce.com">tool</a> 
-that has features beyond the scope of NTFS-linker.
+that has features beyond the scope of NTFS-linker.</p>
 
 <ul>
-<li>
-<a href="http://hackingexposedcomputerforensicsblog.blogspot.com/2013/01/ntfs-triforce-deeper-look-inside.html">NTFS Triforce - A deeper look inside the artifacts</a>
+<li><a href="http://hackingexposedcomputerforensicsblog.blogspot.com/2013/01/ntfs-triforce-deeper-look-inside.html">NTFS Triforce - A deeper look inside the artifacts</a></li>
+</ul>
 
 <ul>
 <li><a href="http://hackingexposedcomputerforensicsblog.blogspot.com/2013/05/ceic-2013-and-public-beta-of-ntfs.html">CEIC 2013 and the public beta of the NTFS Triforce</a></li>
 </ul>
 </li>
-</ul>
-</li>
-<li>The <a href="http://0cch.net/ntfsdoc/">Linux-NTFS documentation</a> </li>
-<li><a href="http://www.microsoft.com/msj/0999/journal/journal.aspx">MSDN on the $UsnJrnl</a></li>
-<li>Mike Wilkinson's <a href="http://www.writeblocked.org/resources/ntfs_cheat_sheets.pdf">NTFS Cheat Sheet</a> 
-is a succinct reference to various NTFS structures.</li>
-<li>
-<a href="http://forensicinsight.org/wp-content/uploads/2013/06/F-INSIGHT-NTFS-Log-TrackerEnglish.pdf">NTFS Log Tracker</a>
-for details on $LogFile transactions</li>
+<li><p>The <a href="http://0cch.net/ntfsdoc/">Linux-NTFS documentation</a> </p></li>
+<li><p><a href="http://www.microsoft.com/msj/0999/journal/journal.aspx">MSDN on the $UsnJrnl</a></p></li>
+<li><p>Mike Wilkinson's <a href="http://www.writeblocked.org/resources/ntfs_cheat_sheets.pdf">NTFS Cheat Sheet</a> 
+is a succinct reference to various NTFS structures.</p></li>
+<li><p><a href="http://forensicinsight.org/wp-content/uploads/2013/06/F-INSIGHT-NTFS-Log-TrackerEnglish.pdf">NTFS Log Tracker</a>
+for details on $LogFile transactions</p></li>
 </ul>
       </section>
-      <footer>
-        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
-      </footer>
     </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/strozfriedberg">strozfriedberg</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
     <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-		
+    
   </body>
 </html>
