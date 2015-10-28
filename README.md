@@ -1,4 +1,4 @@
-# NTFS-Linker
+# [NTFS-Linker](http://strozfriedberg.github.io/ntfs-linker)
 Author: Zack Weger
 
 Copyright (c) 2015, [Stroz Friedberg, LLC](http://www.strozfriedberg.com)
