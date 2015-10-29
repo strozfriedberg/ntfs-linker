@@ -66,8 +66,9 @@ MFTRecord::MFTRecord(char* buffer, unsigned int len) {
         if (!Fna.Valid)
           Fna = fna2;
 
-        if (compareNames(Fna.Name, fna2.Name))
+        if (Fna < fna2) {
           Fna = fna2;
+        }
         break;
     }
 
@@ -98,8 +99,32 @@ FNAttribute::FNAttribute(char* buffer) {
   LogicalSize           = hex_to_long(buffer + 0x28, 8);
   PhysicalSize          = hex_to_long(buffer + 0x30, 8);
   unsigned int name_len = hex_to_long(buffer + 0x40, 1);
+  NameType              = hex_to_long(buffer + 0x41, 1);
   Name                  = mbcatos    (buffer + 0x42, 2*name_len);
   Valid                 = true;
+}
+
+bool compareNameTypes(int a, int b) {
+  // Name type codes:
+  // ref: http://www.writeblocked.org/resources/ntfs_cheat_sheets.pdf
+  // 0x0: Unicode, case sensitive (best)
+  // 0x1: Unicode, case insensitive
+  // 0x2: DOS (8.3 ASCII, case insensitive) (worst)
+  // 0x3: Win32 7 DOS (when Win32 fits in DOS space) (?)
+  if (a != b && (a == 0x2 || b == 0x2)) {
+    return a == 0x2? true: false;
+  }
+  if (a != b) {
+    return a > b;
+  }
+  // Time to just pick one, really
+  return false;
+}
+
+bool FNAttribute::operator<(const FNAttribute& other) const {
+  if (!Valid)
+    return true;
+  return compareNameTypes(NameType, other.NameType);
 }
 
 File MFTRecord::asFile() {

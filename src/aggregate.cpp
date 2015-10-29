@@ -221,7 +221,7 @@ void Event::insert(sqlite3_stmt* stmt, std::vector<File>& records) {
 }
 
 void Event::updateRecords(std::vector<File>& records) {
-  if (Record >= records.size())
+  if (static_cast<uint64_t>(Record) >= records.size())
     return;
   std::vector<File>::iterator it;
   switch(Type) {

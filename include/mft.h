@@ -57,18 +57,17 @@ private:
 class FNAttribute {
 public:
   FNAttribute() : Parent(0), Created(0), Modified(0), MFTModified(0), Accessed(0),
-                  LogicalSize(0), PhysicalSize(0), Name(""), Valid(false) {}
+                  LogicalSize(0), PhysicalSize(0), Name(""), Valid(false), NameType(0) {}
   FNAttribute(char* buffer);
-  friend bool operator<(FNAttribute a, FNAttribute b);
   unsigned int Parent;
   uint64_t Created, Modified, MFTModified, Accessed;
   uint64_t LogicalSize, PhysicalSize;
   std::string Name;
-  unsigned int countAscii();
   bool Valid;
-};
+  int NameType;
 
-bool operator<(FNAttribute a, FNAttribute b);
+  bool operator<(const FNAttribute& other) const;
+};
 
 class MFTRecord {
 public:

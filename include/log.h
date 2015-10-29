@@ -27,6 +27,7 @@
 #pragma once
 
 #include "file.h"
+#include "mft.h"
 #include "sqlite_util.h"
 #include "usn.h"
 
@@ -69,7 +70,6 @@ public:
 
   void clearFields();
   void processLogRecord(const std::vector<File>& records, LogRecord& rec, SQLiteHelper& sqliteHelper, uint64_t fileOffset);
-  std::string pickName(std::string a, std::string b);
   std::string toCreateString(std::vector<File>& records);
   std::string toDeleteString(std::vector<File>& records);
   std::string toRenameString(std::vector<File>& records);
@@ -81,9 +81,10 @@ public:
   bool isMoveEvent();
   bool isTransactionOver();
 
-  int64_t Record, Parent, PreviousParent, Offset;
+  int64_t Record, Offset;
   uint64_t Lsn;
-  std::string Name, PreviousName, Timestamp, Created, Modified, Comment, Snapshot, Volume;
+  std::string Timestamp, Created, Modified, Comment, Snapshot, Volume;
+  FNAttribute Fna, PreviousFna;
   std::vector<int> RedoOps, UndoOps;
 
   static const std::vector<int> createRedo, createUndo, deleteRedo, deleteUndo;

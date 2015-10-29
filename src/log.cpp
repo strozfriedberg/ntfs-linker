@@ -360,7 +360,6 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
     // the Creation time is not the event time - it's the time the file was _originally_ created
     // https://support.microsoft.com/en-us/kb/299648
     Timestamp = filetime_to_iso_8601(mftRec.Sia.Modified);
-    Parent = mftRec.Fna.Parent;
 
     Created = filetime_to_iso_8601(mftRec.Sia.Created);
     Modified = filetime_to_iso_8601(mftRec.Sia.Modified);
@@ -371,8 +370,8 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
       commentSS << "Modifies don't match";
     Comment = commentSS.str();
 
-    if (compareNames(Name, mftRec.Fna.Name))
-      Name = mftRec.Fna.Name;
+    if (Fna < mftRec.Fna)
+      Fna = mftRec.Fna;
   }
   else if(rec.RedoOp == LogOps::DELETE_ATTRIBUTE && rec.UndoOp == LogOps::CREATE_ATTRIBUTE) {
     //get the name before
@@ -381,10 +380,9 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
     uint64_t content_offset = hex_to_long(undo_data + 0x14, 2);
     if (type_id == 0x30) {
       FNAttribute fna(undo_data + content_offset);
-      PreviousParent = fna.Parent;
 
-      if (compareNames(PreviousName, fna.Name))
-        PreviousName = fna.Name;
+      if (PreviousFna < fna)
+        PreviousFna = fna;
     }
   }
   else if(rec.RedoOp == LogOps::CREATE_ATTRIBUTE && rec.UndoOp == LogOps::DELETE_ATTRIBUTE) {
@@ -396,20 +394,18 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
     uint64_t content_offset = hex_to_long(redo_data + 0x14, 2);
     if (type_id == 0x30) {
       FNAttribute fna(redo_data + content_offset);
-      Parent = fna.Parent;
 
-      if (compareNames(Name, fna.Name))
-        Name = fna.Name;
+      if (Fna < fna)
+        Fna = fna;
     }
   }
   else if((rec.RedoOp == LogOps::DELETE_INDEX_ENTRY_ALLOCATION && rec.UndoOp == LogOps::ADD_INDEX_ENTRY_ALLOCATION) || (rec.RedoOp == LogOps::DELETE_INDEX_ENTRY_ROOT && rec.UndoOp == LogOps::ADD_INDEX_ENTRY_ROOT)) {
     if(rec.UndoLength > 0x42) {
       // Delete or rename
       FNAttribute fna(undo_data + 0x10);
-      Parent = fna.Parent;
 
-      if (compareNames(Name, fna.Name))
-        Name = fna.Name;
+      if (Fna < fna)
+        Fna = fna;
     }
 
   }
@@ -420,13 +416,11 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
     // TODO REFACTOR MAKE THIS ITS OWN CLASS
     if (rec.RedoLength > 0x52) {
       Record = hex_to_long(redo_data, 6);
-      Parent = hex_to_long(redo_data + 0x10, 6);
-      Timestamp = filetime_to_iso_8601(hex_to_long(redo_data + 0x18, 8));
+      FNAttribute fna(redo_data + 0x10);
+      Timestamp = fna.Created;
 
-      unsigned int len = hex_to_long(redo_data + 0x50, 1);
-      std::string new_name = mbcatos(redo_data + 0x52, 2*len);
-      if (compareNames(Name, new_name))
-        Name = new_name;
+      if (Fna < fna)
+        Fna = fna;
     }
   }
   else if (rec.RedoOp == LogOps::UPDATE_NONRESIDENT_VALUE && rec.UndoOp == LogOps::NOOP) {
@@ -448,12 +442,10 @@ void LogData::clearFields() {
   RedoOps.clear();
   UndoOps.clear();
   Record = -1;
-  Parent = -1;
-  PreviousParent = -1;
   Timestamp = "";
   Lsn = 0;
-  Name = "";
-  PreviousName = "";
+  Fna = FNAttribute();
+  PreviousFna = FNAttribute();
   Offset = -1;
   Created = "";
   Modified = "";
@@ -492,12 +484,12 @@ bool LogData::transactionRunMatch(const std::vector<int>& redo2, const std::vect
 void LogData::insertEvent(unsigned int type, sqlite3_stmt* stmt) {
   int i = 0;
   sqlite3_bind_int64(stmt, ++i, Record);
-  sqlite3_bind_int64(stmt, ++i, Parent);
-  sqlite3_bind_int64(stmt, ++i, PreviousParent);
+  sqlite3_bind_int64(stmt, ++i, Fna.Parent);
+  sqlite3_bind_int64(stmt, ++i, PreviousFna.Parent);
   sqlite3_bind_int64(stmt, ++i, Lsn);
   sqlite3_bind_text (stmt, ++i, Timestamp.c_str()   , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, Name.c_str()        , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, PreviousName.c_str(), -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, Fna.Name.c_str()        , -1, SQLITE_TRANSIENT);
+  sqlite3_bind_text (stmt, ++i, PreviousFna.Name.c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, type);
   sqlite3_bind_int64(stmt, ++i, EventSources::SOURCE_LOG);
   sqlite3_bind_int64(stmt, ++i, 0);  // Not embedded
@@ -577,11 +569,11 @@ bool LogData::isDeleteEvent() {
 }
 
 bool LogData::isRenameEvent() {
-  return Name != PreviousName && transactionRunMatch(LogData::renameRedo, LogData::renameUndo);
+  return Fna.Name != PreviousFna.Name && transactionRunMatch(LogData::renameRedo, LogData::renameUndo);
 }
 
 bool LogData::isMoveEvent() {
-  return Parent != PreviousParent && transactionRunMatch(LogData::renameRedo, LogData::renameUndo);
+  return Fna.Parent != PreviousFna.Parent && transactionRunMatch(LogData::renameRedo, LogData::renameUndo);
 }
 
 bool LogData::isTransactionOver() {
