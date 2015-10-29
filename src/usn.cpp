@@ -282,13 +282,7 @@ UsnRecord::UsnRecord(const char* buffer, uint64_t fileOffset, const VersionInfo&
     unsigned int name_offset         = hex_to_long(buffer + 0x3A, 2);
 
     if (len < 0 || (unsigned) len >= record_length) {
-      std::string file_name = mbcatos(buffer + name_offset, name_len);
-      if (Reason & UsnReasons::USN_RENAME_OLD_NAME) {
-        PreviousName = file_name;
-      }
-      else {
-        Name = file_name;
-      }
+      Name = mbcatos(buffer + name_offset, name_len);
       return;
     }
   }
