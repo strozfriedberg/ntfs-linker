@@ -248,7 +248,7 @@ TskVolumeBfioShim::TskVolumeBfioShim(const TSK_FS_INFO* fs) : Tag(TVB_SHIM_TAG),
 }
 
 ssize_t VShadowTskVolumeShim::read(TSK_OFF_T off, char* buf, size_t len) {
-  libcerror_error_t* error;
+  libcerror_error_t* error = NULL;
   ssize_t rtnVal = libvshadow_store_read_buffer_at_offset(Store, buf, len, off, &error);
   if (rtnVal == -1) {
     throw VSSException(error);
@@ -279,7 +279,7 @@ TSK_FS_INFO* VShadowTskVolumeShim::getTskFsInfo(TSK_IMG_INFO* img) {
 
 VSS::VSS(TSK_FS_INFO* fs) : Handle(NULL), Volume(NULL), NumStores(0),  Store(NULL), VssFs(NULL) {
   int rtnVal;
-  libcerror_error_t* error;
+  libcerror_error_t* error = NULL;
   TvbShim = TskVolumeBfioShimPtr(new TskVolumeBfioShim(fs));
 
   rtnVal = libbfio_handle_initialize(&Handle,
@@ -318,7 +318,7 @@ VSS::VSS(TSK_FS_INFO* fs) : Handle(NULL), Volume(NULL), NumStores(0),  Store(NUL
 TSK_FS_INFO* VSS::getSnapshot(uint8_t n) {
   int rtnVal;
   freeSnapshot();
-  libcerror_error_t* error;
+  libcerror_error_t* error = NULL;
 
   rtnVal = libvshadow_volume_get_store(Volume, n, &Store, &error);
   if (rtnVal != 1) {
@@ -345,7 +345,7 @@ void VSS::freeSnapshot() {
   }
 
   if (Store) {
-    libcerror_error_t* error;
+    libcerror_error_t* error = NULL;
     rtnVal = libvshadow_store_free(&Store, &error);
     if (rtnVal != 1)
       throw VSSException(error);
@@ -356,13 +356,13 @@ VSS::~VSS() {
   int rtnVal;
   freeSnapshot();
   if (Volume) {
-    libcerror_error_t* error;
+    libcerror_error_t* error = NULL;
     rtnVal = libvshadow_volume_free(&Volume, &error);
     if (rtnVal != 1)
       throw VSSException(error);
   }
   if (Handle) {
-    libcerror_error_t* error;
+    libcerror_error_t* error = NULL;
     rtnVal = libbfio_handle_free(&Handle, &error);
     if (rtnVal != 1)
       throw VSSException(error);

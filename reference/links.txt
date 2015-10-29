@@ -1,5 +1,0 @@
-http://hackingexposedcomputerforensicsblog.blogspot.com/2013/01/ntfs-triforce-deeper-look-inside.html#links
-http://hackingexposedcomputerforensicsblog.blogspot.com/2013/05/ceic-2013-and-public-beta-of-ntfs.html
-http://inform.pucp.edu.pe/~inf232/Ntfs/ntfs_doc_v0.5/files/logfile.html
-http://www.microsoft.com/msj/0999/journal/journal.aspx
-http://www.writeblocked.org/resources/ntfs_cheat_sheets.pdf
