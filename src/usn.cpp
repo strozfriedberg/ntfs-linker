@@ -366,9 +366,6 @@ void UsnRecord::insert(sqlite3_stmt* stmt, const std::vector<File>& records) {
   sqlite3_bind_text (stmt, ++i, getFullPath(records, Record).c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, getFullPath(records, Parent).c_str(), -1, SQLITE_TRANSIENT);
   sqlite3_bind_int64(stmt, ++i, FileOffset);
-  sqlite3_bind_text (stmt, ++i, ""                                  , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, ""                                  , -1, SQLITE_TRANSIENT);
-  sqlite3_bind_text (stmt, ++i, ""                                  , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Snapshot.c_str()                    , -1, SQLITE_TRANSIENT);
   sqlite3_bind_text (stmt, ++i, Volume.c_str()                      , -1, SQLITE_TRANSIENT);
 
