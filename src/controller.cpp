@@ -153,8 +153,10 @@ void copyAllFiles(Options& opts) {
     walker.findFilesInImg();
 
     if (walker.DidItWork) {
+      std::cout << std::endl;
       std::cout << "Copying completed successfully. Summary: " << std::endl;
       std::cout << walker.getSummary() << std::endl;
+      std::cout << std::endl;
     }
     else {
       std::cerr << "Error: unable to copy out files. Terminating." << std::endl;
@@ -206,11 +208,12 @@ void run(Options& opts) {
     for (auto& snapshotIO: volumeIO->Snapshots) {
       std::cout << "Parsing input files for snapshot: " << snapshotIO->Name << std::endl;
       processStep(*snapshotIO, opts.extra);
+      std::cout << std::endl;
     }
     imageIO.SqliteHelper.endTransaction();
     imageIO.SqliteHelper.beginTransaction();
 
-    std::cout << "Generating unified events output..." << std::endl;
+    std::cout << std::endl << "Generating unified events output..." << std::endl;
     volumeIO->Events << Event::getColumnHeaders();
     std::vector<SnapshotIOPtr>::reverse_iterator rIt;
     for (rIt = volumeIO->Snapshots.rbegin(); rIt != volumeIO->Snapshots.rend(); ++rIt) {
@@ -221,6 +224,7 @@ void run(Options& opts) {
     imageIO.SqliteHelper.endTransaction();
   }
   imageIO.SqliteHelper.close();
+  std::cout << std::endl;
   std::cout << imageIO.getSummary() << std::endl;
   std::cout << "Process complete." << std::endl;
 
