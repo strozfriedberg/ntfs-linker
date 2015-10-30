@@ -70,6 +70,8 @@ std::ostream& operator<<(std::ostream& out, EventTypes e);
 
 std::ostream& operator<<(std::ostream& out, EventSources e);
 
+std::string pluralize(std::string name, int n);
+
 int doFixup(char* buffer, unsigned int len, unsigned int sectorSize=512);
 
 int ceilingDivide(int n, int m);

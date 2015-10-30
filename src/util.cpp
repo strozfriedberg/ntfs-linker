@@ -259,6 +259,10 @@ int doFixup(char* buffer, unsigned int len, unsigned int sectorSize) {
   return corrupt;
 }
 
+std::string pluralize(std::string name, int n) {
+  return std::to_string(n) + " " + name + (n != 1? "s" : "");
+}
+
 int ceilingDivide(int n, int m) {
   // Returns ceil(n/m), without using clunky FP arithmetic
   return (n + m - 1) / m;

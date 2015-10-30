@@ -131,13 +131,17 @@ ImageIO::ImageIO(Options& opts) : Good(false) {
 std::string ImageIO::getSummary() {
   std::ostringstream ss;
   int sum = 0;
+  int recordSum = 0;
   for (auto const& volume: Volumes) {
-    ss << "Volume " << volume->Name << ": processed " << volume->Snapshots.size() << " snapshot"
-       << (volume->Snapshots.size() != 1? "s.\n" : ".\n");
+    ss << "Volume " << volume->Name << ": processed "
+       << pluralize("snapshot", volume->Snapshots.size()) << ", "
+       << pluralize("record", volume->Count) << ".\n";
     sum += volume->Snapshots.size();
+    recordSum += volume->Count;
   }
-  ss << "Total: processed " << Volumes.size() << " volume" << (Volumes.size() != 1? "s" : "")
-     << ", " << sum << " snapshot" << (sum != 1? "s." : ".");
+  ss << "Total: processed " << pluralize("volume", Volumes.size()) << ", "
+     << pluralize("snapshot", sum) << ", "
+     << pluralize("record", recordSum) << ".";
   return ss.str();
 }
 

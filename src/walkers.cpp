@@ -25,6 +25,7 @@
  */
 
 #include "walkers.h"
+#include "util.h"
 #include "vss.h"
 
 #include <fstream>
@@ -192,10 +193,10 @@ std::string VolumeWalker::getSummary() {
   int sum = 0;
   for (auto const& mapEntry: NumCopied) {
     sum += mapEntry.second;
-    ss << "Volume " << mapEntry.first << ": copied from " << mapEntry.second
-       << " snapshot" << (mapEntry.second != 1? "s\n": "\n");
+    ss << "Volume " << mapEntry.first << ": copied from "
+       << pluralize("snapshot", mapEntry.second) << "\n";
   }
-  ss << "Total: copied " << NumCopied.size() << " volume" << (NumCopied.size() != 1? "s, " : ", ")
-     << sum << " snapshot" << (sum != 1? "s." : ".");
+  ss << "Total: copied " << pluralize("volume", NumCopied.size()) << ", "
+     << pluralize("snapshot", sum) << ".";
   return ss.str();
 }
