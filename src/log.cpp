@@ -311,8 +311,9 @@ int LogRecord::init(char* buffer, uint64_t offset, bool prev_has_next) {
   // We've run into some junk data
   if(RedoOp > 0x21 || UndoOp > 0x21) {
     std::cerr << std::setw(60) << std::left << std::setfill(' ') << "\r";
-    std::cerr << "\rInvalid op code: 0x" << std::hex << RedoOp << " 0x" << UndoOp
-              << " at 0x" << offset << std::endl;
+    std::cerr << "\rInvalid $LogFile op code: 0x" << std::hex << RedoOp << " 0x" << UndoOp
+              << " at offset 0x" << offset << " in snapshot: " << Snapshot
+              << ". Skipping to next page. " << std::endl;
     return -2;
   }
   RedoOffset = hex_to_long(buffer + 0x34, 2);

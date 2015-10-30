@@ -34,6 +34,7 @@
 #include "walkers.h"
 
 #include <boost/scoped_array.hpp>
+#include <sstream>
 
 SnapshotIO::SnapshotIO(Options& opts, VolumeIO* parent) : Parent(parent), Name(opts.input.string()), Good(false) {
   IMft.open((opts.input / fs::path("$MFT")).string(), std::ios::binary);
@@ -127,6 +128,19 @@ ImageIO::ImageIO(Options& opts) : Good(false) {
   SqliteHelper.init(dbName, opts.overwrite);
 }
 
+std::string ImageIO::getSummary() {
+  std::ostringstream ss;
+  int sum = 0;
+  for (auto const& volume: Volumes) {
+    ss << "Volume " << volume->Name << ": processed " << volume->Snapshots.size() << " snapshot"
+       << (volume->Snapshots.size() != 1? "s.\n" : ".\n");
+    sum += volume->Snapshots.size();
+  }
+  ss << "Total: processed " << Volumes.size() << " volume" << (Volumes.size() != 1? "s" : "")
+     << ", " << sum << " snapshot" << (sum != 1? "s." : ".");
+  return ss.str();
+}
+
 void copyAllFiles(Options& opts) {
   if (opts.imgSegs.size()) {
     std::cout << "Copying files out of image..." << std::endl;
@@ -139,7 +153,8 @@ void copyAllFiles(Options& opts) {
     walker.findFilesInImg();
 
     if (walker.DidItWork) {
-      std::cout << "Done copying" << std::endl;
+      std::cout << "Copying completed successfully. Summary: " << std::endl;
+      std::cout << walker.getSummary() << std::endl;
     }
     else {
       std::cerr << "Error: unable to copy out files. Terminating." << std::endl;
@@ -206,6 +221,7 @@ void run(Options& opts) {
     imageIO.SqliteHelper.endTransaction();
   }
   imageIO.SqliteHelper.close();
+  std::cout << imageIO.getSummary() << std::endl;
   std::cout << "Process complete." << std::endl;
 
 }

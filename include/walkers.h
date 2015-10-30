@@ -29,6 +29,7 @@
 #include <tsk/libtsk.h>
 
 #include <boost/filesystem.hpp>
+#include <map>
 #include <string>
 
 namespace fs = boost::filesystem;
@@ -40,6 +41,8 @@ class VolumeWalker: public TskAuto {
     virtual TSK_RETVAL_ENUM processFile(TSK_FS_FILE*, const char*) { return TSK_OK; }
     virtual uint8_t openImageUtf8(int, const char *const images[], TSK_IMG_TYPE_ENUM, unsigned int a_ssize);
     bool DidItWork;
+    std::string getSummary();
   private:
     fs::path Root;
+    std::map<int, int> NumCopied;
 };

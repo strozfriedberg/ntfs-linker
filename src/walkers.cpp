@@ -136,13 +136,14 @@ std::string zeroPad(int i, int n) {
 }
 
 TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
+  NumCopied[fs->offset] = 0;
   if (!TSK_FS_TYPE_ISNTFS(fs->ftype)) {
     std::cout << "Skipping volume with fs offset " << fs->offset << " since it is not NTFS." << std::endl;
     return TSK_FILTER_SKIP;
   }
 
   fs::path dir(Root / ("volume_" + std::to_string(fs->offset)));
-  std::cout << "Copying from base" << std::endl;
+  std::cout << "Copying from volume " << fs->offset << ", base." << std::endl;
 
   // "base" has the important property that it sorts after numbers
   int rtnVal = copyFiles(fs, dir / fs::path("vss_base"));
@@ -151,20 +152,25 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     std::cerr << "Unable to copy files out of volume with fs offset " << fs->offset << ". Skipping" << std::endl;
     return TSK_FILTER_SKIP;
   }
+  NumCopied[fs->offset]++;
   DidItWork = true;
 
   try {
     VSS vShadowVolume(fs);
     int n = vShadowVolume.getNumStores();
     for(int i = 0; i < n; ++i) {
-      std::cout << "Copying from store: " << i << std::endl;
+      std::cout << "Copying from volume " << fs->offset << ", store " << i << "." << std::endl;
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
-      copyFiles(snapshot, dir / fs::path("vss_" + zeroPad(i, n)));
+      int rtnVal = copyFiles(snapshot, dir / fs::path("vss_" + zeroPad(i, n)));
+      if (!rtnVal)
+        NumCopied[fs->offset]++;
     }
   }
   catch(std::exception& err) {
-    std::cerr << "Error copying files for fs with offset " << fs->offset << ". Skipping." << std::endl;
+    std::cerr << "=====================================================" << std::endl;
+    std::cerr << "Could not read Volume Shadows from fs: " << fs->offset << ". Error: " << std::endl;
     std::cerr << err.what() << std::endl;
+    std::cerr << "=====================================================" << std::endl;
     return TSK_FILTER_SKIP;
   }
   return TSK_FILTER_SKIP;
@@ -179,4 +185,17 @@ uint8_t VolumeWalker::openImageUtf8(int a_numImg, const char *const a_images[], 
     exit(1);
   }
   return rtnVal;
+}
+
+std::string VolumeWalker::getSummary() {
+  std::ostringstream ss;
+  int sum = 0;
+  for (auto const& mapEntry: NumCopied) {
+    sum += mapEntry.second;
+    ss << "Volume " << mapEntry.first << ": copied from " << mapEntry.second
+       << " snapshot" << (mapEntry.second != 1? "s\n": "\n");
+  }
+  ss << "Total: copied " << NumCopied.size() << " volume" << (NumCopied.size() != 1? "s, " : ", ")
+     << sum << " snapshot" << (sum != 1? "s." : ".");
+  return ss.str();
 }

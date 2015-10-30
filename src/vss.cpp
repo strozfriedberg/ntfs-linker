@@ -37,17 +37,21 @@
 
 class VSSException : public std::exception {
   public:
-    VSSException(libcerror_error_t* error) : Error(error) {}
+    VSSException(libcerror_error_t* error) {
+      char errStr[1024];
+      std::ostringstream ss;
+      libcerror_error_backtrace_sprint(error, errStr, 1024);
+      ss << "VSS Exception: " << errStr;
+      ErrStr = ss.str();
+      libcerror_error_free(&error);
+    }
+
     virtual const char* what() const throw() {
-      std::unique_ptr<char[]> errStr(new char[1024]);
-      std::stringstream ss;
-      libcerror_error_sprint(Error, errStr.get(), 1024);
-      ss << "VSS Exception: " << errStr.get();
-      return ss.str().c_str();
+      return ErrStr.c_str();
     }
 
   private:
-    libcerror_error_t* Error;
+    std::string ErrStr;
 };
 // ==== TVB SHIM WRAPPER FUNCTIONS
 

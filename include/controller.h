@@ -77,6 +77,8 @@ struct ImageIO {
   std::vector<VolumeIOPtr> Volumes;
   SQLiteHelper SqliteHelper;
   bool Good;
+
+  std::string getSummary();
 };
 
 void run(Options& opts);
