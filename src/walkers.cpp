@@ -160,7 +160,7 @@ TSK_FILTER_ENUM VolumeWalker::filterFs(TSK_FS_INFO* fs) {
     VSS vShadowVolume(fs);
     int n = vShadowVolume.getNumStores();
     for(int i = 0; i < n; ++i) {
-      std::cout << "Copying from volume " << fs->offset << ", store " << i << "." << std::endl;
+      std::cout << "Copying from volume " << fs->offset << ", VSC store " << i << "." << std::endl;
       TSK_FS_INFO* snapshot = vShadowVolume.getSnapshot(i);
       int rtnVal = copyFiles(snapshot, dir / fs::path("vss_" + zeroPad(i, n)));
       if (!rtnVal)
