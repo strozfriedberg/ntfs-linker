@@ -191,12 +191,19 @@ uint8_t VolumeWalker::openImageUtf8(int a_numImg, const char *const a_images[], 
 std::string VolumeWalker::getSummary() {
   std::ostringstream ss;
   int sum = 0;
+  int count = 0;
   for (auto const& mapEntry: NumCopied) {
     sum += mapEntry.second;
-    ss << "Volume " << mapEntry.first << ": copied from "
-       << pluralize("snapshot", mapEntry.second) << "\n";
+    ss << "Volume " << mapEntry.first << ": ";
+    if (mapEntry.second) {
+      ss << "copied from " << pluralize("snapshot", mapEntry.second) << "\n";
+      ++count;
+    }
+    else {
+      ss << "no files were copied\n";
+    }
   }
-  ss << "Total: copied " << pluralize("volume", NumCopied.size()) << ", "
+  ss << "Total: copied " << pluralize("volume", count) << ", "
      << pluralize("snapshot", sum) << ".";
   return ss.str();
 }
