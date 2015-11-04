@@ -96,7 +96,6 @@ int write_file(FileCopy& param) {
 }
 
 int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
-  fs::create_directories(dir);
   std::vector<FileCopy> params { FileCopy("/$MFT", "", (dir / fs::path("$MFT")).string()),
                                 FileCopy("/$LogFile", "", (dir / fs::path("$LogFile")).string()),
                                 FileCopy("/$Extend/$UsnJrnl", "$J", (dir / fs::path("$J")).string())};
@@ -119,6 +118,7 @@ int copyFiles(TSK_FS_INFO* fs, fs::path dir) {
     return 1;
   }
 
+  fs::create_directories(dir);
   for(auto& param: params) {
       if (write_file(param)) {
         std::cerr << param.In << param.Attr << " file present, but we failed to copy it." << std::endl;
