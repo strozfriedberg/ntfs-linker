@@ -420,7 +420,7 @@ void LogData::processLogRecord(const std::vector<File>& records, LogRecord& rec,
     if (rec.RedoLength > 0x52) {
       Record = hex_to_long(redo_data, 6);
       FNAttribute fna(redo_data + 0x10);
-      Timestamp = fna.Created;
+      Timestamp = filetime_to_iso_8601(fna.Created);
 
       if (Fna < fna)
         Fna = fna;
