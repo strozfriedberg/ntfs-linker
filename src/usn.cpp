@@ -180,7 +180,8 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
         offset = 0;
         int new_offset = recoverPosition(buffer, offset, usn_offset);
         if (new_offset >= 0) {
-          std::cerr << " Recovery successful with 0x" << std::hex << new_offset - offset << " bytes skipped" << std::endl;
+          std::cerr << " Recovery successful with 0x" << std::hex << new_offset - offset + USN_BUFFER_SIZE
+                    << " bytes skipped" << std::endl;
           offset = new_offset;
           continue;
         }
