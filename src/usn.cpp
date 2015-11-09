@@ -164,7 +164,9 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
     }
     if (record_length > USN_BUFFER_SIZE) {
       status.clear();
-      std::cerr << "Encountered bad record at 0x" << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset << ".";
+      std::cerr << "Encountered bad record at 0x"
+                << std::hex << static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset
+                << " in snapshot: " << version.Snapshot << ".";
       int new_offset = recoverPosition(buffer, offset, usn_offset + (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset));
       if (new_offset >= 0) {
         std::cerr << " Recovery successful with 0x" << std::hex << new_offset - offset << " bytes skipped" << std::endl;
@@ -196,7 +198,8 @@ void parseUSN(const std::vector<File>& records, SQLiteHelper& sqliteHelper, std:
       usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
     }
     else if (usn_offset != rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset) && !input.eof()) {
-      std::cerr << "Inconsistent Usn value found at " << static_cast<int>(input.tellg()) - offset
+      std::cerr << "Inconsistent Usn value found at 0x" << std::hex << static_cast<int>(input.tellg()) - offset
+                << " in snapshot << " << version.Snapshot
                 << ". Update sequence number does not match the offset of the record in the file" << std::endl;
       usn_offset = rec.Usn - (static_cast<int>(input.tellg()) - USN_BUFFER_SIZE + offset);
     }
