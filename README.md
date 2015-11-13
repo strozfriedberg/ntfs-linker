@@ -20,20 +20,22 @@ and produce output in a unified and deduplicated manner.
 
 ## Usage
 ```
-ntfs-linker, Copyright (c) 2015, Stroz Friedberg, LLC
-Version 0.1.0
+ntfs-linker, Copyright (c) Stroz Friedberg, LLC
+Version 0.1.1
+Usage: ntfs_linker ntfs-dir output [options] 
 Allowed options:
-  --help                display help and exit
+  --ntfs-dir arg        If no image specified, location of root directory 
+                        containing input files. Otherwise, root directory in 
+                        which to dump files extracted from image. See the docs 
+                        for info about ntfs-dir structure.
   --output arg          directory in which to dump output files
-  --input arg           If no image specified, location of directory containing
-                        input files: $MFT, $UsnJrnl, $LogFile. Otherwise, root 
-                        directory in which to dump files extracted from image.
-  --image arg           Path to image
-  --version             display version number and exit
+  --image arg           Path to image file(s)
   --overwrite           overwrite files in the output directory. Default: 
                         append
   --extra               Outputs supplemental lower-level parsed data from 
                         $UsnJrnl and $LogFile
+  --help                display help and exit
+  --version             display version number and exit
   ```
 
 
