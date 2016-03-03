@@ -7,9 +7,9 @@ Status: Alpha
 
 ## Basic usage:
 
-    C:\> ntfs-linker.exe --input .\journals\ --output .\parsed-output\
+    C:\> ntfs-linker.exe --ntfs-dir .\journals\ --output .\parsed-output\
 
-    C:\> ntfs-linker.exe --image MyEvidence.E01 --input .\journals\ --output .\parsed-output\
+    C:\> ntfs-linker.exe --image MyEvidence.E01 --ntfs-dir .\journals\ --output .\parsed-output\
 
 ## Input
 
