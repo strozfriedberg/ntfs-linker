@@ -31,7 +31,7 @@
       </header>
       <section>
         <h1>
-<a id="ntfs-linker" class="anchor" href="#ntfs-linker" aria-hidden="true"><span class="octicon octicon-link"></span></a>NTFS-Linker</h1>
+<a id="ntfs-linker" class="anchor" href="#ntfs-linker" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>NTFS-Linker</h1>
 
 <p>Author: Zack Weger</p>
 
@@ -40,7 +40,7 @@
 <p>Status: Alpha</p>
 
 <h2>
-<a id="basic-usage" class="anchor" href="#basic-usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Basic usage:</h2>
+<a id="basic-usage" class="anchor" href="#basic-usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Basic usage:</h2>
 
 <pre><code>C:\&gt; ntfs-linker.exe --ntfs-dir .\journals\ --output .\parsed-output\
 
@@ -48,7 +48,7 @@ C:\&gt; ntfs-linker.exe --image MyEvidence.E01 --ntfs-dir .\journals\ --output .
 </code></pre>
 
 <h2>
-<a id="input" class="anchor" href="#input" aria-hidden="true"><span class="octicon octicon-link"></span></a>Input</h2>
+<a id="input" class="anchor" href="#input" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Input</h2>
 
 <p><code>ntfs-linker</code> operates off of a directory of input containing $UsnJrnl, 
 $Logfile, and $MFT. The $UsnJrnl should be the $J alternate data stream and it 
@@ -86,7 +86,7 @@ will be retrieved from each VSC and then the entire collection will be parsed.
 The files will be copied out into a directory structure like the one above.</p>
 
 <h2>
-<a id="output" class="anchor" href="#output" aria-hidden="true"><span class="octicon octicon-link"></span></a>Output</h2>
+<a id="output" class="anchor" href="#output" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Output</h2>
 
 <p>The output will look like this:</p>
 
@@ -115,77 +115,76 @@ will contain detailed information about the $LogFile and $UsnJrnl for a particul
 snapshot.</p>
 
 <h2>
-<a id="database-schema" class="anchor" href="#database-schema" aria-hidden="true"><span class="octicon octicon-link"></span></a>Database schema</h2>
+<a id="database-schema" class="anchor" href="#database-schema" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Database schema</h2>
 
 <p>The SQLite database created by <code>ntfs-linker</code> will have the following structure:</p>
 
 <pre><code>CREATE TABLE event (
-    Position        int,
-    Timestamp       text,
-    EventSource     text,
-    EventType       text,
-    FileName        text,
-    Folder          text,
-    FullPath        text,
-    MFTRecord       int,
-    ParentMFTRecord int,
-    USN_LSN         int,
-    OldFileName     text,
-    OldFolder       text,
-    OldParentRecord int,
-    Offset          int,
-    Created         text,
-    Modified        text,
-    Comment         text,
-    Snapshot        text,
-    Volume          text
+    Position            int, 
+    Timestamp           text, 
+    EventSource         text, 
+    EventType           text, 
+    FileName            text, 
+    Folder              text, 
+    Full_Path           text, 
+    MFT_Record          int, 
+    Parent_MFT_Record   int, 
+    USN_LSN             int, 
+    Old_File_Name       text, 
+    Old_Folder          text, 
+    Old_Parent_ Record  int, 
+    Offset              int, 
+    Created             text, 
+    Modified            text, 
+    Comment             text, 
+    Snapshot            text, 
+    Volume              text
 )
 
 CREATE TABLE log (
-    CurrentLSN      int,
-    PrevLSN         int,
-    UndoLSN         int,
-    ClientID        int,
-    RecordType      int,
-    RedoOP          text,
-    UndoOP          text,
-    TargetAttribute int,
-    MFTClusterIndex int,
-    Offset          int,
-    Snapshot        text,
+    CurrentLSN      int, 
+    PrevLSN         int, 
+    UndoLSN         int, 
+    ClientID        int, 
+    RecordType      int, 
+    RedoOP          text, 
+    UndoOP          text, 
+    TargetAttribute int, 
+    MFTClusterIndex int, 
+    Offset          int, 
+    Snapshot        text, 
     Volume          text
 )
 
 CREATE TABLE usn (
-    MFTRecord       int,
-    ParentMFTRecord int,
-    USN             int,
-    Timestamp       text,
-    Reason          text,
-    FileName        text,
-    FullPath        text,
-    Folder          text,
-    Offset          int,
-    Snapshot        text,
+    MFTRecNo        int, 
+    ParRecNo        int, 
+    USN             int, 
+    Timestamp       text, 
+    Reason          text, 
+    FileName        text, 
+    PossiblePath    text, 
+    PossibleParPath text, 
+    Offset          int, 
+    Snapshot        text, 
     Volume          text
 )
-
 </code></pre>
 
 <h3>
-<a id="useful-queries" class="anchor" href="#useful-queries" aria-hidden="true"><span class="octicon octicon-link"></span></a>Useful queries</h3>
+<a id="useful-queries" class="anchor" href="#useful-queries" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Useful queries</h3>
 
 <p>The following are useful queries.</p>
 
 <h3>
-<a id="get-all-events" class="anchor" href="#get-all-events" aria-hidden="true"><span class="octicon octicon-link"></span></a>Get all events</h3>
+<a id="get-all-events" class="anchor" href="#get-all-events" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Get all events</h3>
 
 <pre><code>SELECT *
 FROM EVENT
 </code></pre>
 
 <h4>
-<a id="ccleaner" class="anchor" href="#ccleaner" aria-hidden="true"><span class="octicon octicon-link"></span></a>CCleaner</h4>
+<a id="ccleaner" class="anchor" href="#ccleaner" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>CCleaner</h4>
 
 <pre><code>SELECT *
 FROM EVENT
@@ -193,7 +192,7 @@ WHERE filename REGEXP "^[\.zZ]+$"
 </code></pre>
 
 <h4>
-<a id="daily-histogram" class="anchor" href="#daily-histogram" aria-hidden="true"><span class="octicon octicon-link"></span></a>Daily histogram</h4>
+<a id="daily-histogram" class="anchor" href="#daily-histogram" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Daily histogram</h4>
 
 <pre><code>SELECT substr(event.Timestamp, 0, 11) AS day, count(*) AS count
 FROM event
@@ -201,7 +200,7 @@ GROUP BY day
 </code></pre>
 
 <h2>
-<a id="understanding-the-output" class="anchor" href="#understanding-the-output" aria-hidden="true"><span class="octicon octicon-link"></span></a>Understanding the output</h2>
+<a id="understanding-the-output" class="anchor" href="#understanding-the-output" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Understanding the output</h2>
 
 <p>All timestamps are in <a href="https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations">ISO 8601 format</a>, 
 i.e., YYYY-mm-dd HH:MM:SS.1234567.
@@ -212,7 +211,7 @@ Specifically, if the time is <em>before</em> 1970 or <em>after</em> 2038, the ti
 not be displayed properly.</p>
 
 <h3>
-<a id="usntxt" class="anchor" href="#usntxt" aria-hidden="true"><span class="octicon octicon-link"></span></a>usn.txt</h3>
+<a id="usntxt" class="anchor" href="#usntxt" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>usn.txt</h3>
 
 <p>The <a href="https://msdn.microsoft.com/en-us/library/aa365722%28VS.85%29.aspx">USN Journal reason code</a>
  uses a bit packing scheme for each possible 
@@ -223,7 +222,7 @@ are printed is completely arbitrary and has no correlation to the order in which
 they occurred.</p>
 
 <h4>
-<a id="usn-journal-example" class="anchor" href="#usn-journal-example" aria-hidden="true"><span class="octicon octicon-link"></span></a>USN Journal Example:</h4>
+<a id="usn-journal-example" class="anchor" href="#usn-journal-example" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>USN Journal Example:</h4>
 
 <ul>
 <li>USN|FILE_CREATE</li>
@@ -235,7 +234,7 @@ they occurred.</p>
 </ul>
 
 <h3>
-<a id="logtxt" class="anchor" href="#logtxt" aria-hidden="true"><span class="octicon octicon-link"></span></a>log.txt</h3>
+<a id="logtxt" class="anchor" href="#logtxt" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>log.txt</h3>
 
 <p>$LogFile event analysis is much more complicated.  Each record contains a redo 
 and undo op code, as well as redo and undo data. In the case of data write 
@@ -244,16 +243,16 @@ file sectors on disc for non-resident files. At this time NTFS-Linker does not
 recover the data written.</p>
 
 <h3>
-<a id="eventstxt" class="anchor" href="#eventstxt" aria-hidden="true"><span class="octicon octicon-link"></span></a>events.txt</h3>
+<a id="eventstxt" class="anchor" href="#eventstxt" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>events.txt</h3>
 
 <h4>
-<a id="event-source" class="anchor" href="#event-source" aria-hidden="true"><span class="octicon octicon-link"></span></a>Event Source</h4>
+<a id="event-source" class="anchor" href="#event-source" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Event Source</h4>
 
 <p>This can be <code>$UsnJrnl/$J</code>, <code>$LogFile</code>, or "<code>$UsnJrnl</code> entry in <code>$LogFile</code>". 
 <code>$LogFile</code> actually contains complete <code>$UsnJrnl</code> entries.</p>
 
 <h4>
-<a id="file-names-and-paths" class="anchor" href="#file-names-and-paths" aria-hidden="true"><span class="octicon octicon-link"></span></a>File names and paths</h4>
+<a id="file-names-and-paths" class="anchor" href="#file-names-and-paths" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>File names and paths</h4>
 
 <p>While a file name can be extracted directly from a Log/Usn entry, the paths must
 be calculated. The "folder" path is the calculated path to the parent directory,
@@ -270,7 +269,7 @@ occurred, and "Full Path" will represent the path to the file which NTFS-Linker
 previously thought was at that record. </p>
 
 <h4>
-<a id="event-ordering" class="anchor" href="#event-ordering" aria-hidden="true"><span class="octicon octicon-link"></span></a>Event Ordering</h4>
+<a id="event-ordering" class="anchor" href="#event-ordering" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Event Ordering</h4>
 
 <p>While the exact order of <code>$LogFile</code> and <code>$UsnJrnl</code> events is known, 
 respectively, the combined ordering is not. They must be ordered according to 
@@ -368,13 +367,13 @@ were deleted at 2012-04-07 21:40:26.5203196.</p>
 </table>
 
 <h4>
-<a id="offset" class="anchor" href="#offset" aria-hidden="true"><span class="octicon octicon-link"></span></a>Offset</h4>
+<a id="offset" class="anchor" href="#offset" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Offset</h4>
 
 <p>The actual file offset (in decimal) to the beginning of the event record in the 
 source file.</p>
 
 <h4>
-<a id="created-modified-comment" class="anchor" href="#created-modified-comment" aria-hidden="true"><span class="octicon octicon-link"></span></a>Created, Modified, Comment</h4>
+<a id="created-modified-comment" class="anchor" href="#created-modified-comment" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Created, Modified, Comment</h4>
 
 <p>For <code>$LogFile</code> create events, the timestamps from the Standard Information 
 attribute (regardless of the faith NTFS-Linker places in them) and whether those 
@@ -383,7 +382,7 @@ not, the "Comment" field will say ``. This allows for easy detection of
 timestomping.</p>
 
 <h4>
-<a id="usnjrnl-event-collapsing" class="anchor" href="#usnjrnl-event-collapsing" aria-hidden="true"><span class="octicon octicon-link"></span></a><code>$UsnJrnl</code> event collapsing</h4>
+<a id="usnjrnl-event-collapsing" class="anchor" href="#usnjrnl-event-collapsing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><code>$UsnJrnl</code> event collapsing</h4>
 
 <p><code>$UsnJrnl</code> records are combined in events.txt to display one event for each 
 logical event that actually occurred. For instance, for a rename event, 
@@ -396,7 +395,7 @@ embedded events are found less often, for rename and move events, it is generall
 not possible to retrieve both the file name before and the file name after.</p>
 
 <h2>
-<a id="implementation-details" class="anchor" href="#implementation-details" aria-hidden="true"><span class="octicon octicon-link"></span></a>Implementation Details</h2>
+<a id="implementation-details" class="anchor" href="#implementation-details" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Implementation Details</h2>
 
 <p>This section contains notes on the inner-workings of NTFS-Linker. Specifically,
 we outline the process by which NTFS-Linker recovers events from <code>$LogFile</code>, 
@@ -404,7 +403,7 @@ we outline the process by which NTFS-Linker recovers events from <code>$LogFile<
 known, their inter-related meaning requires explanation.</p>
 
 <h3>
-<a id="background-sequencing" class="anchor" href="#background-sequencing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Background: Sequencing</h3>
+<a id="background-sequencing" class="anchor" href="#background-sequencing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Background: Sequencing</h3>
 
 <p>In this document, by <code>sequence</code>, we mean some ordered collection of objects,
 which could possibly repeat. Given a sequence, we can obtain a <code>subsequence</code>
@@ -443,7 +442,7 @@ by <em>removing</em> zero or more elements. For example, the following is a sequ
 </table>
 
 <h3>
-<a id="changes-in-state" class="anchor" href="#changes-in-state" aria-hidden="true"><span class="octicon octicon-link"></span></a>Changes in State</h3>
+<a id="changes-in-state" class="anchor" href="#changes-in-state" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Changes in State</h3>
 
 <p>Put simply, a filesystem event implies a change in state of the filesystem. When
 reporting on an event, it's often desirable to display that in the context of
@@ -484,7 +483,7 @@ changes in state of the filesystem as events are processed, in order to recover
 the context of each event.</p>
 
 <h3>
-<a id="event-ordering-1" class="anchor" href="#event-ordering-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Event Ordering</h3>
+<a id="event-ordering-1" class="anchor" href="#event-ordering-1" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Event Ordering</h3>
 
 <p>At some point we arrive at this situation: we have a sequence of events from
 <code>$UsnJrnl</code> and a sequence of events from <code>$LogFile</code>. For the <code>$UsnJrnl</code> events
@@ -502,7 +501,7 @@ types found in <code>$LogFile</code> will always be output directly after the pr
 <code>$LogFile</code> create event.</p>
 
 <h3>
-<a id="volume-shadows-and-processing-order" class="anchor" href="#volume-shadows-and-processing-order" aria-hidden="true"><span class="octicon octicon-link"></span></a>Volume Shadows and Processing Order</h3>
+<a id="volume-shadows-and-processing-order" class="anchor" href="#volume-shadows-and-processing-order" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Volume Shadows and Processing Order</h3>
 
 <p>A Volume Shadow Copy represents a snapshot of a filesystem at a particular time.
 Often, multiple shadow copies may be present which are close together in time
@@ -521,7 +520,7 @@ from the present extending into the past of unified events which are mostly in
 the same order as the events occurred. <em>[ed: <em>mostly???</em>]</em></p>
 
 <h3>
-<a id="extracting-events-from-usnjrnl" class="anchor" href="#extracting-events-from-usnjrnl" aria-hidden="true"><span class="octicon octicon-link"></span></a>Extracting events from <code>$UsnJrnl</code>
+<a id="extracting-events-from-usnjrnl" class="anchor" href="#extracting-events-from-usnjrnl" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Extracting events from <code>$UsnJrnl</code>
 </h3>
 
 <p>When a file is created, renamed, moved, or deleted, <code>$UsnJrnl</code> will contain
@@ -535,7 +534,7 @@ If the flags for a group of records indicate the file was neither created,
 deleted, moved, or renamed, then the records are discarded.</p>
 
 <h3>
-<a id="extracting-events-from-logfile" class="anchor" href="#extracting-events-from-logfile" aria-hidden="true"><span class="octicon octicon-link"></span></a>Extracting events from <code>$LogFile</code>
+<a id="extracting-events-from-logfile" class="anchor" href="#extracting-events-from-logfile" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Extracting events from <code>$LogFile</code>
 </h3>
 
 <p><code>$LogFile</code> records exist at a lower-level than <code>$UsnJrnl</code>, so extracting logical
@@ -718,7 +717,7 @@ then we mark a new event if it matches the above event type sequences.
 Regardless, the transaction data is cleared.</p>
 
 <h2>
-<a id="further-reading" class="anchor" href="#further-reading" aria-hidden="true"><span class="octicon octicon-link"></span></a>Further reading</h2>
+<a id="further-reading" class="anchor" href="#further-reading" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Further reading</h2>
 
 <p>There are a number of good resources online about NTFS, $MFT, $UsnJrnl, 
 $Logfile, and Volume Shadow Copies. Among them:</p>
