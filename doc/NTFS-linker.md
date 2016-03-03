@@ -9,7 +9,7 @@ Status: Alpha
 
     C:\> ntfs-linker.exe --input .\journals\ --output .\parsed-output\
 
-    C:\> ntfs-linker.com --image MyEvidence.E01 --output .\parsed-output\
+    C:\> ntfs-linker.com --image MyEvidence.E01 --input .\journals\ --output .\parsed-output\
 
 ## Input
 
